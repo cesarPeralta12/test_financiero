@@ -4,7 +4,7 @@
     {
       "name": "dia-uno",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["--disable-warning=ExperimentalWarning", "src/server.js"],
+      "runtimeArgs": ["--experimental-sqlite", "--disable-warning=ExperimentalWarning", "src/server.js"],
       "port": 3000
     }
   ]

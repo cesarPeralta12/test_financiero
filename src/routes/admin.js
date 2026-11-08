@@ -302,7 +302,7 @@ router.get('/ordenes/:id', (req, res, next) => {
     <table class="data stack-sm"><thead><tr><th>Recibido</th><th>Evento</th><th>Tipo</th><th>Resultado</th></tr></thead><tbody>${events.map((e) => html`<tr><td data-label="Recibido">${c.dateEs(e.received_at, { time: true })}</td><td data-label="Evento" class="small">${e.event_id || '—'}</td><td data-label="Tipo">${e.type || '—'}</td><td data-label="Resultado">${c.badge(e.status, e.status === 'procesado' ? 'ok' : e.status === 'rechazado' ? 'bad' : '')} ${e.reason || ''}</td></tr>`)}</tbody></table>
     <h2 class="section">Permisos concedidos</h2>
     ${ents.length ? html`<ul>${ents.map((e) => html`<li>${c.GRANT_LABELS[e.code]}${e.revoked_at ? `: revocado (${e.revoke_reason})` : ''}</li>`)}</ul>` : html`<p class="muted">Ninguno.</p>`}
-    ${!config.isProd && o.gateway === 'sandbox'
+    ${config.payments.sandboxEnabled && o.gateway === 'sandbox'
       ? html`<h2 class="section">Herramientas de la pasarela de pruebas</h2>
           <div class="actions">
             ${o.status === 'pagada' ? html`<form method="post" action="/admin/ordenes/${o.id}/reembolsar">${c.csrfField(ctx)}<button class="btn btn-secondary" type="submit">Simular reembolso en la pasarela</button></form>` : ''}
@@ -313,7 +313,7 @@ router.get('/ordenes/:id', (req, res, next) => {
 });
 
 router.post('/ordenes/:id/reembolsar', (req, res, next) => {
-  if (config.isProd) return next(notFound());
+  if (!config.payments.sandboxEnabled) return next(notFound());
   const o = db.one('SELECT * FROM orders WHERE id = ?', intParam(req.params.id));
   if (!o) return next(notFound());
   sandbox.refund(o.ref);
@@ -322,7 +322,7 @@ router.post('/ordenes/:id/reembolsar', (req, res, next) => {
 });
 
 router.post('/ordenes/:id/reenviar', (req, res, next) => {
-  if (config.isProd) return next(notFound());
+  if (!config.payments.sandboxEnabled) return next(notFound());
   const o = db.one('SELECT * FROM orders WHERE id = ?', intParam(req.params.id));
   if (!o) return next(notFound());
   const last = db.one('SELECT id FROM sandbox_deliveries WHERE payload LIKE ? ORDER BY id DESC LIMIT 1', `%${o.ref}%`);

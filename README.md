@@ -17,7 +17,7 @@ Implementa el documento *Día Uno: alcance de desarrollo de la plataforma* (v1.0
 
 ## Stack
 
-- **Node.js 22.13 o superior** (probado con 24.12), **Express 5** y **SQLite** integrado en Node (`node:sqlite`).
+- **Node.js 22.5 o superior** (probado con 22.11, 22.23 y 24.12), **Express 5** y **SQLite** integrado en Node (`node:sqlite`). Los scripts arrancan con `--experimental-sqlite`, necesario en Node 22 anterior a la 22.13.
 - Interfaz renderizada en el servidor, sin framework de cliente; funciona sin JavaScript. Fuente Hanken Grotesk autoalojada (licencia OFL).
 - Importes con precisión decimal (`decimal.js`), PDF con `pdfkit`, correo SMTP con `nodemailer`, IA con el SDK oficial `@anthropic-ai/sdk`.
 
@@ -54,14 +54,42 @@ En desarrollo:
 `APP_ENV` puede ser `development`, `testing` o `production`. Cada entorno usa su propia base de datos (`data/<APP_ENV>.db` por defecto) y su propia configuración. En `production`:
 
 - Son obligatorias `APP_URL` y `PAYMENT_WEBHOOK_SECRET`; la aplicación no arranca sin ellas.
-- La pasarela de pruebas, la simulación de fallos de IA y la bandeja local de correos se desactivan.
-- Las cookies se marcan `Secure` y `__Host-`, y se envía HSTS. Con `FORCE_HTTPS=true` se redirige a HTTPS (detrás de un proxy, `TRUST_PROXY=true`).
+- La simulación de fallos de IA y la bandeja local de correos se desactivan. La pasarela de pruebas también, salvo que un servidor de pruebas la habilite con `ALLOW_SANDBOX=true` (aparece el aviso «Versión de prueba: los pagos son simulados»).
+- Se redirige a HTTPS, las cookies se marcan `Secure` y `__Host-` y se envía HSTS. Detrás de un proxy la app confía en `X-Forwarded-Proto`. El chequeo de salud y los webhooks no se redirigen.
 
 Las claves y los secretos solo se leen de variables de entorno; `.env` está en `.gitignore`. Todas las variables están documentadas en `.env.example`.
 
-## Despliegue
+## Despliegue con Docker (Coolify, Dokploy, Easypanel o un VPS)
 
-1. Servidor con Node.js 22.13 o superior, detrás de un proxy con HTTPS (Nginx, Caddy o el balanceador del hosting).
+El repositorio incluye un `Dockerfile` con Node 24. La imagen arranca en modo producción, aplica las migraciones y carga el contenido inicial sola; no hace falta ejecutar `npm run setup`.
+
+En Coolify: *Create a new Application*, el repositorio, rama `main`, *Build Pack* **Dockerfile** y *Base Directory* `/`.
+
+También funciona con *Build Pack* **Nixpacks**: el archivo `nixpacks.toml` fija Node 22 (Nixpacks no ofrece Node 24) y arranca con `--experimental-sqlite`, que necesitan las versiones 22 anteriores a la 22.13 para usar SQLite. Las 58 pruebas pasan con Node 22.11 y 22.23. Ten en cuenta que Nixpacks está en modo mantenimiento y sus autores recomiendan Railpack; por eso Docker sigue siendo la opción preferida.
+
+Con cualquiera de los dos, antes del primer despliegue:
+
+1. **Puerto:** en *Ports Exposes*, `3000`.
+2. **Dominio:** asigna uno con HTTPS (Coolify emite el certificado). Escríbelo igual en `APP_URL`.
+3. **Almacenamiento persistente** (*Persistent Storage*, tipo volumen): uno montado en `/app/data` (base de datos) y otro en `/app/backups` (respaldos). Sin ellos, cada despliegue borra usuarios, pagos y planes.
+4. **Variables de entorno:**
+
+| Variable | Valor |
+|---|---|
+| `APP_URL` | `https://tu-dominio` (obligatoria) |
+| `PAYMENT_WEBHOOK_SECRET` | un secreto largo y aleatorio (obligatoria) |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | la cuenta de administración que se crea al arrancar |
+| `ALLOW_SANDBOX` | `true` mientras no haya pasarela real: activa los pagos simulados |
+| `ANTHROPIC_API_KEY` | opcional; sin ella el coach usa el proveedor local |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | opcionales; sin ellas no salen los correos de verificación y recuperación |
+
+Si de momento usas un dominio sin certificado (http), añade `FORCE_HTTPS=false` y `SECURE_COOKIES=false`; si no, el navegador rechaza la cookie de sesión y ningún formulario funciona. Úsalo solo para pruebas.
+
+Para cargar la cuenta de demostración en ese servidor, ejecuta desde tu equipo `npm run demo -- https://tu-dominio` con `DEMO_EMAIL` y `DEMO_PASSWORD` en tu `.env` local.
+
+## Despliegue sin Docker
+
+1. Servidor con Node.js 22.5 o superior, detrás de un proxy con HTTPS (Nginx, Caddy o el balanceador del hosting).
 2. Copia el código, ejecuta `npm ci --omit=dev` y crea `.env` con `APP_ENV=production`, `APP_URL`, `PAYMENT_WEBHOOK_SECRET`, `TRUST_PROXY=true`, `FORCE_HTTPS=true`, las credenciales SMTP, la clave de IA, `ADMIN_EMAIL` y `ADMIN_PASSWORD`.
 3. Ejecuta `npm run setup` una vez (y `npm run migrate` en cada actualización).
 4. Arranca con un supervisor (systemd, PM2 o el del hosting): `npm start`. Para separar la cola del proceso web, pon `WORKER_INLINE=false` y arranca también `npm run worker`.

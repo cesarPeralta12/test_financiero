@@ -5,21 +5,21 @@
   "description": "Día Uno: test financiero gratuito, evaluación profunda, Plan Maestro y acompañamiento.",
   "type": "commonjs",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.5"
   },
   "scripts": {
-    "start": "node --disable-warning=ExperimentalWarning src/server.js",
-    "dev": "node --disable-warning=ExperimentalWarning --watch src/server.js",
-    "worker": "node --disable-warning=ExperimentalWarning src/worker.js",
-    "migrate": "node --disable-warning=ExperimentalWarning src/db/migrate.js",
-    "seed": "node --disable-warning=ExperimentalWarning src/db/seed.js",
+    "start": "node --experimental-sqlite --disable-warning=ExperimentalWarning src/server.js",
+    "dev": "node --experimental-sqlite --disable-warning=ExperimentalWarning --watch src/server.js",
+    "worker": "node --experimental-sqlite --disable-warning=ExperimentalWarning src/worker.js",
+    "migrate": "node --experimental-sqlite --disable-warning=ExperimentalWarning src/db/migrate.js",
+    "seed": "node --experimental-sqlite --disable-warning=ExperimentalWarning src/db/seed.js",
     "setup": "npm run migrate && npm run seed",
-    "backup": "node --disable-warning=ExperimentalWarning scripts/backup.js",
-    "backup:verify": "node --disable-warning=ExperimentalWarning scripts/verify-backup.js",
-    "restore": "node --disable-warning=ExperimentalWarning scripts/restore.js",
-    "demo": "node --disable-warning=ExperimentalWarning scripts/demo.js",
-    "check:mobile": "node --disable-warning=ExperimentalWarning scripts/check-mobile.js",
-    "test": "node --disable-warning=ExperimentalWarning --test --test-concurrency=1 \"test/*.test.js\""
+    "backup": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/backup.js",
+    "backup:verify": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/verify-backup.js",
+    "restore": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/restore.js",
+    "demo": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/demo.js",
+    "check:mobile": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/check-mobile.js",
+    "test": "node --experimental-sqlite --disable-warning=ExperimentalWarning --test --test-concurrency=1 \"test/*.test.js\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

@@ -139,7 +139,13 @@ async function main() {
   const s = await cdp(target.webSocketDebuggerUrl);
   await s.send('Page.enable');
   await s.send('Network.enable');
-  await s.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }] });
+  // Sin animaciones para que las capturas de página completa muestren todo el contenido.
+  await s.send('Emulation.setEmulatedMedia', {
+    features: [
+      { name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' },
+      { name: 'prefers-reduced-motion', value: 'reduce' },
+    ],
+  });
   if (shots) fs.mkdirSync(outDir, { recursive: true });
   const problems = [];
   const host = new URL(base).hostname;

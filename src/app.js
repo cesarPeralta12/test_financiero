@@ -19,11 +19,13 @@ function securityHeaders(req, res, next) {
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
     'Cross-Origin-Opener-Policy': 'same-origin',
   });
-  if (config.isProd || config.forceHttps) res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  if (config.forceHttps && config.secureCookies) res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   next();
 }
 
 function httpsRedirect(req, res, next) {
+  // El chequeo de salud y los webhooks firmados no se redirigen (llegan por la red interna).
+  if (req.path === '/salud' || req.path.startsWith('/webhooks/')) return next();
   if (config.forceHttps && !req.secure && req.get('x-forwarded-proto') !== 'https') {
     return res.redirect(301, `https://${req.get('host')}${req.originalUrl}`);
   }
@@ -82,7 +84,7 @@ function createApp() {
   app.use(require('./routes/dashboard'));
   app.use('/admin', require('./routes/admin'));
   app.use('/api/v1', require('./routes/api'));
-  if (!config.isProd) app.use(require('./routes/sandbox'));
+  if (config.payments.sandboxEnabled) app.use(require('./routes/sandbox'));
 
   app.use((req, res, next) => {
     const err = new Error('no encontrado');

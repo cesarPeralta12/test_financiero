@@ -5,7 +5,7 @@ const db = require('../db');
 const config = require('../config');
 const { token, sha256, uuid, safeEqual } = require('./security');
 
-const COOKIE = config.isProd ? '__Host-du_sid' : 'du_sid';
+const COOKIE = config.secureCookies ? '__Host-du_sid' : 'du_sid';
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
 
 function parseCookies(header) {
@@ -27,7 +27,7 @@ function parseCookies(header) {
 
 function setCookie(res, value, maxAgeSec) {
   const parts = [`${COOKIE}=${encodeURIComponent(value)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax', `Max-Age=${maxAgeSec}`];
-  if (config.isProd || config.forceHttps) parts.push('Secure');
+  if (config.secureCookies) parts.push('Secure');
   res.append('Set-Cookie', parts.join('; '));
 }
 

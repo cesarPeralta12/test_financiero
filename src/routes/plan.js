@@ -38,7 +38,7 @@ function startForm(ctx, { action, label, error = null, defaultDate = planDomain.
 function statusBanner(ctx, p) {
   if (!p) return '';
   if (p.status === 'en_cola' || p.status === 'generando') {
-    return html`<div class="note note--ok" role="status"><p><span class="spinner" aria-hidden="true"></span> <strong>Estamos preparando la versión ${p.version_number} de tu plan.</strong> Calculamos las cifras y redactamos las explicaciones. Esta página se actualiza sola.</p>${p.error_message ? html`<p class="small">Hubo un fallo temporal; lo reintentamos automáticamente.</p>` : ''}</div>`;
+    return html`<div class="note note--ok" role="status" data-plan-waiting><p><span class="spinner" aria-hidden="true"></span> <strong>Estamos preparando la versión ${p.version_number} de tu plan.</strong> Calculamos las cifras y redactamos las explicaciones. Esta página se actualiza sola.</p>${p.error_message ? html`<p class="small">Hubo un fallo temporal; lo reintentamos automáticamente.</p>` : ''}</div>`;
   }
   if (p.status === 'fallido') {
     return html`<div class="note note--risk" role="alert"><p><strong>No pudimos generar la versión ${p.version_number}.</strong> ${p.error_message || ''} No se hizo ningún cobro.</p>

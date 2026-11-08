@@ -12,7 +12,7 @@ const NAME = 'sandbox';
 const HEADER = 'dia-firma';
 
 function webhookUrl() {
-  return config.payments.sandboxWebhookUrl || `${config.appUrl}/webhooks/pagos/${NAME}`;
+  return config.payments.sandboxWebhookUrl || `http://127.0.0.1:${config.port}/webhooks/pagos/${NAME}`;
 }
 
 /** Crea la sesión de pago del lado del «proveedor» y devuelve la URL de checkout. */

@@ -1,0 +1,16 @@
+# Despliegue con Nixpacks (por ejemplo, Coolify con «Build Pack: Nixpacks»).
+# Nixpacks no ofrece Node 24, así que se fija Node 22. Las versiones 22 anteriores
+# a la 22.13 solo exponen node:sqlite con --experimental-sqlite; el arranque lo
+# incluye siempre (las versiones nuevas lo aceptan sin cambios).
+# Los datos viven en /app/data y los respaldos en /app/backups: monta ahí
+# almacenamiento persistente, o se perderán en cada despliegue.
+
+[variables]
+NIXPACKS_NODE_VERSION = "22"
+NODE_ENV = "production"
+APP_ENV = "production"
+DATABASE_PATH = "/app/data/production.db"
+BACKUP_DIR = "/app/backups"
+
+[start]
+cmd = "node --experimental-sqlite --disable-warning=ExperimentalWarning src/server.js"

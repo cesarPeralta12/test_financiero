@@ -52,6 +52,9 @@ const config = {
   appUrl: (env.APP_URL || `http://localhost:${port}`).replace(/\/$/, ''),
   trustProxy: bool(env.TRUST_PROXY, isProd),
   forceHttps: bool(env.FORCE_HTTPS, isProd),
+  // Cookies «Secure»: solo funcionan con HTTPS. Desactívalas únicamente en un despliegue
+  // de pruebas servido por http (por ejemplo, un dominio temporal sin certificado).
+  secureCookies: bool(env.SECURE_COOKIES, bool(env.FORCE_HTTPS, isProd)),
   databasePath: env.DATABASE_PATH || path.join(ROOT, 'data', `${APP_ENV}.db`),
   backupDir: env.BACKUP_DIR || path.join(ROOT, 'backups'),
   backupKeep: int(env.BACKUP_KEEP, 14),
@@ -68,6 +71,9 @@ const config = {
     // La pasarela de pruebas envía sus eventos a esta URL (en producción la configura el proveedor).
     sandboxWebhookUrl: env.SANDBOX_WEBHOOK_URL || '',
     sandboxAutoDeliver: bool(env.SANDBOX_AUTO_DELIVER, APP_ENV !== 'testing'),
+    // La pasarela de pruebas está activa fuera de producción, o en un servidor de
+    // pruebas que la habilite explícitamente con ALLOW_SANDBOX=true.
+    sandboxEnabled: !isProd || bool(env.ALLOW_SANDBOX, false),
   },
 
   ai: {

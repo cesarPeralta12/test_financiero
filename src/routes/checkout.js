@@ -86,7 +86,7 @@ router.get('/pago/retorno', needAccount, (req, res, next) => {
     pendiente: html`<h1>Confirmando tu pago</h1>
       <p class="lead"><span class="spinner" aria-hidden="true"></span> Esperamos la confirmación de la pasarela. Esta página se actualiza sola.</p>
       <p class="small muted">Si cerraste el pago sin terminarlo, no se hizo ningún cargo. Puedes volver a <a href="/comprar/${order.product_code}">intentarlo</a>.</p>`,
-    pagada: html`<h1>Pago confirmado</h1>
+    pagada: html`<h1 data-celebrate>Pago confirmado</h1>
       <p class="lead">Ya tienes acceso a ${order.product_name}.</p>
       <div class="actions"><a class="btn btn-primary" href="${next_[0]}">${next_[1]}</a></div>`,
     fallida: html`<h1>El pago no se completó</h1>

@@ -12,7 +12,9 @@ const log = require('./lib/log');
 
 db.open();
 migrate({ quiet: true });
-if (!config.isProd) seed({ quiet: true });
+// Contenido inicial idempotente. En producción la cuenta de administración solo se
+// crea si ADMIN_EMAIL y ADMIN_PASSWORD están definidos.
+seed({ quiet: config.isTest });
 
 const app = createApp();
 const server = app.listen(config.port, () => {

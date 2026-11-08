@@ -1,0 +1,567 @@
+/* Día Uno — movimiento
+   Todo depende de la clase .motion, que early.js añade solo si la persona no pidió
+   reducir movimiento. Sin JavaScript, la página se ve completa y estática. */
+:root {
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Transición suave entre páginas (navegadores con View Transitions). */
+@view-transition {
+  navigation: auto;
+}
+header .bar {
+  view-transition-name: cabecera;
+}
+::view-transition-old(root) {
+  animation: vt-out 0.16s ease both;
+}
+::view-transition-new(root) {
+  animation: vt-in 0.34s var(--ease-out) both;
+}
+@keyframes vt-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@keyframes vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+/* Marca: la cuadrícula se enciende celda por celda. */
+.motion .brand-mark i {
+  animation: cell-in 0.5s var(--ease-out) both;
+}
+.motion .brand-mark i:nth-child(2) { animation-delay: 0.05s; }
+.motion .brand-mark i:nth-child(3) { animation-delay: 0.1s; }
+.motion .brand-mark i:nth-child(4) { animation-delay: 0.15s; }
+.motion .brand-mark i:nth-child(5) { animation-delay: 0.2s; }
+.motion .brand-mark i:nth-child(6) { animation-delay: 0.25s; }
+.motion .brand-mark i:nth-child(7) { animation-delay: 0.3s; }
+.motion .brand-mark i:nth-child(8) { animation-delay: 0.35s; }
+.motion .brand-mark i:nth-child(9) { animation-delay: 0.4s; }
+@keyframes cell-in {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+.brand-mark i {
+  transition: background-color 0.25s ease;
+}
+.brand:hover .brand-mark i {
+  background: var(--pine);
+}
+.brand:hover .brand-mark i:nth-child(even) {
+  transition-delay: 0.08s;
+}
+
+/* Navegación: subrayado que crece. */
+.nav a {
+  background: linear-gradient(var(--pine), var(--pine)) left calc(100% - 1px) / 0 2px no-repeat;
+  transition: background-size 0.25s var(--ease-out), color 0.15s ease;
+}
+.nav a:hover {
+  background-size: 100% 2px;
+}
+
+/* Portada: el titular sube palabra por palabra. */
+.hero .word {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding: 0 0.02em 0.1em;
+  margin-bottom: -0.1em;
+}
+.hero .word > span {
+  display: inline-block;
+}
+.motion .hero .word > span {
+  transform: translateY(110%);
+  animation: word-rise 0.9s var(--ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * 65ms + 120ms);
+}
+@keyframes word-rise {
+  to {
+    transform: none;
+  }
+}
+.motion .hero .lead,
+.motion .hero .actions,
+.motion .hero .progress-meta {
+  opacity: 0;
+  animation: fade-up 0.8s var(--ease-out) forwards;
+}
+.motion .hero .lead {
+  animation-delay: 0.55s;
+}
+.motion .hero .actions {
+  animation-delay: 0.7s;
+}
+.motion .hero .progress-meta {
+  animation-delay: 1.6s;
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Regla de marcas: brotan en secuencia y un destello la recorre. */
+.ticks {
+  position: relative;
+}
+.ticks li {
+  transition: background-color 0.25s ease, height 0.35s var(--ease-spring);
+}
+.motion .ticks.anim li {
+  transform-origin: bottom;
+  animation: tick-in 0.55s var(--ease-spring) both;
+  animation-delay: calc(var(--i, 0) * var(--step, 26ms) + var(--base, 0ms));
+}
+.motion .ticks.anim li.now,
+.motion .ticks li.now.glow {
+  animation: tick-in 0.55s var(--ease-spring) both, tick-glow 2.6s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * var(--step, 26ms) + var(--base, 0ms)), 1.8s;
+}
+@keyframes tick-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+}
+@keyframes tick-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--pine) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+.motion .ticks.sweep::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  left: 0;
+  width: 18%;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--pine) 30%, transparent), transparent);
+  animation: sweep 1.5s var(--ease-out) var(--sweep-delay, 1.2s) both;
+  pointer-events: none;
+}
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(560%);
+    opacity: 0;
+  }
+}
+
+/* Demostración «Día 1 → Día 90» en la portada. */
+.day-demo {
+  text-align: center;
+  padding: 64px 0 8px;
+}
+.day-demo .day-number {
+  margin-bottom: 18px;
+}
+.day-demo .day-number .day-label,
+.day-demo .day-number .day-value {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  margin: 0;
+}
+.day-demo .day-number .day-value {
+  display: inline-block;
+  min-width: 2ch;
+  text-align: left;
+}
+.day-demo h2 {
+  margin-top: 32px;
+}
+.day-demo p.muted {
+  max-width: 34em;
+  margin: 0 auto;
+}
+.day-number.bump {
+  animation: bump 0.5s var(--ease-spring);
+}
+@keyframes bump {
+  40% {
+    transform: scale(1.07);
+  }
+}
+
+/* Revelado al llegar con el desplazamiento. */
+.motion .reveal {
+  transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out), box-shadow 0.3s ease, border-color 0.3s ease;
+  transition-delay: calc(var(--d, 0) * 80ms), calc(var(--d, 0) * 80ms), 0s, 0s;
+}
+.motion .reveal:not(.is-in) {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+/* Botones */
+.btn {
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.2s var(--ease-out), box-shadow 0.25s ease;
+}
+.btn:hover {
+  transform: translateY(-1px);
+}
+.btn:active {
+  transform: translateY(0) scale(0.97);
+}
+.btn-primary:hover {
+  box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--pine) 85%, transparent);
+}
+.btn-secondary:hover {
+  box-shadow: 0 8px 20px -14px color-mix(in srgb, var(--ink) 60%, transparent);
+}
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.motion .btn-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.3) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: shine 4.2s ease-in-out 2.2s infinite;
+}
+@keyframes shine {
+  0% {
+    transform: translateX(-120%);
+  }
+  30%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+.btn.is-busy {
+  pointer-events: none;
+}
+.btn.is-busy::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Tarjetas y pasos con respuesta al cursor */
+.journey li,
+.offer,
+.action-card,
+.next-step,
+.row-card,
+.goal {
+  transition: transform 0.3s var(--ease-out), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.journey li:hover {
+  transform: translateY(-4px);
+}
+.journey .step {
+  transition: color 0.2s ease;
+}
+.journey li:hover .step {
+  color: var(--pine);
+}
+.offer:hover,
+.action-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--pine);
+  box-shadow: 0 18px 36px -24px color-mix(in srgb, var(--ink) 55%, transparent);
+}
+.next-step {
+  position: relative;
+  overflow: hidden;
+}
+.motion .next-step::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background: var(--pine);
+  transform-origin: top;
+  animation: grow-y 0.9s var(--ease-out) 0.3s both;
+}
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+/* Opciones de respuesta */
+.option {
+  transition: border-color 0.15s ease, background-color 0.2s ease, transform 0.2s var(--ease-out), box-shadow 0.2s ease;
+}
+.option:hover {
+  transform: translateX(3px);
+}
+.option:active {
+  transform: scale(0.99);
+}
+.motion .option:has(input:checked) {
+  animation: pop 0.4s var(--ease-spring);
+  box-shadow: 0 8px 20px -16px var(--pine);
+}
+@keyframes pop {
+  45% {
+    transform: scale(1.018);
+  }
+}
+.input {
+  transition: border-color 0.15s ease, box-shadow 0.2s ease;
+}
+.input:focus {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 18%, transparent);
+}
+
+/* Entrada de cada pregunta según la dirección */
+.motion .q-enter-next {
+  animation: slide-next 0.5s var(--ease-out) both;
+}
+.motion .q-enter-prev {
+  animation: slide-prev 0.5s var(--ease-out) both;
+}
+@keyframes slide-next {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+@keyframes slide-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+}
+.motion .q-head .ticks:not(.anim) li.now {
+  animation: tick-now 0.6s var(--ease-spring) both;
+}
+@keyframes tick-now {
+  from {
+    height: 10px;
+    background: var(--ink);
+  }
+}
+
+/* Barras de avance, reparto y gráficos que crecen */
+.motion .meter span,
+.motion .alloc span {
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 1.2s var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 140ms);
+}
+.motion .meter.grow span,
+.motion .alloc.grow span {
+  transform: none;
+}
+.motion .chart .bar-mark path {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  transform: scaleY(0);
+  transition: transform 0.9s var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+.motion .chart.grow .bar-mark path {
+  transform: none;
+}
+.motion .chart polyline {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  transition: stroke-dashoffset 1.6s var(--ease-out);
+}
+.motion .chart.grow polyline {
+  stroke-dashoffset: 0;
+}
+.funnel .bar-fill {
+  transform-origin: left;
+}
+.motion .funnel .bar-fill {
+  animation: grow-x 1s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* Avisos */
+.motion .flash {
+  animation: flash-in 0.6s var(--ease-spring) both;
+}
+@keyframes flash-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+}
+.motion .error-summary {
+  animation: shake 0.45s ease both;
+}
+@keyframes shake {
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+.motion .nav .count {
+  animation: badge 2.4s ease-in-out 1s 3;
+}
+@keyframes badge {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--pine) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+/* Coach */
+.motion .msg-new {
+  animation: msg-in 0.5s var(--ease-out) both;
+}
+.motion .msg-new + .msg-new {
+  animation-delay: 0.15s;
+}
+@keyframes msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+}
+.typing .bubble {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 14px 16px;
+}
+.typing i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  animation: dot 1.1s ease-in-out infinite;
+}
+.typing i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes dot {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+.motion .proposal:has(form) {
+  animation: ring 2s ease 0.6s 2;
+}
+@keyframes ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--pine) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+.suggestions button {
+  transition: transform 0.2s var(--ease-out), border-color 0.15s ease, color 0.15s ease;
+}
+.suggestions button:hover {
+  transform: translateY(-2px);
+}
+
+/* Tareas: se tachan al completarlas */
+.task-title,
+.next-step h2 {
+  background: linear-gradient(currentColor, currentColor) left 58% / 0 1.5px no-repeat;
+  transition: background-size 0.4s var(--ease-out), color 0.3s ease;
+}
+.completing .task-title,
+.completing h2 {
+  background-size: 100% 1.5px;
+  color: var(--ink-3);
+}
+.completing .btn {
+  background: var(--pine);
+  color: var(--pine-on);
+  border-color: var(--pine);
+}
+
+/* Confeti de celebración (lienzo creado por app.js) */
+.confetti {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+}
+
+@media print {
+  .motion .reveal:not(.is-in),
+  .motion .hero .lead,
+  .motion .hero .actions,
+  .motion .hero .progress-meta {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .confetti {
+    display: none;
+  }
+}
+
+/* Las animaciones laterales nunca generan desplazamiento horizontal. */
+main {
+  overflow-x: clip;
+}
+.ticks.sweep {
+  overflow-x: clip;
+}

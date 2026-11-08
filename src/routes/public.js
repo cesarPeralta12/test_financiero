@@ -11,6 +11,14 @@ const { owner } = require('./util');
 
 const router = express.Router();
 
+// Titular dividido en palabras para la animación de entrada (sin JavaScript).
+function words(text) {
+  return String(text)
+    .split(/\s+/)
+    .map((w, i) => html`<span class="word"><span style="--i:${i}">${w}</span></span>`)
+    .reduce((acc, w, i) => (i ? html`${acc} ${w}` : w), '');
+}
+
 router.get('/favicon.svg', (req, res) => {
   res.type('image/svg+xml').set('Cache-Control', 'public, max-age=86400')
     .send(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#265b4d"/><g fill="#ffffff"><rect x="7" y="7" width="5" height="5" rx="1"/></g><g fill="#ffffff" opacity=".35"><rect x="13.5" y="7" width="5" height="5" rx="1"/><rect x="20" y="7" width="5" height="5" rx="1"/><rect x="7" y="13.5" width="5" height="5" rx="1"/><rect x="13.5" y="13.5" width="5" height="5" rx="1"/><rect x="20" y="13.5" width="5" height="5" rx="1"/><rect x="7" y="20" width="5" height="5" rx="1"/><rect x="13.5" y="20" width="5" height="5" rx="1"/><rect x="20" y="20" width="5" height="5" rx="1"/></g></svg>`);
@@ -29,14 +37,14 @@ router.get('/', (req, res) => {
   res.page({
     title: null,
     body: html`<section class="hero" aria-labelledby="hero-title">
-        <h1 id="hero-title">${hero ? hero.title : 'Ordena tu dinero empezando por saber dónde estás.'}</h1>
+        <h1 id="hero-title">${words(hero ? hero.title : 'Ordena tu dinero empezando por saber dónde estás.')}</h1>
         <p class="lead">${hero ? hero.body : ''}</p>
         <div class="actions actions--center">
           ${inProgress
             ? html`<a class="btn btn-primary" href="/test">Continuar el test</a>`
             : finished
               ? html`<a class="btn btn-primary" href="/resultado">Ver mi resultado</a>`
-              : html`<a class="btn btn-primary" href="/test">Comenzar el test gratuito</a>`}
+              : html`<a class="btn btn-primary btn-shine" href="/test">Comenzar el test gratuito</a>`}
           ${req.user ? html`<a class="btn btn-secondary" href="/inicio">Ir a mi cuenta</a>` : html`<a class="btn btn-secondary" href="/entrar">Ya tengo cuenta</a>`}
         </div>
         <div class="hero-ticks">
@@ -53,6 +61,13 @@ router.get('/', (req, res) => {
           <li><span class="step">Paso 3</span><h3>Plan Maestro</h3><p>90 días de acciones y una hoja de ruta de 12 meses.</p><span class="price-tag">${price('plan_maestro')}</span></li>
           <li><span class="step">Paso 4</span><h3>Coach y calculadora</h3><p>Simula, registra y avanza con apoyo.</p><span class="price-tag">${price('acompanamiento')}</span></li>
         </ol>
+      </section>
+
+      <section class="section day-demo" aria-labelledby="h-dia" data-day-demo>
+        <p class="day-number" aria-hidden="true"><span class="day-label">Día</span> <span class="day-value" data-day-value>1</span><span>de 90</span></p>
+        ${c.ticks(Array.from({ length: 90 }, (_, i) => (i === 0 ? 'now' : '')), { days: true })}
+        <h2 id="h-dia">Cada día cuenta</h2>
+        <p class="muted">Con el Plan Maestro, tu Día Uno es la fecha que eliges para empezar. Desde ahí, 90 días de acciones con fecha, motivo e indicador, y una hoja de ruta de 12 meses para no perder el rumbo.</p>
       </section>
 
       <section class="section split" aria-label="Qué es gratis y qué es de pago">

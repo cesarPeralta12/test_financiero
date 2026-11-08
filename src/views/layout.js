@@ -66,13 +66,19 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
         <meta name="theme-color" content="#f4f6f3" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#11171c" media="(prefers-color-scheme: dark)" />
         <link rel="preload" href="/fonts/hanken-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
-        <link rel="stylesheet" href="/css/app.css?v=1" />
+        <link rel="stylesheet" href="/css/app.css?v=2" />
+        <link rel="stylesheet" href="/css/motion.css?v=2" />
+        <script src="/js/early.js?v=2"></script>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <script src="/js/app.js?v=1" defer></script>
+        <script src="/js/app.js?v=2" defer></script>
       </head>
-      <body>
+      <body data-flash="${ctx.flash || ''}">
         <a class="skip" href="#contenido">Saltar al contenido</a>
-        ${!config.isProd ? html`<div class="env-banner">Entorno de ${config.env === 'testing' ? 'pruebas' : 'desarrollo'}: pagos, correos e IA pueden estar simulados.</div>` : ''}
+        ${!config.isProd
+          ? html`<div class="env-banner">Entorno de ${config.env === 'testing' ? 'pruebas' : 'desarrollo'}: pagos, correos e IA pueden estar simulados.</div>`
+          : config.payments.sandboxEnabled
+            ? html`<div class="env-banner">Versión de prueba: los pagos son simulados y no se cobra nada.</div>`
+            : ''}
         <header>
           <div class="bar">
             ${brand()}
