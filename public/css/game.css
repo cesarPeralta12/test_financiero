@@ -1313,3 +1313,319 @@ table.data td {
     font-size: 2.2rem;
   }
 }
+
+/* ═════════ Modo enfoque de las preguntas (estilo test de personalidad) ═════════ */
+.wrap--focus {
+  max-width: 560px;
+  padding-top: 18px;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.qf {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 60px);
+}
+.qf-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 36px;
+}
+.qf-back {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.qf-back:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.qf-back svg {
+  width: 20px;
+  height: 20px;
+}
+.qf-progress {
+  flex: 1;
+  min-width: 0;
+}
+.qf-chapter {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--pine);
+  margin-bottom: 6px;
+  letter-spacing: 0.01em;
+}
+.qf-track {
+  position: relative;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--line-2);
+}
+.qf-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--pine);
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
+  transition: width 0.6s var(--ease-out, ease);
+}
+.qf-node {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--paper);
+  border: 2px solid var(--line-2);
+}
+.qf-node.done {
+  background: var(--pine);
+  border-color: var(--pine);
+}
+.qf-node.now {
+  width: 13px;
+  height: 13px;
+  border-color: var(--pine);
+  background: var(--paper);
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.18);
+}
+.qf-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 22px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--line);
+  margin-bottom: 14px;
+}
+.qf-card .q-title {
+  font-size: clamp(1.2rem, 4.6vw, 1.5rem);
+  line-height: 1.25;
+  margin: 0;
+  padding: 0;
+  float: none;
+}
+.qf-art {
+  font-size: 2.6rem;
+  line-height: 1;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.5));
+}
+.qf-why {
+  margin: 0 0 18px;
+  padding: 0 4px;
+}
+.qf-why summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--pine);
+  list-style: none;
+}
+.qf-why summary::-webkit-details-marker {
+  display: none;
+}
+.qf-why summary::before {
+  content: 'ⓘ ';
+}
+.qf-why .q-help {
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+}
+.qf .q-body {
+  margin-top: 8px;
+}
+/* Opciones sin tarjeta de imagen: botones anchos centrados */
+.qf .options:not(.options--tiles) .option {
+  justify-content: center;
+  text-align: center;
+  padding: 14px 18px;
+  border-radius: 14px;
+}
+.qf .options:not(.options--tiles) .option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.qf .options:not(.options--tiles) .option {
+  position: relative;
+}
+.qf .options:not(.options--tiles) .option:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+/* Importe grande y frecuencia en botones */
+.qf-amount .money .input {
+  font-size: 1.6rem;
+  font-weight: 700;
+  min-height: 64px;
+  text-align: center;
+}
+.qf-amount .money .prefix {
+  font-weight: 700;
+  min-width: 64px;
+  justify-content: center;
+}
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.pill {
+  position: relative;
+  cursor: pointer;
+}
+.pill input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.pill span {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 99px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.pill:hover span {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+.pill input:checked + span {
+  border-color: var(--pine);
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--pine);
+}
+.pill input:focus-visible + span {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.qf .unknown {
+  text-align: center;
+  margin-top: 14px;
+}
+.pill--ghost span {
+  background: transparent;
+  font-size: 0.85rem;
+  padding: 6px 14px;
+}
+.qf-actions {
+  margin-top: auto;
+  padding: 24px 0 8px;
+}
+.qf-actions .btn {
+  min-height: 54px;
+  font-size: 1.05rem;
+  border-radius: 16px;
+}
+.qf .previous {
+  border-radius: 14px;
+}
+.qf .breakdown .field {
+  grid-template-columns: 1fr 160px;
+}
+@media (max-width: 760px) {
+  .wrap--focus {
+    padding-top: 10px;
+  }
+  .qf-top {
+    margin-bottom: 26px;
+  }
+  .qf-actions {
+    position: sticky;
+    bottom: 0;
+    background: linear-gradient(180deg, transparent, var(--paper) 35%);
+    padding-top: 28px;
+  }
+  .qf .breakdown .field {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ───────── Pausas entre capítulos ───────── */
+.interlude {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(600px 400px at 50% 30%, rgba(139, 92, 246, 0.25), transparent 70%), rgba(9, 13, 28, 0.96);
+  animation: fade 0.35s ease both;
+}
+.interlude-card {
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  animation: pop-in 0.6s var(--ease-spring, ease) both;
+}
+.interlude-art {
+  font-size: 4.5rem;
+  line-height: 1;
+  margin-bottom: 18px;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.6));
+}
+.interlude .kicker {
+  color: #a78bfa;
+  font-weight: 800;
+  font-size: 1.4rem;
+  font-family: var(--display);
+  margin: 0 0 10px;
+}
+.interlude p {
+  color: var(--ink-2);
+  margin: 0 0 8px;
+}
+.interlude .btn {
+  margin-top: 22px;
+  min-width: 220px;
+}
+.breath {
+  width: 150px;
+  height: 150px;
+  margin: 10px auto 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #ffffff, #c7d2fe 55%, #818cf8);
+  box-shadow: 0 0 0 14px rgba(129, 140, 248, 0.15), 0 0 60px rgba(165, 180, 252, 0.6);
+  animation: breathe 6s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+.breath-label {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: var(--ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .breath {
+    animation: none;
+  }
+}

@@ -99,15 +99,16 @@ test('la página de logros exige sesión y muestra niveles y logros', async () =
   assert.match(page.text, /no es una calificación financiera/i);
 });
 
-test('la portada muestra el mapa de mundos y el test muestra la etapa y el XP', async () => {
+test('la portada muestra el mapa de mundos y el test usa el modo enfoque por capítulos', async () => {
   const c = new h.Client();
   const home = await c.get('/');
   assert.match(home.text, /Tu mapa: cuatro mundos/);
   assert.match(home.text, /Cómo se juega/);
   await h.consent(c);
   const q = await c.get('/test');
-  assert.match(q.text, /class="q-stage"/);
-  assert.match(q.text, /0 XP/);
+  assert.match(q.text, /class="qf-progress"/);
+  assert.match(q.text, /Tu dinero/);
+  assert.doesNotMatch(q.text, /<header>/, 'las preguntas se muestran en modo enfoque, sin cabecera');
 });
 
 test('el test gratuito v2 usa tarjetas con imagen y conserva los valores de la v1', async () => {

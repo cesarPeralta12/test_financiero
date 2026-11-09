@@ -90,12 +90,70 @@
     requestAnimationFrame(f);
   }
 
+  // Pausas entre capítulos del cuestionario (estilo test de personalidad).
+  const PAUSES = {
+    2: { art: '🧾', title: '¿Sabías?', text: 'Anotar tus gastos aunque sea una semana suele mostrar fugas que no veías. Ahora hablemos de lo que sale de tu bolsillo.' },
+    3: { art: '🎒', title: '¿Sabías?', text: 'Una deuda con interés alto puede crecer aunque pagues la cuota mínima. Saber cuánto pagas es el primer paso para aligerar la mochila.' },
+    4: { art: '🐷', title: '¿Sabías?', text: 'Un fondo para emergencias de unos tres meses de gastos es la base de cualquier plan. Veamos cómo va tu alcancía.' },
+    5: { breath: true, title: 'Tomemos un momento', text: 'Respira despacio antes de seguir. Ya casi terminas.' },
+  };
+  function interlude(ch, onClose) {
+    const p = PAUSES[ch];
+    if (!p) return onClose();
+    const wrap = document.createElement('div');
+    wrap.className = 'interlude';
+    wrap.setAttribute('role', 'dialog');
+    wrap.setAttribute('aria-modal', 'true');
+    wrap.innerHTML =
+      '<div class="interlude-card">' +
+      (p.breath ? '<p class="kicker"></p><p class="txt"></p><div class="breath" aria-hidden="true"></div><p class="breath-label" aria-live="polite">Inhala</p>' : '<div class="interlude-art" aria-hidden="true"></div><p class="kicker"></p><p class="txt"></p>') +
+      '<button class="btn btn-primary" type="button">Siguiente</button></div>';
+    wrap.querySelector('.kicker').textContent = p.title;
+    wrap.querySelector('.txt').textContent = p.text;
+    if (p.art) wrap.querySelector('.interlude-art').textContent = p.art;
+    wrap.setAttribute('aria-label', p.title);
+    document.body.appendChild(wrap);
+    let timer = null;
+    if (p.breath) {
+      const label = wrap.querySelector('.breath-label');
+      let inhale = true;
+      timer = setInterval(function () {
+        inhale = !inhale;
+        label.textContent = inhale ? 'Inhala' : 'Exhala';
+      }, 3000);
+    }
+    const btn = wrap.querySelector('button');
+    const close = function () {
+      if (timer) clearInterval(timer);
+      wrap.remove();
+      document.removeEventListener('keydown', onKey);
+      onClose();
+    };
+    const onKey = function (e) {
+      if (e.key === 'Escape') close();
+    };
+    btn.addEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    btn.focus();
+  }
+
   // XP por responder una pregunta del test (recompensa visual).
   const qForm = document.querySelector('form.q-enter-next');
-  if (qForm && motion) {
-    setTimeout(function () {
-      pop('+10 XP', document.querySelector('.q-stage .xp'));
-    }, 250);
+  if (qForm) {
+    const ch = qForm.getAttribute('data-interlude');
+    const key = 'du-int-' + location.pathname.split('/')[1] + '-' + ch;
+    let seen = true;
+    try {
+      seen = Boolean(sessionStorage.getItem(key));
+      if (ch) sessionStorage.setItem(key, '1');
+    } catch (e) {
+      seen = true;
+    }
+    const reward = function () {
+      if (motion) pop('+10 XP', document.querySelector('.qf-progress'));
+    };
+    if (ch && !seen) interlude(Number(ch), reward);
+    else setTimeout(reward, 250);
   }
 
   const user = body.getAttribute('data-user');

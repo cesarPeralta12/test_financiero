@@ -153,17 +153,25 @@ function inputFor(q, form, errors, currency) {
         <label for="${c.fieldId('amount')}" class="visually-hidden">Importe en ${currency}</label>
         ${c.moneyInput({ name: 'amount', value: form.amount, currency, errors })}
       </div>`;
-    case 'money_flow':
-      return html`<div class="pair">
-        <div class="field">
-          <label for="${c.fieldId('amount')}">Importe</label>
+    case 'money_flow': {
+      const all = q.config.periods || ['mensual'];
+      const common = ['mensual', 'quincenal', 'semanal', 'anual'].filter((p) => all.includes(p));
+      const current = form.period || 'mensual';
+      const shown = common.includes(current) || !all.includes(current) ? common : [...common, current];
+      return html`<div class="field qf-amount">
+          <label for="${c.fieldId('amount')}" class="visually-hidden">Importe en ${currency}</label>
           ${c.moneyInput({ name: 'amount', value: form.amount, currency, errors })}
         </div>
-        <div class="field">
-          <label for="${c.fieldId('period')}">Cada cuánto</label>
-          ${c.select({ name: 'period', options: c.periodOptions(q.config.periods || ['mensual']), value: form.period || 'mensual', errors })}
-        </div>
-      </div>`;
+        <fieldset class="field qf-period">
+          <legend class="visually-hidden">Cada cuánto</legend>
+          <div class="pills" ${c.describedBy(errors, 'period')}>
+            ${shown.map(
+              (p, i) => html`<label class="pill" for="${c.fieldId('period')}${i ? '-' + i : ''}"><input type="radio" name="period" id="${c.fieldId('period')}${i ? '-' + i : ''}" value="${p}" ${current === p ? raw('checked') : ''} /><span>${c.periodOptions([p])[0].label.replace(' (dos veces al mes)', '')}</span></label>`
+            )}
+          </div>
+          ${c.errorText(errors, 'period')}
+        </fieldset>`;
+    }
     case 'integer':
       return html`<div class="field">
         <label for="${c.fieldId('value')}" class="visually-hidden">Número${q.config.unit ? ' de ' + q.config.unit : ''}</label>
@@ -197,31 +205,64 @@ function inputFor(q, form, errors, currency) {
   }
 }
 
+const CHAPTERS = [
+  { name: 'Tu dinero', icon: '💰' },
+  { name: 'Tus gastos', icon: '🧾' },
+  { name: 'Tus deudas', icon: '🎒' },
+  { name: 'Tu ahorro', icon: '🐷' },
+  { name: 'Tu misión', icon: '🧭' },
+];
+
+/** Capítulo (1 a 5) de cada pregunta, en orden y sin retroceder. */
+function chaptersFor(questions) {
+  let ch = 1;
+  return questions.map((q) => {
+    if (q.section === 'gastos' && ch < 2) ch = 2;
+    else if (q.section === 'deudas' && ch < 3) ch = 3;
+    else if (q.section === 'ahorro' && ch < 4) ch = 4;
+    else if (ch === 4 && ['dependientes', 'riesgos', 'oportunidades', 'metas', 'objetivos', 'habitos'].includes(q.section)) ch = 5;
+    return ch;
+  });
+}
+
 /**
- * @param ctx contexto de la vista
- * @param o { base, q, qn, map, form, errors, currency, previous, position, stateList, isLast }
+ * Pantalla de una pregunta en modo enfoque (estilo test de personalidad):
+ * línea de progreso fina por capítulos, la pregunta en una tarjeta y un solo botón.
  */
 function questionPage(ctx, o) {
   const { q, form = {}, errors = {}, currency } = o;
   const st = o.stateList;
-  const section = qs.SECTIONS[q.section] || q.section;
-  const helpId = q.help ? 'q-help' : null;
+  const chapters = chaptersFor(o.qn.questions);
+  const ch = chapters[q.position - 1];
+  const firstOfChapter = q.position > 1 && chapters[q.position - 2] !== ch;
+  const pct = Math.round(((q.position - 1) / st.total) * 100);
   const isGroup = ['single', 'multi'].includes(q.type) || (q.type === 'currency' && q.config.tiles);
   const Tag = isGroup ? 'fieldset' : 'div';
-  return html`<div class="q-head">
-      <div class="q-stage"><span class="stage">Etapa: ${section}</span><span class="xp">${st.answered * 10} XP</span></div>
-      ${c.ticks(st.ticks, { label: `Pregunta ${q.position} de ${st.total}` })}
-      <div class="progress-meta"><span>Pregunta ${q.position} de ${st.total}</span><span>${st.answered} respondidas</span></div>
-    </div>
-    ${c.errorSummary(errors)}
-    <form method="post" action="${o.base}/pregunta/${q.position}${o.actionSuffix || ''}" data-code="${q.code}" novalidate>
+  const chapter = CHAPTERS[ch - 1];
+  return html`<form class="qf" method="post" action="${o.base}/pregunta/${q.position}${o.actionSuffix || ''}" data-code="${q.code}" ${firstOfChapter ? raw(`data-interlude="${ch}"`) : ''} novalidate>
       ${c.csrfField(ctx)}
-      ${raw(`<${Tag} class="q-body"${helpId ? ` aria-describedby="${helpId}"` : ''}>`)}
-      ${isGroup
-        ? html`<legend><p class="q-section">${section}</p><h1 class="q-title">${q.prompt}</h1></legend>`
-        : html`<p class="q-section">${section}</p>
-            <h1 class="q-title" id="q-title">${q.prompt}</h1>`}
-      ${q.help ? html`<p class="q-help" id="q-help">${q.help}</p>` : ''}
+      <div class="qf-top">
+        ${q.position > 1 || o.prevHref
+          ? html`<button class="qf-back" type="submit" name="action" value="prev" formnovalidate aria-label="Pregunta anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+          : html`<a class="qf-back" href="/" aria-label="Salir del test"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></a>`}
+        <div class="qf-progress" role="progressbar" aria-label="Avance del cuestionario" aria-valuemin="0" aria-valuemax="${st.total}" aria-valuenow="${q.position - 1}" aria-valuetext="Pregunta ${q.position} de ${st.total}, capítulo ${chapter.name}">
+          <span class="qf-chapter">${chapter.name}</span>
+          <div class="qf-track"><span class="qf-fill" style="width:${pct}%"></span>
+            ${CHAPTERS.map((x, i) => {
+              const startIdx = chapters.indexOf(i + 1);
+              const left = startIdx < 0 ? 100 : Math.round((startIdx / st.total) * 100);
+              return html`<span class="qf-node ${i + 1 < ch ? 'done' : i + 1 === ch ? 'now' : ''}" style="left:${left}%"></span>`;
+            })}
+          </div>
+        </div>
+      </div>
+      ${c.errorSummary(errors)}
+      ${raw(`<${Tag} class="q-body">`)}
+      <div class="qf-card">
+        ${isGroup ? html`<legend class="q-title">${q.prompt}</legend>` : html`<h1 class="q-title" id="q-title">${q.prompt}</h1>`}
+        <span class="qf-art" aria-hidden="true">${chapter.icon}</span>
+      </div>
+      ${q.help ? html`<details class="qf-why"><summary>¿Por qué preguntamos?</summary><p class="q-help" id="q-help">${q.help}</p></details>` : ''}
       ${o.previous
         ? html`<div class="previous">
             <span>Antes respondiste: <strong>${o.previous.text}</strong></span>
@@ -231,17 +272,13 @@ function questionPage(ctx, o) {
       ${o.prefilledNotice ? html`<div class="note note--warn" role="status"><strong>Revisa la respuesta anterior.</strong> Se guardará cuando pulses «Siguiente».</div>` : ''}
       ${inputFor(q, form, errors, currency)}
       ${q.allowUnknown && !['debts', 'goals'].includes(q.type)
-        ? html`<div class="unknown"><label class="check"><input type="checkbox" name="unknown" value="1" ${form.unknown ? raw('checked') : ''} data-unknown /> <span>No lo sé</span></label></div>`
+        ? html`<div class="unknown"><label class="pill pill--ghost"><input type="checkbox" name="unknown" value="1" ${form.unknown ? raw('checked') : ''} data-unknown /><span>No lo sé</span></label></div>`
         : ''}
       ${raw(`</${Tag}>`)}
-      <div class="actions actions--split">
-        ${q.position > 1 || o.prevHref
-          ? html`<button class="btn btn-secondary" type="submit" name="action" value="prev" formnovalidate>Anterior</button>`
-          : html`<span></span>`}
-        <button class="btn btn-primary" type="submit" name="action" value="next">${o.isLast ? 'Revisar respuestas' : 'Siguiente'}</button>
+      <div class="qf-actions">
+        <button class="btn btn-primary btn-block" type="submit" name="action" value="next">${o.isLast ? 'Revisar respuestas' : 'Siguiente'}</button>
       </div>
-    </form>
-    <p class="saved-note">${o.savedNote || 'Cada respuesta se guarda al avanzar. Puedes cerrar y continuar después en este dispositivo.'}</p>`;
+    </form>`;
 }
 
-module.exports = { questionPage, CURRENCY_OPTIONS };
+module.exports = { questionPage, CURRENCY_OPTIONS, chaptersFor, CHAPTERS };

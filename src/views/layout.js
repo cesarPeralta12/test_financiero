@@ -67,9 +67,9 @@ function hud(ctx) {
   </a>`;
 }
 
-function layout(ctx, { title, body, wide = false, narrow = false, description = null, minimal = false, refresh = null }) {
+function layout(ctx, { title, body, wide = false, narrow = false, description = null, minimal = false, refresh = null, focus = false }) {
   const flash = ctx.flash && FLASH[ctx.flash];
-  const wrapClass = ['wrap', wide ? 'wrap--wide' : '', narrow ? 'wrap--narrow' : ''].filter(Boolean).join(' ');
+  const wrapClass = ['wrap', wide ? 'wrap--wide' : '', narrow ? 'wrap--narrow' : '', focus ? 'wrap--focus' : ''].filter(Boolean).join(' ');
   return html`<!doctype html>
     <html lang="es">
       <head>
@@ -82,13 +82,13 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
         <meta name="theme-color" content="#0b1020" />
         <link rel="preload" href="/fonts/hanken-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
         <link rel="preload" href="/fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
-        <link rel="stylesheet" href="/css/app.css?v=4" />
-        <link rel="stylesheet" href="/css/motion.css?v=4" />
-        <link rel="stylesheet" href="/css/game.css?v=4" />
-        <script src="/js/early.js?v=4"></script>
+        <link rel="stylesheet" href="/css/app.css?v=5" />
+        <link rel="stylesheet" href="/css/motion.css?v=5" />
+        <link rel="stylesheet" href="/css/game.css?v=5" />
+        <script src="/js/early.js?v=5"></script>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <script src="/js/app.js?v=4" defer></script>
-        <script src="/js/game.js?v=4" defer></script>
+        <script src="/js/app.js?v=5" defer></script>
+        <script src="/js/game.js?v=5" defer></script>
       </head>
       <body
         data-flash="${ctx.flash || ''}"
@@ -102,12 +102,14 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
           : ''}
       >
         <a class="skip" href="#contenido">Saltar al contenido</a>
-        ${!config.isProd
+        ${focus
+          ? ''
+          : !config.isProd
           ? html`<div class="env-banner">Entorno de ${config.env === 'testing' ? 'pruebas' : 'desarrollo'}: pagos, correos e IA pueden estar simulados.</div>`
           : config.payments.sandboxEnabled
             ? html`<div class="env-banner">Versión de prueba: los pagos son simulados y no se cobra nada.</div>`
             : ''}
-        <header>
+        ${focus ? '' : html`<header>
           <div class="bar">
             ${brand()} ${minimal ? '' : hud(ctx)}
             ${minimal
@@ -117,18 +119,18 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
                     : ''}
                   <nav class="nav" id="menu" aria-label="Principal" ${ctx.user ? raw('data-collapsible') : ''}>${navLinks(ctx)}</nav>`}
           </div>
-        </header>
+        </header>`}
         <main id="contenido" tabindex="-1">
           <div class="${wrapClass}">
             ${flash ? html`<div class="note note--${flash[0]} flash" role="status">${flash[1]}</div>` : ''} ${body}
           </div>
         </main>
-        <footer class="foot">
+        ${focus ? '' : html`<footer class="foot">
           <div class="bar">
             <span>Día Uno. Orientación financiera personal; no es asesoría profesional.</span>
             <span class="foot-links"><a href="/privacidad">Privacidad</a><a href="/condiciones">Condiciones</a></span>
           </div>
-        </footer>
+        </footer>`}
       </body>
     </html>`;
 }
