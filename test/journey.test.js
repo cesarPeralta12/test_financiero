@@ -160,7 +160,7 @@ test('tablero: completar, posponer y reabrir tareas, con historial', async () =>
   assert.equal(tt.postponed_until, later);
   assert.equal(h.db.value('SELECT COUNT(*) FROM task_events WHERE task_id = ? AND from_status IS NOT NULL', t.id), 3);
   const board = await c.get('/tablero');
-  assert.match(board.text, /Tareas pendientes/);
+  assert.match(board.text, /id="h-tareas">Tareas</);
   assert.match(board.text, /Cambios recientes/);
   const home = await c.get('/inicio');
   assert.match(home.text, /Tu siguiente paso/);

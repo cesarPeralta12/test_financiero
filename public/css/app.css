@@ -1901,3 +1901,92 @@ details.more[open] > summary {
 .swatch.alloc-a4 {
   background: var(--line-2);
 }
+
+/* ───────── Tablero en recuadros ───────── */
+.board-head {
+  margin-bottom: 24px;
+}
+.board-head h1 {
+  margin-bottom: 4px;
+}
+.stats--cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  border: 0;
+  margin-bottom: 20px;
+}
+.stats--cards .stat,
+.stats--cards .stat + .stat {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 16px 18px;
+}
+.stats--cards + .next-step {
+  margin-top: 0;
+}
+.board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+  margin-top: 20px;
+}
+.board-col {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 20px 22px;
+  min-width: 0;
+}
+.panel--tall {
+  grid-row: span 2;
+}
+.panel--wide {
+  grid-column: 1 / -1;
+}
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.panel-head h2 {
+  font-size: 1.125rem;
+  margin: 0;
+}
+.panel > .muted:last-child,
+.panel > p:last-child {
+  margin-bottom: 0;
+}
+.panel .timeline li:last-child {
+  border-bottom: 0;
+}
+.history {
+  padding-left: 1.1em;
+}
+@media (max-width: 760px) {
+  .stats--cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .stats--cards .stat:nth-child(3),
+  .stats--cards .stat:nth-child(n + 3) {
+    border: 1px solid var(--line);
+    padding-left: 18px;
+  }
+  .board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .panel--tall {
+    grid-row: auto;
+  }
+  .panel {
+    padding: 16px;
+  }
+}
