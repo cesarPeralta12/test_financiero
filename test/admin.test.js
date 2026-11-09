@@ -55,7 +55,7 @@ test('una versión nueva del cuestionario no modifica evaluaciones terminadas', 
   await admin.get('/admin/cuestionarios');
   await admin.post('/admin/cuestionarios/gratuito/borrador', {});
   const draft = h.db.one("SELECT * FROM questionnaires WHERE kind = 'gratuito' AND status = 'borrador'");
-  assert.equal(draft.version, 2);
+  assert.equal(draft.version, 3);
   const q = h.db.one('SELECT * FROM questions WHERE questionnaire_id = ? AND position = 1', draft.id);
   await admin.post(`/admin/cuestionarios/${draft.id}/preguntas/${q.id}`, { prompt: '¿Con qué moneda trabajas?', help: 'Texto nuevo', required: '1' });
   // No se pueden cambiar los valores de las opciones (los usa el motor).

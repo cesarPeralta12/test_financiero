@@ -30,7 +30,7 @@ function createFlow(opts) {
 
   function stateList(qn, map, current) {
     const st = qs.status(null, qn, map);
-    const tickStates = st.items.map((it) => (it.q.position === current ? 'now' : !it.applicable ? 'skip' : it.answered ? 'done' : ''));
+    const tickStates = st.items.map((it) => (it.q.position === current ? 'now' : !it.applicable ? 'na' : it.answered ? 'done' : ''));
     return { ticks: tickStates, total: qn.questions.length, answered: st.items.filter((i) => i.answered).length, status: st };
   }
 
@@ -153,7 +153,7 @@ function createFlow(opts) {
     const st = qs.status(ev, qn, map);
     const extra = opts.reviewExtra ? opts.reviewExtra(req, ev, qn, map, currency, res.locals.ctx) : { html: '', blocking: false };
     const canFinish = st.complete && !extra.blocking;
-    const ticksList = st.items.map((it) => (!it.applicable ? 'skip' : it.answered ? 'done' : ''));
+    const ticksList = st.items.map((it) => (!it.applicable ? 'na' : it.answered ? 'done' : ''));
     return res.status(status).page({
       title: `${opts.title}: revisión`,
       body: html`<div class="q-head">

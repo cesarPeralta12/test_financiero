@@ -615,7 +615,7 @@ legend {
 .ticks li.done {
   background: var(--ink);
 }
-.ticks li.skip {
+.ticks li.na {
   background: var(--line);
 }
 .ticks li.now {

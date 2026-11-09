@@ -38,12 +38,63 @@ function seedQuestionnaire(kind, def) {
   return true;
 }
 
+/**
+ * Publica la versión 2 del test gratuito (tono de juego y opciones con imagen) si
+ * solo existe la v1. Conserva códigos, tipos y valores; si alguien ya publicó otra
+ * versión desde el panel, no hace nada.
+ */
+function upgradeFreeToV2() {
+  const { FREE_V2 } = require('./content-v2');
+  const maxV = db.value("SELECT MAX(version) FROM questionnaires WHERE kind = 'gratuito'");
+  if (maxV !== 1) return false;
+  const v1 = db.one("SELECT * FROM questionnaires WHERE kind = 'gratuito' AND version = 1 AND status = 'publicado'");
+  if (!v1) return false;
+  const now = db.now();
+  const q = db.run(
+    "INSERT INTO questionnaires (kind, version, status, title, notes, created_at, published_at) VALUES ('gratuito', 2, 'publicado', ?, ?, ?, ?)",
+    FREE_V2.title,
+    FREE_V2.notes,
+    now,
+    now
+  );
+  for (const old of db.all('SELECT * FROM questions WHERE questionnaire_id = ? ORDER BY position', v1.id)) {
+    const o = FREE_V2.questions[old.code] || {};
+    let options = old.options_json;
+    if (o.options) {
+      const prev = JSON.parse(old.options_json || '[]');
+      if (prev.length !== o.options.length || prev.some((p, i) => p.value !== o.options[i].value)) {
+        throw new Error(`Las opciones de ${old.code} en la v2 no coinciden con la v1.`);
+      }
+      options = JSON.stringify(o.options);
+    }
+    const config = { ...JSON.parse(old.config_json || '{}'), ...(['single', 'multi', 'currency'].includes(old.type) ? { tiles: true } : {}) };
+    db.run(
+      `INSERT INTO questions (questionnaire_id, position, code, section, type, prompt, help, options_json, config_json, required, allow_unknown)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      q.lastId,
+      old.position,
+      old.code,
+      old.section,
+      old.type,
+      o.prompt || old.prompt,
+      o.help !== undefined ? o.help : old.help,
+      options,
+      JSON.stringify(config),
+      old.required,
+      old.allow_unknown
+    );
+  }
+  db.run("UPDATE questionnaires SET status = 'retirado' WHERE id = ?", v1.id);
+  return true;
+}
+
 function seed({ quiet = false } = {}) {
   migrate({ quiet: true });
   const log = (m) => !quiet && console.log(m);
   db.tx(() => {
     if (seedQuestionnaire('gratuito', FREE)) log('Cuestionario gratuito v1 publicado.');
     if (seedQuestionnaire('profundo', DEEP)) log('Cuestionario profundo v1 publicado.');
+    if (upgradeFreeToV2()) log('Test gratuito v2 (versión de juego) publicado.');
 
     if (!db.value("SELECT COUNT(*) FROM rule_sets WHERE kind = 'diagnostico'")) {
       db.run(

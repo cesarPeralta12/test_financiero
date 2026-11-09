@@ -109,3 +109,29 @@ test('la portada muestra el mapa de mundos y el test muestra la etapa y el XP', 
   assert.match(q.text, /class="q-stage"/);
   assert.match(q.text, /0 XP/);
 });
+
+test('el test gratuito v2 usa tarjetas con imagen y conserva los valores de la v1', async () => {
+  const v1 = h.db.one("SELECT id FROM questionnaires WHERE kind = 'gratuito' AND version = 1");
+  const v2 = h.db.one("SELECT * FROM questionnaires WHERE kind = 'gratuito' AND version = 2");
+  assert.ok(v2, 'existe la versión 2');
+  const q1 = h.db.all('SELECT code, type, options_json FROM questions WHERE questionnaire_id = ? ORDER BY position', v1.id);
+  const q2 = h.db.all('SELECT code, type, options_json, config_json FROM questions WHERE questionnaire_id = ? ORDER BY position', v2.id);
+  assert.equal(q2.length, 25);
+  q1.forEach((q, i) => {
+    assert.equal(q2[i].code, q.code);
+    assert.equal(q2[i].type, q.type);
+    const a = JSON.parse(q.options_json || '[]').map((o) => o.value);
+    const b = JSON.parse(q2[i].options_json || '[]').map((o) => o.value);
+    assert.deepEqual(b, a, `valores de ${q.code}`);
+  });
+  assert.ok(JSON.parse(q2.find((q) => q.code === 'estabilidad_ingreso').options_json).every((o) => o.icon));
+  const c = new h.Client();
+  await h.consent(c);
+  const first = await c.get('/test');
+  assert.match(first.text, /options--tiles/);
+  assert.match(first.text, /🇲🇽/);
+  await c.post('/test/pregunta/1', { action: 'next', value: 'MXN' });
+  const second = await c.get('/test/pregunta/2');
+  assert.match(second.text, /¿De dónde sale tu dinero\?/);
+  assert.match(second.text, /class="opt-ico"/);
+});

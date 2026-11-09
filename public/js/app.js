@@ -77,6 +77,20 @@
     });
   });
 
+  // Tarjetas de una sola respuesta: al tocarlas, el test avanza solo (como un quiz).
+  document.querySelectorAll('form[data-code] .options--tiles:not(.options--multi) .option').forEach(function (tile) {
+    tile.addEventListener('click', function (e) {
+      if (!e.detail) return; // con teclado no se avanza automáticamente
+      const form = tile.closest('form');
+      const next = form && form.querySelector('button[value=next]');
+      if (!next || form.dataset.advancing) return;
+      form.dataset.advancing = '1';
+      setTimeout(function () {
+        form.requestSubmit(next);
+      }, 420);
+    });
+  });
+
   // Coach: sugerencias, envío con Enter, mensaje inmediato e indicador de «escribiendo»
   const chatForm = document.querySelector('[data-chat]');
   const chat = document.getElementById('chat');

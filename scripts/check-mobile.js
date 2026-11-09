@@ -13,6 +13,8 @@ const outDir = path.resolve(process.argv.find((a, i) => i > 1 && !a.startsWith('
 const widths = (process.argv.find((a) => a.startsWith('--anchos=')) || '--anchos=360,1280').split('=')[1].split(',').map(Number);
 const shots = !process.argv.includes('--sin-capturas');
 const dark = process.argv.includes('--oscuro');
+// --movimiento: deja las animaciones activas y espera a que terminen antes de capturar.
+const withMotion = process.argv.includes('--movimiento');
 
 function chromePath() {
   const c = [process.env.CHROME_PATH, 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', '/usr/bin/google-chrome', '/usr/bin/chromium', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'];
@@ -100,6 +102,13 @@ async function main() {
       await a.post('/test/pregunta/2', { action: 'next', value: 'empleo' });
       return a.cookies;
     }],
+    ['pregunta-tarjetas', '/test/pregunta/5', anonCookie, async () => {
+      const a = new h.Client();
+      await h.consent(a);
+      await a.get('/test');
+      for (const [n, v] of [[1, { value: 'MXN' }], [2, { value: 'empleo' }], [3, { amount: '30000', period: 'mensual' }], [4, { value: 'neto' }]]) await a.post(`/test/pregunta/${n}`, { action: 'next', ...v });
+      return a.cookies;
+    }],
     ['resultado', '/resultado', userCookie],
     ['inicio', '/inicio', userCookie],
     ['comprar', '/comprar/acompanamiento', userCookie],
@@ -144,7 +153,7 @@ async function main() {
   await s.send('Emulation.setEmulatedMedia', {
     features: [
       { name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' },
-      { name: 'prefers-reduced-motion', value: 'reduce' },
+      { name: 'prefers-reduced-motion', value: withMotion ? 'no-preference' : 'reduce' },
     ],
   });
   if (shots) fs.mkdirSync(outDir, { recursive: true });
@@ -160,7 +169,7 @@ async function main() {
       const loaded = s.once('Page.loadEventFired');
       await s.send('Page.navigate', { url: base + url });
       await loaded;
-      await new Promise((r) => setTimeout(r, 150));
+      await new Promise((r) => setTimeout(r, withMotion ? 2600 : 150));
       const { result } = await s.send('Runtime.evaluate', {
         returnByValue: true,
         expression: `(() => { const d = document.documentElement; const wide = [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > d.clientWidth + 1).slice(0, 3).map(e => e.tagName.toLowerCase() + (e.className ? '.' + String(e.className).split(' ')[0] : '')); return { sw: d.scrollWidth, cw: d.clientWidth, h: d.scrollHeight, path: location.pathname, wide }; })()`,

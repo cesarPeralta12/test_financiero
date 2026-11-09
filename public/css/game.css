@@ -1144,3 +1144,172 @@ table.data td {
   -webkit-text-fill-color: #d1fae5;
   color: #d1fae5;
 }
+
+/* ───────── Portada a pantalla completa ───────── */
+/* El degradado del titular va en cada palabra: así se ve también durante la animación. */
+.hero h1 {
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: #ffffff;
+}
+.hero h1 .word > span {
+  background: linear-gradient(180deg, #ffffff 25%, #a7f3d0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+/* Los resplandores ocupan todo el ancho y se desvanecen sin bordes. */
+.orbs {
+  left: 50%;
+  right: auto;
+  width: 100vw;
+  transform: translateX(-50%);
+  top: -90px;
+  height: 760px;
+  overflow: visible;
+  -webkit-mask-image: linear-gradient(180deg, #000 35%, transparent 95%);
+  mask-image: linear-gradient(180deg, #000 35%, transparent 95%);
+}
+.orb {
+  filter: blur(80px);
+  opacity: 0.45;
+}
+.orb.o1 {
+  left: 8%;
+  top: 40px;
+  width: 460px;
+  height: 460px;
+}
+.orb.o2 {
+  right: 6%;
+  top: 80px;
+  width: 420px;
+  height: 420px;
+}
+.orb.o3 {
+  left: 42%;
+  top: 300px;
+  width: 360px;
+  height: 360px;
+}
+.coin.c1 {
+  left: 14%;
+  top: 220px;
+}
+.coin.c2 {
+  right: 16%;
+  top: 170px;
+}
+.coin.c3 {
+  right: 26%;
+  top: 470px;
+}
+.coin.c4 {
+  left: 24%;
+  top: 520px;
+}
+@media (max-width: 760px) {
+  .orb {
+    filter: blur(60px);
+  }
+  .orb.o1,
+  .orb.o2,
+  .orb.o3 {
+    width: 260px;
+    height: 260px;
+  }
+  .coin.c3,
+  .coin.c4 {
+    display: none;
+  }
+}
+
+/* ───────── Opciones en tarjetas con imagen ───────── */
+.options--tiles {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+.options--tiles .option {
+  position: relative;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  min-height: 150px;
+  padding: 22px 14px 18px;
+  border-radius: 20px;
+  border-width: 2px;
+  transition: transform 0.25s var(--ease-spring, ease), border-color 0.2s ease, box-shadow 0.25s ease, background-color 0.2s ease;
+}
+.options--tiles .option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.options--tiles .opt-ico {
+  font-size: 2.6rem;
+  line-height: 1;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+  transition: transform 0.35s var(--ease-spring, ease);
+}
+.options--tiles .opt-label {
+  font-weight: 650;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+.options--tiles .option:hover {
+  transform: translateY(-5px) rotate(-1deg);
+  border-color: var(--violet);
+  box-shadow: 0 18px 34px -18px rgba(139, 92, 246, 0.8);
+}
+.options--tiles .option:hover .opt-ico {
+  transform: scale(1.18) rotate(-6deg);
+}
+.options--tiles .option:has(input:checked) {
+  border-color: var(--pine);
+  background: radial-gradient(circle at 50% 0%, rgba(52, 211, 153, 0.3), transparent 70%), linear-gradient(180deg, var(--surface-2), var(--surface));
+  box-shadow: 0 0 0 1px var(--pine), 0 18px 40px -16px rgba(52, 211, 153, 0.75);
+  transform: translateY(-3px);
+}
+.options--tiles .option:has(input:checked) .opt-ico {
+  transform: scale(1.22);
+}
+.options--tiles .option::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--line-2);
+  transition: all 0.2s ease;
+}
+.options--tiles .option:has(input:checked)::after {
+  border-color: var(--pine);
+  background: var(--pine) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2304281b' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12l4 4 8-9'/%3E%3C/svg%3E") center / 14px no-repeat;
+  box-shadow: 0 0 12px var(--pine);
+}
+.options--multi .option::after {
+  border-radius: 7px;
+}
+.options--tiles .option:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+@media (max-width: 420px) {
+  .options--tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .options--tiles .option {
+    min-height: 128px;
+    padding: 18px 10px 14px;
+  }
+  .options--tiles .opt-ico {
+    font-size: 2.2rem;
+  }
+}

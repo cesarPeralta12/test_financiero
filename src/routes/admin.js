@@ -460,7 +460,7 @@ router.post('/cuestionarios/:id/preguntas/:qid', (req, res, next) => {
       err.publicMessage = 'Las opciones deben conservar los mismos valores y el mismo orden; solo puedes cambiar sus textos.';
       return next(err);
     }
-    options = JSON.stringify(parsed);
+    options = JSON.stringify(parsed.map((o, i) => ({ ...old[i], label: o.label })));
   }
   db.run('UPDATE questions SET prompt = ?, help = ?, options_json = ?, required = ?, allow_unknown = ? WHERE id = ?', prompt, help, options, req.body.required === '1' ? 1 : 0, req.body.allow_unknown === '1' ? 1 : 0, q.id);
   res.redirect(303, `/admin/cuestionarios/${qn.id}?aviso=guardado`);

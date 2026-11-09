@@ -5,12 +5,16 @@ const money = require('../lib/money');
 const c = require('./components');
 const qs = require('../domain/questionnaire');
 
+const { CURRENCY_ICONS } = require('../db/content-v2');
+
 const CURRENCY_OPTIONS = Object.entries(money.CURRENCIES).map(([value, v]) => ({ value, label: v.label }));
+const CURRENCY_TILES = Object.entries(money.CURRENCIES).map(([value, v]) => ({ value, label: v.label, icon: CURRENCY_ICONS[value] || '💱' }));
 
 function optionList(q, form, errors, { multi = false, options = q.options } = {}) {
   const vals = multi ? form.value || [] : [form.value];
   const type = multi ? 'checkbox' : 'radio';
-  return html`<div class="options" ${c.describedBy(errors, 'value')}>
+  const tiles = q.config.tiles && options.every((o) => o.icon);
+  return html`<div class="options${tiles ? ' options--tiles' : ''}${tiles && multi ? ' options--multi' : ''}" ${c.describedBy(errors, 'value')}>
       ${options.map(
         (o, i) => html`<label class="option" for="${c.fieldId('value')}${i ? '-' + i : ''}">
           <input
@@ -20,7 +24,8 @@ function optionList(q, form, errors, { multi = false, options = q.options } = {}
             value="${o.value}"
             ${vals.includes(o.value) ? raw('checked') : ''}
           />
-          <span>${o.label}</span>
+          ${tiles ? html`<span class="opt-ico" aria-hidden="true">${o.icon}</span>` : ''}
+          <span class="opt-label">${o.label}</span>
         </label>`
       )}
     </div>
@@ -134,6 +139,7 @@ function goalRows(q, form, errors, currency) {
 function inputFor(q, form, errors, currency) {
   switch (q.type) {
     case 'currency':
+      if (q.config.tiles) return optionList(q, form, errors, { options: CURRENCY_TILES });
       return html`<div class="field">
         <label for="${c.fieldId('value')}" class="visually-hidden">Moneda</label>
         ${c.select({ name: 'value', options: CURRENCY_OPTIONS, value: form.value || '', errors, placeholder: 'Elige tu moneda' })}
@@ -200,7 +206,7 @@ function questionPage(ctx, o) {
   const st = o.stateList;
   const section = qs.SECTIONS[q.section] || q.section;
   const helpId = q.help ? 'q-help' : null;
-  const isGroup = ['single', 'multi'].includes(q.type);
+  const isGroup = ['single', 'multi'].includes(q.type) || (q.type === 'currency' && q.config.tiles);
   const Tag = isGroup ? 'fieldset' : 'div';
   return html`<div class="q-head">
       <div class="q-stage"><span class="stage">Etapa: ${section}</span><span class="xp">${st.answered * 10} XP</span></div>
