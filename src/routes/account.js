@@ -12,6 +12,7 @@ const deep = require('../domain/deep');
 const c = require('../views/components');
 const { audit } = require('../lib/services');
 const { requireUser } = require('./guards');
+const gv = require('../views/game');
 
 const router = express.Router();
 
@@ -73,6 +74,7 @@ router.get('/inicio', requireUser, (req, res) => {
   res.active('inicio').page({
     title: 'Inicio',
     body: html`<h1>${u.name ? `Hola, ${u.name}` : 'Hola'}</h1>
+      ${ctx.game ? gv.playerCard(u, ctx.game) : ''}
       ${!u.email_verified_at
         ? html`<div class="note small label-line"><span>Confirma tu correo con el enlace que te enviamos a ${u.email}.</span><form class="inline-form" method="post" action="/verificar/reenviar">${c.csrfField(ctx)}<button class="btn btn-quiet btn-small" type="submit">Reenviar enlace</button></form></div>`
         : ''}
@@ -87,7 +89,7 @@ router.get('/inicio', requireUser, (req, res) => {
       ${t
         ? html`<section class="next-step" aria-labelledby="h-next">
             <p class="kicker">Tu siguiente paso${t.due_date ? `, ${t.due_date <= planDomain.today() ? 'para hoy' : `para el ${c.dateEs(t.postponed_until || t.due_date)}`}` : ''}</p>
-            <h2 id="h-next">${t.title}</h2>
+            <h2 id="h-next">${t.title} ${gv.xpTag(40)}</h2>
             ${t.reason ? html`<p class="muted">${t.reason}</p>` : ''}
             ${t.done_criteria ? html`<p class="small"><strong>Terminada cuando:</strong> ${t.done_criteria}</p>` : ''}
             <div class="actions">
@@ -106,12 +108,18 @@ router.get('/inicio', requireUser, (req, res) => {
 
       <section class="section" aria-labelledby="h-rec">
         <h2 id="h-rec">Tu recorrido</h2>
-        <ol class="journey-list">
-          ${j.steps.map(
-            (s) => html`<li class="${s.state}"><span class="dot" aria-hidden="true"></span><span><span class="title">${s.title}</span><span class="sub">${s.sub}</span></span><a class="go" href="${s.href}">${s.go}</a></li>`
-          )}
-        </ol>
-      </section>`,
+        ${gv.worldMap(
+          j.steps.map((s) => s.state),
+          j.steps.map((s) => [s.href, s.go])
+        )}
+        <p class="small muted center">${j.steps.map((s) => `${s.title}: ${s.sub}`).join('. ')}.</p>
+      </section>
+      ${ctx.game
+        ? html`<section class="section" aria-labelledby="h-logros">
+            <div class="label-line"><h2 id="h-logros">Tus logros</h2><a class="small" href="/logros">Ver todos</a></div>
+            ${gv.achievementGrid([...ctx.game.achievements.filter((a) => a.unlocked), ...ctx.game.achievements.filter((a) => !a.unlocked)].slice(0, 6))}
+          </section>`
+        : ''}`,
   });
 });
 
@@ -187,6 +195,44 @@ router.get('/avisos', requireUser, (req, res) => {
             (n) => html`<li><span class="n">${n.read_at ? '' : html`<span class="badge badge--ok">Nuevo</span>`}</span><span class="q">${n.link ? html`<a href="${n.link}">${n.title}</a>` : n.title}</span><span class="a">${n.body || ''} <span class="faint">${c.dateEs(n.created_at, { time: true })}</span></span><span></span></li>`
           )}</ul>`
         : html`<div class="empty"><h3>Sin avisos</h3><p>Aquí verás recordatorios de tareas y metas, y confirmaciones de pago.</p></div>`}`,
+  });
+});
+
+router.get('/logros', requireUser, (req, res) => {
+  const g = res.locals.ctx.game || require('../domain/game').profile(req.user.id);
+  const game = require('../domain/game');
+  res.active('logros').page({
+    title: 'Logros',
+    body: html`<h1>Logros y nivel</h1>
+      ${gv.playerCard(req.user, g)}
+      <section class="section" aria-labelledby="h-ach">
+        <h2 id="h-ach">Logros (${g.unlockedCount} de ${g.achievements.length})</h2>
+        ${gv.achievementGrid(g.achievements)}
+      </section>
+      <div class="cols section">
+        <section class="panel" aria-labelledby="h-xp">
+          <div class="panel-head"><h2 id="h-xp">De dónde sale tu XP</h2></div>
+          <ul class="figures">${g.breakdown.map(([k, n]) => html`<li><span class="k">${k}</span><span class="v num">+${n.toLocaleString('es')} XP</span></li>`)}</ul>
+        </section>
+        <section class="panel" aria-labelledby="h-niv">
+          <div class="panel-head"><h2 id="h-niv">Niveles</h2></div>
+          <ul class="figures">${game.LEVELS.map(([xp, name], i) => html`<li class="${i + 1 === g.level ? 'total' : ''}"><span class="k">${i + 1}. ${name}${i + 1 === g.level ? ' (tú)' : ''}</span><span class="v num">${xp.toLocaleString('es')} XP</span></li>`)}</ul>
+        </section>
+      </div>
+      <section class="panel section" aria-labelledby="h-gana">
+        <div class="panel-head"><h2 id="h-gana">Cómo ganar XP</h2></div>
+        <ul class="figures">
+          <li><span class="k">Completar una misión del plan</span><span class="v">+${game.XP.tarea} XP</span></li>
+          <li><span class="k">Terminar la evaluación profunda</span><span class="v">+${game.XP.evaluacion} XP</span></li>
+          <li><span class="k">Generar tu Plan Maestro</span><span class="v">+${game.XP.plan} XP</span></li>
+          <li><span class="k">Armar el presupuesto del mes</span><span class="v">+${game.XP.presupuesto} XP</span></li>
+          <li><span class="k">Alcanzar una meta</span><span class="v">+${game.XP.metaAlcanzada} XP</span></li>
+          <li><span class="k">Marcar un hito del año</span><span class="v">+${game.XP.hito} XP</span></li>
+          <li><span class="k">Actualizar el saldo de una deuda</span><span class="v">+${game.XP.saldoDeuda} XP</span></li>
+          <li><span class="k">Registrar un movimiento</span><span class="v">+${game.XP.movimiento} XP</span></li>
+        </ul>
+        <p class="small faint">El XP premia tu constancia, no cuánto dinero tienes. No es una calificación financiera.</p>
+      </section>`,
   });
 });
 

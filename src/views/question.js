@@ -203,6 +203,7 @@ function questionPage(ctx, o) {
   const isGroup = ['single', 'multi'].includes(q.type);
   const Tag = isGroup ? 'fieldset' : 'div';
   return html`<div class="q-head">
+      <div class="q-stage"><span class="stage">Etapa: ${section}</span><span class="xp">${st.answered * 10} XP</span></div>
       ${c.ticks(st.ticks, { label: `Pregunta ${q.position} de ${st.total}` })}
       <div class="progress-meta"><span>Pregunta ${q.position} de ${st.total}</span><span>${st.answered} respondidas</span></div>
     </div>

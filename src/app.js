@@ -40,6 +40,7 @@ function context(req, res, next) {
     csrf: req.session ? req.session.csrf : null,
     flash: typeof req.query.aviso === 'string' ? req.query.aviso : null,
     unread: req.user ? unreadCount(req.user.id) : 0,
+    game: req.user && isPage ? require('./domain/game').profile(req.user.id) : null,
     active: null,
     path: req.path,
   };

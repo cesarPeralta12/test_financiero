@@ -450,6 +450,7 @@
     }
     requestAnimationFrame(frame);
   }
+  window.DiaUnoConfetti = confetti;
   function centerOf(el) {
     const r = el.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: Math.max(r.top + r.height / 2, 60) };

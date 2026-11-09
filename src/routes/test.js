@@ -2,7 +2,7 @@
 // F02 Test inicial y F03 Resultado gratuito.
 const express = require('express');
 const db = require('../db');
-const { html } = require('../lib/html');
+const { html, raw } = require('../lib/html');
 const money = require('../lib/money');
 const qs = require('../domain/questionnaire');
 const consent = require('../domain/consent');
@@ -12,6 +12,7 @@ const { track, content } = require('../lib/services');
 const c = require('../views/components');
 const { createFlow } = require('./flow');
 const { owner } = require('./util');
+const game = require('../domain/game');
 
 const router = express.Router();
 
@@ -94,7 +95,14 @@ router.get('/resultado', (req, res) => {
 
   res.page({
     title: 'Tu orientación',
-    body: html`<div class="label-line"><span class="status-pill">Orientación preliminar</span><span class="small faint">${c.dateEs(ev.completed_at)}</span></div>
+    body: html`<section class="reward-card" aria-label="Recompensa">
+        <div class="trophy" aria-hidden="true">${raw(game.icon('trophy'))}</div>
+        <div>
+          <h2>¡Mundo 1 completado!</h2>
+          <p><span class="plus">+100 XP</span> y el logro <strong>«Primer paso»</strong>. ${req.user ? 'Ya cuentan en tu nivel.' : 'Crea tu cuenta para guardarlos.'}</p>
+        </div>
+      </section>
+      <div class="label-line"><span class="status-pill">Orientación preliminar</span><span class="small faint">${c.dateEs(ev.completed_at)}</span></div>
       <h1 class="section" style="margin-top:20px">Tu orientación</h1>
       <p class="lead">Una primera lectura de tus ${qs.load(ev.questionnaire_id).questions.length} respuestas. No es un diagnóstico ni un plan: no incluye proyecciones.</p>
 

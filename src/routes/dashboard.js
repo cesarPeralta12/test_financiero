@@ -12,6 +12,7 @@ const planDomain = require('../domain/plan');
 const c = require('../views/components');
 const { requireUser, safeNext } = require('./guards');
 const { intParam, notFound } = require('./util');
+const gv = require('../views/game');
 
 const router = express.Router();
 
@@ -69,7 +70,7 @@ function taskRow(ctx, t) {
   const overdue = t.status !== 'completada' && due && due < today;
   return html`<div class="task ${t.status === 'completada' ? 'is-done' : ''}">
     <div>
-      <div class="task-title">${t.title}</div>
+      <div class="task-title">${t.title}${t.status !== 'completada' ? html` ${gv.xpTag(40)}` : ''}</div>
       <div class="task-meta">
         ${t.status === 'completada' ? `Completada el ${c.dateEs(t.completed_at)}` : t.status === 'pospuesta' ? `Pospuesta hasta el ${c.dateEs(t.postponed_until)}` : due ? `${overdue ? 'Vencida: ' : 'Para el '}${c.dateEs(due)}` : ''}
         ${t.day_offset ? `. Día ${t.day_offset} del plan` : ''}${t.source === 'coach' ? '. Propuesta por el coach' : ''}

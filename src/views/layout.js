@@ -1,6 +1,7 @@
 'use strict';
 const { html, raw } = require('../lib/html');
 const config = require('../config');
+const game = require('../domain/game');
 
 const FLASH = {
   sesion_cerrada: ['ok', 'Cerraste sesión.'],
@@ -40,7 +41,7 @@ function navLinks(ctx) {
     return html`<a href="/entrar" ${cur === 'entrar' ? raw('aria-current="page"') : ''}>Entrar</a>`;
   }
   const unread = ctx.unread ? html`<span class="count" aria-label="${ctx.unread} sin leer">${ctx.unread}</span>` : '';
-  return html`${a('/inicio', 'Inicio', 'inicio')}${a('/plan', 'Plan', 'plan')}${a('/tablero', 'Tablero', 'tablero')}${a('/coach', 'Coach', 'coach')}${a(
+  return html`${a('/inicio', 'Inicio', 'inicio')}${a('/plan', 'Plan', 'plan')}${a('/tablero', 'Misiones', 'tablero')}${a('/logros', 'Logros', 'logros')}${a('/coach', 'Coach', 'coach')}${a(
     '/calculadora',
     'Calculadora',
     'calculadora'
@@ -49,6 +50,21 @@ function navLinks(ctx) {
       <input type="hidden" name="_csrf" value="${ctx.csrf}" />
       <button class="nav-logout" type="submit">Salir</button>
     </form>`;
+}
+
+function hud(ctx) {
+  const g = ctx.game;
+  if (!g) return '';
+  const pct = Math.round(g.progress * 100);
+  return html`<a class="hud" href="/logros" aria-label="Nivel ${g.level}, ${g.name}. ${g.xp} XP. Racha de ${g.streak} días.">
+    <span class="hud-level" aria-hidden="true"><span>${g.level}</span></span>
+    <span class="hud-body" aria-hidden="true">
+      <span class="hud-name">${g.name}</span>
+      <span class="hud-bar"><span class="hud-fill" style="width:${pct}%"></span></span>
+      <span class="hud-xp"><span data-hud-xp>${g.xp.toLocaleString('es')}</span> XP${g.next ? html`<span class="hud-next"> / ${g.next.toLocaleString('es')}</span>` : ''}</span>
+    </span>
+    <span class="hud-streak ${g.activeToday ? 'is-on' : ''}" aria-hidden="true">${raw(game.icon('flame', 'gi gi-flame'))}<b>${g.streak}</b></span>
+  </a>`;
 }
 
 function layout(ctx, { title, body, wide = false, narrow = false, description = null, minimal = false, refresh = null }) {
@@ -63,16 +79,28 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
         <meta name="description" content="${description || 'Test financiero gratuito, evaluación profunda y Plan Maestro para ordenar tu dinero.'}" />
         ${ctx.csrf ? html`<meta name="csrf-token" content="${ctx.csrf}" />` : ''}
         ${refresh ? html`<meta http-equiv="refresh" content="${refresh}" />` : ''}
-        <meta name="theme-color" content="#f4f6f3" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#11171c" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#0b1020" />
         <link rel="preload" href="/fonts/hanken-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
-        <link rel="stylesheet" href="/css/app.css?v=2" />
-        <link rel="stylesheet" href="/css/motion.css?v=2" />
-        <script src="/js/early.js?v=2"></script>
+        <link rel="preload" href="/fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+        <link rel="stylesheet" href="/css/app.css?v=3" />
+        <link rel="stylesheet" href="/css/motion.css?v=3" />
+        <link rel="stylesheet" href="/css/game.css?v=3" />
+        <script src="/js/early.js?v=3"></script>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <script src="/js/app.js?v=2" defer></script>
+        <script src="/js/app.js?v=3" defer></script>
+        <script src="/js/game.js?v=3" defer></script>
       </head>
-      <body data-flash="${ctx.flash || ''}">
+      <body
+        data-flash="${ctx.flash || ''}"
+        ${ctx.game
+          ? raw(
+              `data-user="${Number(ctx.user.id)}" data-xp="${ctx.game.xp}" data-level="${ctx.game.level}" data-level-name="${ctx.game.name.replace(/"/g, '')}" data-ach="${ctx.game.achievements
+                .filter((a) => a.unlocked)
+                .map((a) => a.code)
+                .join(',')}" data-ach-titles="${ctx.game.achievements.map((a) => `${a.code}:${a.title}`).join('|')}"`
+            )
+          : ''}
+      >
         <a class="skip" href="#contenido">Saltar al contenido</a>
         ${!config.isProd
           ? html`<div class="env-banner">Entorno de ${config.env === 'testing' ? 'pruebas' : 'desarrollo'}: pagos, correos e IA pueden estar simulados.</div>`
@@ -81,7 +109,7 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
             : ''}
         <header>
           <div class="bar">
-            ${brand()}
+            ${brand()} ${minimal ? '' : hud(ctx)}
             ${minimal
               ? ''
               : html`${ctx.user

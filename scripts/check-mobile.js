@@ -117,6 +117,7 @@ async function main() {
     ['metas', '/calculadora/metas', userCookie],
     ['simulador', '/calculadora/simulador', userCookie],
     ['cuenta', '/cuenta', userCookie],
+    ['logros', '/logros', userCookie],
     ['admin', '/admin', adminCookie],
     ['admin-usuarios', '/admin/usuarios', adminCookie],
     ['admin-ia', '/admin/ia', adminCookie],

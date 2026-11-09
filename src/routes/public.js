@@ -8,6 +8,8 @@ const consent = require('../domain/consent');
 const qs = require('../domain/questionnaire');
 const c = require('../views/components');
 const { owner } = require('./util');
+const gv = require('../views/game');
+const game = require('../domain/game');
 
 const router = express.Router();
 
@@ -37,6 +39,8 @@ router.get('/', (req, res) => {
   res.page({
     title: null,
     body: html`<section class="hero" aria-labelledby="hero-title">
+        <div class="orbs" aria-hidden="true"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="coin c1"></span><span class="coin c2"></span><span class="coin c3"></span><span class="coin c4"></span></div>
+        <span class="eyebrow-chip">${raw(game.icon('bolt'))}Nivel 1 gratis: gana tus primeros 100 XP</span>
         <h1 id="hero-title">${words(hero ? hero.title : 'Ordena tu dinero empezando por saber dónde estás.')}</h1>
         <p class="lead">${hero ? hero.body : ''}</p>
         <div class="actions actions--center">
@@ -54,13 +58,19 @@ router.get('/', (req, res) => {
       </section>
 
       <section class="section" aria-labelledby="recorrido">
-        <h2 id="recorrido" class="visually-hidden">Recorrido</h2>
-        <ol class="journey">
-          <li><span class="step">Paso 1</span><h3>Test gratuito</h3><p>Fortalezas, riesgos y por dónde empezar.</p><span class="price-tag">Gratis</span></li>
-          <li><span class="step">Paso 2</span><h3>Evaluación profunda</h3><p>Diagnóstico con tus cifras exactas.</p><span class="price-tag">${price('evaluacion')}</span></li>
-          <li><span class="step">Paso 3</span><h3>Plan Maestro</h3><p>90 días de acciones y una hoja de ruta de 12 meses.</p><span class="price-tag">${price('plan_maestro')}</span></li>
-          <li><span class="step">Paso 4</span><h3>Coach y calculadora</h3><p>Simula, registra y avanza con apoyo.</p><span class="price-tag">${price('acompanamiento')}</span></li>
-        </ol>
+        <h2 id="recorrido" class="center">Tu mapa: cuatro mundos</h2>
+        <p class="muted center">Avanza mundo por mundo. El primero es gratis.</p>
+        ${gv.worldMap(['current', '', '', ''], [['/test', 'Gratis'], ['/comprar/evaluacion', price('evaluacion')], ['/comprar/plan_maestro', price('plan_maestro')], ['/comprar/acompanamiento', price('acompanamiento')]])}
+      </section>
+
+      <section class="section" aria-labelledby="como">
+        <h2 id="como" class="center">Cómo se juega</h2>
+        <div class="how">
+          <article class="how-card"><div class="how-ico xp">${raw(game.icon('bolt'))}</div><h3>Gana XP y sube de nivel</h3><p>Cada paso cuenta: responder el test, completar misiones, registrar tus gastos. Diez niveles, de Explorador a Leyenda.</p></article>
+          <article class="how-card"><div class="how-ico fire">${raw(game.icon('flame'))}</div><h3>Mantén tu racha</h3><p>Un pequeño avance cada día enciende tu racha. La constancia es lo que mueve tu dinero.</p></article>
+          <article class="how-card"><div class="how-ico trophy">${raw(game.icon('trophy'))}</div><h3>Desbloquea logros</h3><p>Cazadeudas, Ahorrador, Semana perfecta y más. Cada logro marca un avance real en tu plan.</p></article>
+        </div>
+        <p class="small faint center section">El XP premia lo que haces, no cuánto dinero tienes. Tus cifras se calculan siempre con reglas fijas.</p>
       </section>
 
       <section class="section day-demo" aria-labelledby="h-dia" data-day-demo>
@@ -91,8 +101,12 @@ router.get('/', (req, res) => {
         </div>
       </section>
 
-      <hr class="rule" />
-      <p class="small muted center">
+      <section class="cta-band">
+        <h2>Tu Día Uno empieza con una partida gratis</h2>
+        <p class="muted">25 preguntas, unos diez minutos y tu primera recompensa.</p>
+        <div class="actions actions--center"><a class="btn btn-primary btn-shine" href="/test">Jugar el test gratuito</a></div>
+      </section>
+      <p class="small muted center section">
         Antes de guardar cualquier dato financiero te pediremos tu consentimiento. Tus respuestas no se usan para publicidad.
         <a href="/privacidad">Cómo tratamos tus datos</a>.
       </p>`,
