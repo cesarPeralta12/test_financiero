@@ -79,7 +79,7 @@ router.post('/registro', (req, res) => {
   session.login(req, res, user.id);
   track('registro', { userId: user.id, anonId, dedupe: `registro:${user.id}` });
   accounts.sendVerification(user);
-  const hasResult = db.value("SELECT 1 FROM evaluations WHERE user_id = ? AND kind = 'gratuito' AND status = 'finalizada'", user.id);
+  const hasResult = db.value('SELECT 1 FROM ft_sessions WHERE user_id = ? AND completed_revision IS NOT NULL', user.id);
   res.redirect(303, `${next || (hasResult ? '/resultado' : '/inicio')}${(next || '').includes('?') ? '&' : '?'}aviso=cuenta_creada`);
 });
 

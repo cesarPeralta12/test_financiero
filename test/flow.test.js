@@ -18,100 +18,112 @@ test('el test exige consentimiento antes de guardar datos financieros', async ()
   await h.consent(c);
   const ok = await c.get('/test');
   assert.match(ok.url, /\/test\/pregunta\/1$/);
+  assert.match(ok.text, /Pregunta 1 de 25/);
   const row = h.db.one("SELECT * FROM consents WHERE kind = 'datos_financieros' ORDER BY id DESC LIMIT 1");
   assert.equal(row.content_version, 1);
   assert.ok(row.accepted_at);
 });
 
-test('valida el tipo de respuesta y no marca como respondida una pregunta incompleta', async () => {
+async function formOf(c, n) {
+  const r = await c.get(`/test/pregunta/${n}`);
+  const f = (name) => (r.text.match(new RegExp(`name="${name}" value="([^"]*)"`)) || [])[1];
+  return { r, base: { action: 'next', variant_id: f('variant_id'), expected_revision: f('expected_revision'), resolved_context_hash: f('resolved_context_hash') } };
+}
+
+test('valida la respuesta y no marca como respondida una pregunta incompleta', async () => {
   const c = new h.Client();
   await h.consent(c);
   await c.get('/test');
-  await c.post('/test/pregunta/1', { action: 'next', value: 'MXN' });
-  await c.post('/test/pregunta/2', { action: 'next', value: 'empleo' });
-  const r = await c.post('/test/pregunta/3', { action: 'next', amount: 'abc', period: 'mensual' });
-  assert.equal(r.status, 422);
-  assert.match(r.text, /Escribe solo números/);
-  const empty = await c.post('/test/pregunta/3', { action: 'next', amount: '', period: 'mensual' });
+  let { base } = await formOf(c, 1);
+  const empty = await c.post('/test/pregunta/1', { ...base });
   assert.equal(empty.status, 422);
-  const ev = h.db.one("SELECT id FROM evaluations WHERE kind = 'gratuito' ORDER BY id DESC LIMIT 1");
-  assert.equal(h.db.value('SELECT COUNT(*) FROM answers WHERE evaluation_id = ? AND code = ?', ev.id, 'ingreso_mensual'), 0);
-  // «No lo sé» solo donde está previsto: la pregunta 2 no lo admite.
-  const notAllowed = await c.post('/test/pregunta/2', { action: 'next', unknown: '1' });
-  assert.equal(notAllowed.status, 422);
-  // En la 3 sí, y se guarda como desconocido (no como cero).
-  await c.post('/test/pregunta/3', { action: 'next', unknown: '1', amount: '', period: 'mensual' });
-  const a = h.db.one('SELECT * FROM answers WHERE evaluation_id = ? AND code = ?', ev.id, 'ingreso_mensual');
-  assert.equal(a.is_unknown, 1);
+  const alien = await c.post('/test/pregunta/1', { ...base, value: 'NO_EXISTE' });
+  assert.equal(alien.status, 422);
+  const s = h.db.one('SELECT * FROM ft_sessions ORDER BY rowid DESC LIMIT 1');
+  assert.equal(h.db.value('SELECT COUNT(*) FROM ft_answers WHERE session_id = ?', s.id), 0);
+  // «No lo sé» está disponible en todas las preguntas y se guarda como desconocido, no como cero.
+  const ok = await c.post('/test/pregunta/1', { ...base, value: 'DK' });
+  assert.match(ok.url, /\/test\/pregunta\/2$/);
+  const a = h.db.one("SELECT * FROM ft_answers WHERE session_id = ? AND slot_id = 'Q01'", s.id);
+  assert.equal(a.response_status, 'unknown');
   assert.equal(a.value_json, null);
+  // El formulario caducado (otra pestaña avanzó) no sobrescribe nada.
+  ({ base } = await formOf(c, 2));
+  await c.post('/test/pregunta/2', { ...base, value: 'SAVING' });
+  const stale = await c.post('/test/pregunta/2', { ...base, value: 'SHORTFALL' });
+  assert.match(stale.url, /\/test\/pregunta\/3$/);
+  assert.equal(h.db.value("SELECT value_json FROM ft_answers WHERE session_id = ? AND slot_id = 'Q02' AND active = 1", s.id), '"SAVING"');
 });
 
 test('recorrido gratuito completo, continuidad y vinculación a la cuenta', async () => {
   const c = new h.Client();
   await h.consent(c);
   // Responde las primeras 5 y «recarga» (nuevo GET): retoma donde iba.
-  await c.get('/test');
-  const codes = Object.keys(h.FREE_ANSWERS);
-  for (let i = 0; i < 5; i++) await c.post(`/test/pregunta/${i + 1}`, { action: 'next', ...h.FREE_ANSWERS[codes[i]] });
+  await h.answerFree(c, h.FREE_ANSWERS, { stopAfter: 5 });
   const resume = await c.get('/test');
   assert.match(resume.url, /\/test\/pregunta\/6$/);
   // Botón anterior conserva lo ya respondido.
   const back = await c.post('/test/pregunta/6', { action: 'prev' });
   assert.match(back.url, /\/test\/pregunta\/5$/);
-  assert.match(back.text, /value="fijo"\s+checked/);
+  assert.match(back.text, /value="SALARY_LIMIT"\s+checked/);
   // Termina el cuestionario.
-  const end = await h.answerAll(c, '/test', h.FREE_ANSWERS);
+  const end = await h.answerFree(c);
   assert.match(end.url, /\/test\/revision$/);
   assert.match(end.text, /Revisa tus respuestas/);
-  // Corrige una respuesta antes de finalizar.
-  await c.post('/test/pregunta/15?volver=revision', { action: 'next', amount: '9000' });
   const fin = await c.post('/test/finalizar', {});
   assert.match(fin.url, /\/resultado$/);
-  assert.match(fin.text, /Orientación preliminar/);
-  assert.match(fin.text, /Fortalezas/);
-  assert.match(fin.text, /Riesgos/);
-  assert.match(fin.text, /Prioridades/);
-  assert.match(fin.text, /Para empezar/);
-  assert.match(fin.text, /Evaluación profunda/);
-  assert.doesNotMatch(fin.text, /Plan de 90 días<\/h2>/, 'el resultado gratuito no muestra proyecciones del plan');
+  for (const t of ['Tu diagnóstico financiero preliminar', 'Tu perfil financiero', 'Prioridad y alcance', 'Tu punto de partida', 'Tu mapa financiero', 'Tus fortalezas', 'Hallazgos principales', 'Tu objetivo', 'Oportunidad para mejorar', 'Tus prioridades', 'Tu hoja de ruta de 90 días', 'Tu primer paso', 'Qué falta y cómo seguir', 'Evaluación profunda', 'Guarda tu resultado']) {
+    assert.ok(fin.text.includes(t), `falta la sección «${t}»`);
+  }
+  assert.match(fin.text, /Ingreso estable y reserva limitada/);
+  assert.match(fin.text, /Prepara un listado de tus deudas/);
+  assert.doesNotMatch(fin.text, /Mundo 1 completado/);
   // Sin pagar, el resultado sigue disponible.
-  const again = await c.get('/resultado');
-  assert.equal(again.status, 200);
+  assert.equal((await c.get('/resultado')).status, 200);
   // Crea la cuenta: el test anónimo se vincula sin perder respuestas.
-  const evBefore = h.db.one("SELECT * FROM evaluations WHERE kind = 'gratuito' AND status = 'finalizada' ORDER BY id DESC LIMIT 1");
-  assert.equal(evBefore.user_id, null);
+  const before = h.db.one('SELECT * FROM ft_sessions WHERE completed_revision IS NOT NULL ORDER BY rowid DESC LIMIT 1');
+  assert.equal(before.user_id, null);
   const reg = await h.registerUser(c, 'continuidad@ejemplo.test');
   assert.match(reg.url, /\/resultado\?aviso=cuenta_creada/);
-  const evAfter = h.db.one('SELECT * FROM evaluations WHERE id = ?', evBefore.id);
+  const after = h.db.one('SELECT * FROM ft_sessions WHERE id = ?', before.id);
   const user = h.db.one("SELECT * FROM users WHERE email = 'continuidad@ejemplo.test'");
-  assert.equal(evAfter.user_id, user.id);
-  assert.equal(h.db.value('SELECT COUNT(*) FROM answers WHERE evaluation_id = ?', evBefore.id), 25);
-  assert.equal(user.base_currency, 'MXN');
+  assert.equal(after.user_id, user.id);
+  assert.equal(h.db.value('SELECT COUNT(*) FROM ft_answers WHERE session_id = ? AND active = 1', before.id), 25);
+  assert.equal(user.base_currency, 'USD');
   // Otro dispositivo: entra con la cuenta y ve su resultado.
   const other = new h.Client();
   await h.login(other, 'continuidad@ejemplo.test', 'Clave-segura-123');
   const res2 = await other.get('/resultado');
   assert.equal(res2.status, 200);
-  assert.match(res2.text, /Tu orientación/);
+  assert.match(res2.text, /Tu diagnóstico financiero preliminar/);
   // Se envió el correo de verificación.
   assert.ok(h.db.one("SELECT id FROM emails WHERE to_email = 'continuidad@ejemplo.test' AND purpose = 'verificacion'"));
 });
 
-test('las preguntas condicionales se omiten y no cuentan', async () => {
+test('cambiar una respuesta retira el resultado anterior y pide volver a finalizar', async () => {
   const c = new h.Client();
   await h.consent(c);
-  const answers = { ...h.FREE_ANSWERS, tiene_deudas: { value: 'no' } };
-  const end = await h.answerAll(c, '/test', answers);
-  assert.match(end.url, /\/revision$/);
-  assert.match(end.text, /No aplica/);
+  await h.answerFree(c);
+  await c.post('/test/finalizar', {});
+  // Cambia Q09 de SÍ a NO: Q10 y Q11 cambian de variante y se piden de nuevo.
+  const { base } = await formOf(c, 9);
+  const r = await c.post('/test/pregunta/9', { ...base, value: 'NO' });
+  assert.match(r.url, /\/test\/pregunta\/10$/);
+  assert.match(r.text, /Prevés necesitar un préstamo/);
+  const stale = await c.get('/resultado');
+  assert.match(stale.text, /Retiramos el resultado anterior/);
+  const answers = { ...h.FREE_ANSWERS, Q09: 'NO', Q10: 'NO', Q11: 'CURRENT' };
+  await h.answerFree(c, answers);
   const fin = await c.post('/test/finalizar', {});
-  assert.match(fin.text, /No tienes deudas/);
+  assert.match(fin.url, /\/resultado$/);
+  assert.match(fin.text, /No declaras deudas personales/);
+  assert.doesNotMatch(fin.text, /Prepara un listado de tus deudas/);
 });
 
 test('ninguna ruta pública permite ver resultados de otra persona', async () => {
   const a = new h.Client();
   await h.consent(a);
-  await h.answerAll(a, '/test', h.FREE_ANSWERS);
+  await h.answerFree(a);
   await a.post('/test/finalizar', {});
   const b = new h.Client();
   const r = await b.get('/resultado');

@@ -36,12 +36,9 @@ function previousFor(req, q, ev, currency) {
     const a = qs.answers(prevDeep.id)[q.code];
     if (a && !a.unknown && !a.skipped && a.value !== null) source = a;
   }
-  if (!source && q.config.prefill && q.config.prefill.from === 'gratuito') {
-    const free = qs.latestFinished('gratuito', { userId });
-    if (free) {
-      const a = qs.answers(free.id)[q.config.prefill.code];
-      if (a && !a.unknown && !a.skipped && a.value !== null) source = a;
-    }
+  if (!source && q.config.prefill && q.config.prefill.from === 'gratuito' && q.config.prefill.code === 'moneda') {
+    const cur = db.value('SELECT currency FROM ft_sessions WHERE user_id = ? AND completed_revision IS NOT NULL AND currency IS NOT NULL ORDER BY completed_at DESC LIMIT 1', userId);
+    if (cur) source = { value: cur };
   }
   if (!source) return null;
   const current = qs.answers(ev.id)[q.code];

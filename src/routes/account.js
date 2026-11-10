@@ -5,6 +5,7 @@ const db = require('../db');
 const { html } = require('../lib/html');
 const money = require('../lib/money');
 const qs = require('../domain/questionnaire');
+const engine = require('../domain/free/engine');
 const entitlements = require('../domain/entitlements');
 const planDomain = require('../domain/plan');
 const tasks = require('../domain/tasks');
@@ -18,8 +19,8 @@ const router = express.Router();
 
 function journey(user) {
   const o = { userId: user.id };
-  const freeDone = qs.latestFinished('gratuito', o);
-  const freeOpen = qs.findEvaluation('gratuito', o, 'en_curso');
+  const freeDone = engine.findLatestResultSession(o);
+  const freeOpen = engine.findOwned(o, 'en_curso');
   const ents = entitlements.active(user.id);
   const diag = deep.latestDiagnosis(user.id);
   const deepOpen = qs.findEvaluation('profundo', o, 'en_curso');

@@ -148,4 +148,38 @@ async function deliver(payload, { signature = null } = {}) {
   return { status: res.status, body: await res.json() };
 }
 
-module.exports = { start, stop, Client, db, queue, resetRateLimits, FREE_ANSWERS, DEEP_ANSWERS, answerAll, registerUser, login, consent, payViaWebhook, deliver, sandbox };
+/** Convierte un `value` de la API a los campos del formulario web. */
+function formFields(value) {
+  if (Array.isArray(value)) return { value };
+  if (value && typeof value === 'object') {
+    if (value.kind === 'AMOUNT') return { amount: value.amount, currency: value.currency };
+    if (value.kind === 'AGE') return { age: String(value.value), ...(value.confirmed ? { confirmed: '1' } : {}) };
+    return { choice: value.code };
+  }
+  return { value };
+}
+
+const hidden = (html, name) => (html.match(new RegExp(`name="${name}" value="([^"]*)"`)) || [])[1];
+
+/** Responde el test gratuito por la web siguiendo las redirecciones. `answers` por slot (Q01…Q25). */
+async function answerFree(client, answers = FREE_ANSWERS, { stopAfter = 25 } = {}) {
+  let r = await client.get('/test');
+  for (let guard = 0; guard < 60; guard++) {
+    const m = r.url.match(/\/test\/pregunta\/(\d+)/);
+    if (!m) break;
+    const slot = (r.text.match(/data-slot="([^"]+)"/) || [])[1];
+    if (Number(m[1]) > stopAfter) break;
+    if (!(slot in answers)) throw new Error(`Sin respuesta de prueba para ${slot}`);
+    r = await client.post(`/test/pregunta/${m[1]}`, {
+      action: 'next',
+      variant_id: hidden(r.text, 'variant_id'),
+      expected_revision: hidden(r.text, 'expected_revision'),
+      resolved_context_hash: hidden(r.text, 'resolved_context_hash'),
+      ...formFields(answers[slot]),
+    });
+    if (r.status === 422) throw new Error(`Respuesta rechazada en ${slot}: ${(r.text.match(/error-text[^>]*>([^<]+)/) || [])[1]}`);
+  }
+  return r;
+}
+
+module.exports = { start, stop, Client, db, queue, resetRateLimits, FREE_ANSWERS, DEEP_ANSWERS, answerAll, answerFree, formFields, registerUser, login, consent, payViaWebhook, deliver, sandbox };

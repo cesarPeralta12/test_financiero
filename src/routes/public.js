@@ -5,7 +5,7 @@ const { html, raw, prose } = require('../lib/html');
 const money = require('../lib/money');
 const { content, track } = require('../lib/services');
 const consent = require('../domain/consent');
-const qs = require('../domain/questionnaire');
+const engine = require('../domain/free/engine');
 const c = require('../views/components');
 const { owner } = require('./util');
 const gv = require('../views/game');
@@ -32,8 +32,8 @@ router.get('/', (req, res) => {
   const products = Object.fromEntries(db.all('SELECT * FROM products WHERE active = 1').map((p) => [p.code, p]));
   const price = (code) => (products[code] ? `${money.formatCents(products[code].price_cents, products[code].currency)} ${products[code].currency}` : 'De pago');
   const o = owner(req);
-  const inProgress = qs.findEvaluation('gratuito', o, 'en_curso');
-  const finished = qs.latestFinished('gratuito', o);
+  const inProgress = engine.findOwned(o, 'en_curso');
+  const finished = engine.findLatestResultSession(o);
   const states = Array.from({ length: 25 }, (_, i) => (i === 0 ? 'now' : ''));
 
   res.page({

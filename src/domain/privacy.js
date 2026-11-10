@@ -17,6 +17,11 @@ function exportUser(userId) {
     })),
     free_result: db.parse(db.value('SELECT result_json FROM free_results WHERE evaluation_id = ?', e.id)),
   }));
+  const freeTests = db.all('SELECT id, version_id, status, currency, route, revision, completed_at, created_at FROM ft_sessions WHERE user_id = ?', userId).map((t) => ({
+    ...t,
+    answers: db.all('SELECT slot_id, variant_id, value_json, response_status, answer_revision, active, answered_at FROM ft_answers WHERE session_id = ? ORDER BY id', t.id).map((a) => ({ slot_id: a.slot_id, variant_id: a.variant_id, value: db.parse(a.value_json), status: a.response_status, revision: a.answer_revision, active: Boolean(a.active), answered_at: a.answered_at })),
+    results: db.all('SELECT answer_revision, rules_version, status, narrative_source, result_json FROM ft_results WHERE session_id = ?', t.id).map((r) => ({ answer_revision: r.answer_revision, rules_version: r.rules_version, status: r.status, narrative_source: r.narrative_source, resultado: db.parse(r.result_json) })),
+  }));
   const conversations = db.all('SELECT id, title, created_at FROM conversations WHERE user_id = ?', userId).map((c) => ({
     ...c,
     messages: db.all('SELECT role, kind, content, proposal_json, proposal_status, created_at FROM messages WHERE conversation_id = ? ORDER BY id', c.id),
@@ -27,6 +32,7 @@ function exportUser(userId) {
     cuenta: user,
     consentimientos: db.all('SELECT kind, content_key, content_version, accepted_at FROM consents WHERE user_id = ?', userId),
     evaluaciones: evaluations,
+    tests_gratuitos: freeTests,
     diagnosticos: db.all('SELECT id, evaluation_id, calc_version, rule_set_id, result_json, created_at FROM diagnoses WHERE user_id = ?', userId).map((d) => ({ ...d, result_json: undefined, resultado: db.parse(d.result_json) })),
     planes: db.all('SELECT id, version_number, status, start_date, content_json, narrative_json, created_at, completed_at FROM plan_versions WHERE user_id = ?', userId).map((p) => ({
       ...p,

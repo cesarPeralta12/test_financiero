@@ -70,6 +70,35 @@ async function answerAll(path, answers) {
   return r;
 }
 
+/** Responde el test gratuito de 25 preguntas por la web (campos ocultos incluidos). */
+async function answerFree(answers) {
+  const fields = (value) => {
+    if (Array.isArray(value)) return { value };
+    if (value && typeof value === 'object') {
+      if (value.kind === 'AMOUNT') return { amount: value.amount, currency: value.currency };
+      if (value.kind === 'AGE') return { age: String(value.value), ...(value.confirmed ? { confirmed: '1' } : {}) };
+      return { choice: value.code };
+    }
+    return { value };
+  };
+  const hidden = (text, name) => (text.match(new RegExp(`name="${name}" value="([^"]*)"`)) || [])[1];
+  let r = await req('GET', '/test');
+  for (let i = 0; i < 60; i++) {
+    const m = r.url.match(/\/test\/pregunta\/(\d+)/);
+    if (!m) break;
+    const slot = (r.text.match(/data-slot="([^"]+)"/) || [])[1];
+    r = await req('POST', `/test/pregunta/${m[1]}`, {
+      action: 'next',
+      variant_id: hidden(r.text, 'variant_id'),
+      expected_revision: hidden(r.text, 'expected_revision'),
+      resolved_context_hash: hidden(r.text, 'resolved_context_hash'),
+      ...fields(answers[slot]),
+    });
+    if (r.status === 422) throw new Error(`Respuesta rechazada en ${slot}`);
+  }
+  return r;
+}
+
 async function waitFor(path, pattern, label) {
   for (let i = 0; i < 40; i++) {
     const r = await req('GET', path);
@@ -97,7 +126,7 @@ async function main() {
   console.log('1/7 Test gratuito');
   await req('GET', '/consentimiento');
   await req('POST', '/consentimiento', { acepto: '1' });
-  await answerAll('/test', FREE_ANSWERS);
+  await answerFree(FREE_ANSWERS);
   await req('POST', '/test/finalizar', {});
 
   console.log('2/7 Registro');

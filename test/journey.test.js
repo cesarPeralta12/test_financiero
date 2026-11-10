@@ -17,7 +17,7 @@ let user;
 test('compra del paquete y evaluación profunda con contradicción', async () => {
   c = new h.Client();
   await h.consent(c);
-  await h.answerAll(c, '/test', h.FREE_ANSWERS);
+  await h.answerFree(c);
   await c.post('/test/finalizar', {});
   await h.registerUser(c, 'viaje@ejemplo.test', { name: 'Ana' });
   user = h.db.one("SELECT * FROM users WHERE email = 'viaje@ejemplo.test'");
