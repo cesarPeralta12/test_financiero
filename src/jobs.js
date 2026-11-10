@@ -12,6 +12,7 @@ const tasks = require('./domain/tasks');
 // Carga los manejadores de cola de cada módulo.
 require('./lib/mailer');
 require('./domain/plan');
+require('./domain/free/narrative');
 require('./domain/gateways/sandbox');
 
 function purgeAnonymous(days = config.anonymousRetentionDays) {
@@ -21,6 +22,7 @@ function purgeAnonymous(days = config.anonymousRetentionDays) {
     for (const id of ids) {
       db.run('DELETE FROM sessions WHERE anon_id = ?', id);
       db.run('DELETE FROM evaluations WHERE anon_id = ? AND user_id IS NULL', id);
+      db.run('DELETE FROM ft_sessions WHERE anon_id = ? AND user_id IS NULL', id);
       db.run('DELETE FROM consents WHERE anon_id = ?', id);
       db.run('UPDATE analytics_events SET anon_id = NULL WHERE anon_id = ?', id);
       db.run('DELETE FROM anonymous_sessions WHERE id = ?', id);

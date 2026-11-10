@@ -7,7 +7,7 @@ Implementa el documento *Día Uno: alcance de desarrollo de la plataforma* (v1.0
 | Etapa | Acceso | Rutas principales |
 |---|---|---|
 | Presentación y consentimiento | Público | `/`, `/consentimiento`, `/privacidad`, `/condiciones` |
-| Test inicial de 25 preguntas y resultado | Gratis | `/test`, `/resultado` |
+| Test inicial de 25 preguntas con variantes y resultado (ver `docs/TEST-GRATUITO.md`) | Gratis | `/test`, `/resultado`, API `/api/free-tests` |
 | Registro, acceso y recuperación | Cuenta | `/registro`, `/entrar`, `/recuperar`, `/inicio`, `/cuenta` |
 | Evaluación profunda de 25 preguntas y diagnóstico | De pago | `/evaluacion`, `/diagnostico` |
 | Plan Maestro (90 días y 12 meses, PDF) | De pago | `/plan` |
@@ -144,7 +144,7 @@ src/
   app.js, server.js, worker.js, jobs.js, config.js
   db/            migraciones, contenido versionado v1, seed
   lib/           seguridad, sesiones, cola, correo, respaldos, registro, plantillas
-  domain/        calc (motor de cálculo), questionnaire, freeResult, deep, plan, pdf,
+  domain/        calc (motor de cálculo), questionnaire, free/ (test gratuito: catálogo, motor, anotaciones, resultado), deep, plan, pdf,
                  payments + gateways/, entitlements, tracker, tasks, coach, ai/, privacy
   routes/        una ruta por área (públicas, test, cuentas, cobro, evaluación, plan,
                  coach, calculadora, tablero, admin, api, webhooks)

@@ -26,12 +26,15 @@ function linkAnonymous(anonId, userId) {
   if (!anonId) return 0;
   return db.tx(() => {
     const n = db.run('UPDATE evaluations SET user_id = ?, anon_id = NULL WHERE anon_id = ? AND user_id IS NULL', userId, anonId).changes;
+    const nFree = db.run('UPDATE ft_sessions SET user_id = ?, anon_id = NULL, updated_at = ? WHERE anon_id = ? AND user_id IS NULL', userId, db.now(), anonId).changes;
     db.run('UPDATE consents SET user_id = ?, anon_id = NULL WHERE anon_id = ? AND user_id IS NULL', userId, anonId);
     db.run('UPDATE anonymous_sessions SET linked_user_id = ?, linked_at = COALESCE(linked_at, ?) WHERE id = ?', userId, db.now(), anonId);
     db.run('UPDATE analytics_events SET user_id = ? WHERE anon_id = ? AND user_id IS NULL', userId, anonId);
-    const cur = db.one("SELECT base_currency FROM evaluations WHERE user_id = ? AND base_currency IS NOT NULL ORDER BY updated_at DESC LIMIT 1", userId);
+    const cur =
+      db.one('SELECT base_currency FROM evaluations WHERE user_id = ? AND base_currency IS NOT NULL ORDER BY updated_at DESC LIMIT 1', userId) ||
+      db.one('SELECT currency AS base_currency FROM ft_sessions WHERE user_id = ? AND currency IS NOT NULL ORDER BY updated_at DESC LIMIT 1', userId);
     if (cur) db.run('UPDATE users SET base_currency = COALESCE(base_currency, ?) WHERE id = ?', cur.base_currency, userId);
-    return n;
+    return n + nFree;
   });
 }
 

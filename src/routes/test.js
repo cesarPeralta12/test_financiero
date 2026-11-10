@@ -1,168 +1,287 @@
 'use strict';
-// F02 Test inicial y F03 Resultado gratuito.
+// F02 Test inicial (25 preguntas con variantes) y F03 Resultado gratuito.
+// Las pantallas usan el mismo motor que la API JSON (/api/free-tests).
 const express = require('express');
 const db = require('../db');
-const { html, raw } = require('../lib/html');
+const { html } = require('../lib/html');
 const money = require('../lib/money');
-const qs = require('../domain/questionnaire');
+const { sha256 } = require('../lib/security');
 const consent = require('../domain/consent');
-const freeResult = require('../domain/freeResult');
 const entitlements = require('../domain/entitlements');
+const engine = require('../domain/free/engine');
+const catalog = require('../domain/free/catalog');
+const { FreeError } = require('../domain/free/values');
 const { track, content } = require('../lib/services');
 const c = require('../views/components');
-const { createFlow } = require('./flow');
-const { owner } = require('./util');
+const ft = require('../views/freeTest');
+const { owner, intParam, notFound, wrap } = require('./util');
+const { rateLimit } = require('../lib/security');
 const game = require('../domain/game');
 
 const router = express.Router();
 
-function currencyFor(req, ev, map) {
-  const a = map.moneda;
-  if (a && !a.unknown && a.value) return a.value;
-  return (req.user && req.user.base_currency) || ev.base_currency || 'USD';
+function needConsent(req, res) {
+  if (consent.has(owner(req))) return false;
+  const back = req.method === 'GET' && req.originalUrl.startsWith('/test') ? req.originalUrl : '/test';
+  res.redirect(303, `/consentimiento?siguiente=${encodeURIComponent(back)}`);
+  return true;
 }
 
-router.use(
-  createFlow({
-    kind: 'gratuito',
-    base: '/test',
-    title: 'Test gratuito',
-    finishLabel: 'Ver mi resultado',
-    doneRedirect: '/resultado',
-    before(req, res) {
-      if (!consent.has(owner(req))) {
-        res.redirect(303, `/consentimiento?siguiente=${encodeURIComponent(req.originalUrl.startsWith('/test') && req.method === 'GET' ? req.originalUrl : '/test')}`);
-        return true;
-      }
-      return false;
-    },
-    currency: currencyFor,
-    onStart(req, ev) {
-      track('test_iniciado', { anonId: req.session.anon_id, userId: req.user && req.user.id, dedupe: `test_iniciado:${ev.id}` });
-    },
-    async finish(req, res, ev, map) {
-      freeResult.create(ev, map);
-      track('test_finalizado', { anonId: req.session.anon_id, userId: req.user && req.user.id, dedupe: `test_finalizado:${ev.id}` });
-      if (req.user && !req.user.base_currency && ev.base_currency) {
-        db.run('UPDATE users SET base_currency = ?, updated_at = ? WHERE id = ? AND base_currency IS NULL', ev.base_currency, db.now(), req.user.id);
-      }
-      res.redirect(303, '/resultado');
-    },
-  })
-);
+/** Sesión sobre la que se trabaja: la que está en curso o, si no hay, la última completada. */
+function workingSession(req) {
+  const o = owner(req);
+  return engine.findOwned(o, 'en_curso') || engine.findLatestResultSession(o);
+}
+
+function startSession(req) {
+  const o = owner(req);
+  const { session } = engine.createSession({ userId: o.userId, anonId: o.anonId, currency: (req.user && req.user.base_currency) || null, consent: true });
+  track('test_iniciado', { anonId: req.session.anon_id, userId: req.user && req.user.id, dedupe: `test_iniciado:${session.id}` });
+  return session;
+}
+
+const asArray = (v) => (v === undefined || v === null || v === '' ? [] : Array.isArray(v) ? v : typeof v === 'object' ? Object.values(v) : [v]);
+
+/** Convierte lo enviado por el formulario al `value` del contrato de la API. */
+function toValue(variant, body, session) {
+  const errors = {};
+  const form = {};
+  let value;
+  switch (variant.type) {
+    case 'single':
+      form.value = body.value;
+      value = typeof body.value === 'string' ? body.value : undefined;
+      if (value === undefined) errors.value = 'Elige una opción para continuar.';
+      break;
+    case 'multi':
+      form.value = asArray(body.value);
+      value = form.value;
+      if (!value.length) errors.value = 'Elige al menos una opción.';
+      break;
+    case 'money_or_choice': {
+      form.amount = body.amount;
+      form.currency = body.currency;
+      form.choice = body.choice;
+      const hasAmount = String(body.amount || '').trim() !== '';
+      if (body.choice && hasAmount) errors.amount = 'Escribe un importe o elige una opción, no ambos.';
+      else if (body.choice) value = { kind: 'CHOICE', code: body.choice };
+      else if (hasAmount) {
+        const cur = body.currency || session.currency || 'USD';
+        const p = money.parseAmount(body.amount, cur);
+        if (!p.ok) errors.amount = p.error || 'Escribe un importe válido.';
+        else value = { kind: 'AMOUNT', amount: p.value, currency: cur };
+      } else errors.amount = 'Escribe un importe o elige una opción.';
+      break;
+    }
+    case 'age_or_choice': {
+      form.age = body.age;
+      form.choice = body.choice;
+      form.confirmed = body.confirmed === '1';
+      const hasAge = String(body.age || '').trim() !== '';
+      if (body.choice && hasAge) errors.age = 'Escribe una edad o elige una opción, no ambos.';
+      else if (body.choice) value = { kind: 'CHOICE', code: body.choice };
+      else if (hasAge) {
+        if (!/^\d{1,3}$/.test(String(body.age).trim())) errors.age = 'Escribe tu edad con números, sin decimales.';
+        else value = { kind: 'AGE', value: Number(String(body.age).trim()), ...(form.confirmed ? { confirmed: true } : {}) };
+      } else errors.age = 'Escribe una edad o elige una opción.';
+      break;
+    }
+    default:
+      errors.value = 'Tipo de pregunta no disponible.';
+  }
+  return { value, errors, form };
+}
+
+function formFromAnswer(q, a) {
+  if (!a) return {};
+  if (a.status !== 'answered') {
+    if (q.type === 'single' || q.type === 'multi') return { value: q.type === 'multi' ? [a.status === 'unknown' ? 'DK' : 'PNA'] : a.status === 'unknown' ? 'DK' : 'PNA' };
+    return { choice: a.status === 'unknown' ? 'DK' : 'PNA' };
+  }
+  if (q.type === 'single' || q.type === 'multi') return { value: a.value };
+  if (a.value.kind === 'CHOICE') return { choice: a.value.code };
+  if (a.value.kind === 'AMOUNT') return { amount: a.value.amount, currency: a.value.currency };
+  return { age: a.value.value, confirmed: a.value.confirmed === true };
+}
+
+function renderQuestion(req, res, session, question, { form, errors = {}, status = 200, note = null, confirmNeeded = false, answer = null }) {
+  return res.status(status).page({
+    title: `Test gratuito: pregunta ${question.ordinal}`,
+    focus: true,
+    body: ft.questionPage(res.locals.ctx, { q: question, session, form: form ?? formFromAnswer(question, answer), errors, note, confirmNeeded }),
+  });
+}
+
+function reviewItems(session) {
+  const answers = engine.activeAnswers(session.id);
+  const ctx = engine.buildCtx(answers, session);
+  return catalog.SLOTS.map((s) => {
+    let text = `Pregunta ${s.ordinal}`;
+    try {
+      text = engine.publicQuestion(s.slot_id, ctx, session).text;
+    } catch {
+      /* pregunta aún sin resolver: depende de respuestas pendientes */
+    }
+    const a = answers[s.slot_id];
+    return { ordinal: s.ordinal, text, answered: Boolean(a), display: a ? ft.answerText(a.variant_id, a) : '' };
+  });
+}
+
+router.get('/test', (req, res) => {
+  if (needConsent(req, res)) return;
+  const o = owner(req);
+  let s = engine.findOwned(o, 'en_curso');
+  if (!s) {
+    if (engine.findLatestResultSession(o) && req.query.nuevo !== '1') return res.redirect(303, '/resultado');
+    s = startSession(req);
+  }
+  const next = engine.nextPending(engine.activeAnswers(s.id));
+  res.redirect(303, next ? `/test/pregunta/${catalog.SLOT_BY_ID[next].ordinal}` : '/test/revision');
+});
+
+router.get('/test/pregunta/:n', (req, res, next) => {
+  if (needConsent(req, res)) return;
+  const s = workingSession(req);
+  if (!s) return res.redirect(303, '/test');
+  const n = intParam(req.params.n);
+  const slot = n && catalog.SLOTS[n - 1];
+  if (!slot) return next(notFound());
+  const r = engine.questionAt(s, slot.slot_id);
+  if (r.redirect) return res.redirect(303, `/test/pregunta/${catalog.SLOT_BY_ID[r.redirect].ordinal}`);
+  const note = typeof req.query.nota === 'string' ? engine.takeAnnotationToShow(s.id, req.query.nota) : null;
+  renderQuestion(req, res, s, r.question, { answer: r.answer, note });
+});
+
+router.post('/test/pregunta/:n', (req, res, next) => {
+  if (needConsent(req, res)) return;
+  const limit = rateLimit({ key: `answer:${req.session.id}`, limit: 240, windowMs: 60_000 });
+  if (!limit.allowed) {
+    const e = new Error('limite');
+    e.status = 429;
+    return next(e);
+  }
+  const s = workingSession(req);
+  if (!s) return res.redirect(303, '/test');
+  const n = intParam(req.params.n);
+  const slot = n && catalog.SLOTS[n - 1];
+  if (!slot) return next(notFound());
+  if (String(req.body.action) === 'prev') return res.redirect(303, n > 1 ? `/test/pregunta/${n - 1}` : '/test');
+
+  const variant = catalog.VARIANT_BY_ID[req.body.variant_id];
+  if (!variant || variant.slot_id !== slot.slot_id) return res.redirect(303, '/test');
+  const parsed = toValue(variant, req.body, s);
+  const q = (() => {
+    const r = engine.questionAt(s, slot.slot_id);
+    return r.question || null;
+  })();
+  if (!q) return res.redirect(303, '/test');
+  if (Object.keys(parsed.errors).length) return renderQuestion(req, res, s, q, { form: parsed.form, errors: parsed.errors, status: 422 });
+
+  const expected = Number.parseInt(req.body.expected_revision, 10);
+  const changeCurrency = Boolean(s.currency && parsed.value && parsed.value.kind === 'AMOUNT' && parsed.value.currency !== s.currency);
+  const idem = `web:${sha256(`${s.id}|${slot.slot_id}|${req.body.variant_id}|${expected}|${JSON.stringify(parsed.value)}`).slice(0, 32)}`;
+  try {
+    const out = engine.saveAnswer(s.id, slot.slot_id, {
+      variant_id: req.body.variant_id,
+      expected_revision: expected,
+      resolved_context_hash: req.body.resolved_context_hash,
+      value: parsed.value,
+      change_currency: changeCurrency,
+      idempotency_key: idem,
+    });
+    const nextQ = out.next_question;
+    const note = out.annotation ? `?nota=${encodeURIComponent(out.annotation.event_id)}` : '';
+    return res.redirect(303, nextQ ? `/test/pregunta/${nextQ.ordinal}${note}` : '/test/revision');
+  } catch (err) {
+    if (!(err instanceof FreeError)) return next(err);
+    if (err.status === 409) return res.redirect(303, '/test');
+    const errors = {};
+    let confirmNeeded = false;
+    if (err.code === 'CONFIRMATION_REQUIRED') confirmNeeded = true;
+    else if (['INVALID_AMOUNT', 'CURRENCY_MISMATCH'].includes(err.code)) errors.amount = err.message;
+    else if (['INVALID_AGE', 'AGE_BELOW_RANGE'].includes(err.code)) errors.age = err.message;
+    else errors[variant.type === 'single' || variant.type === 'multi' ? 'value' : 'choice'] = err.message;
+    return renderQuestion(req, res, s, q, { form: parsed.form, errors, status: 422, confirmNeeded });
+  }
+});
+
+router.get('/test/revision', (req, res) => {
+  if (needConsent(req, res)) return;
+  const s = workingSession(req);
+  if (!s) return res.redirect(303, '/test');
+  const items = reviewItems(s);
+  const problems = engine.completenessProblems(s, engine.activeAnswers(s.id));
+  res.page({ title: 'Test gratuito: revisión', body: ft.reviewPage(res.locals.ctx, { items, canFinish: !problems.length, completed: s.completed_revision !== null }) });
+});
+
+router.post('/test/finalizar', wrap(async (req, res) => {
+  if (needConsent(req, res)) return;
+  const s = workingSession(req);
+  if (!s) return res.redirect(303, '/test');
+  try {
+    engine.complete(s.id);
+  } catch (err) {
+    if (!(err instanceof FreeError) || err.code !== 'INCOMPLETE') throw err;
+    return res.status(422).page({ title: 'Test gratuito: revisión', body: ft.reviewPage(res.locals.ctx, { items: reviewItems(s), canFinish: false, errors: [`Faltan ${err.extra.pending.length} respuestas por completar o confirmar.`] }) });
+  }
+  track('test_finalizado', { anonId: req.session.anon_id, userId: req.user && req.user.id, dedupe: `test_finalizado:${s.id}:${s.revision}` });
+  if (req.user && !req.user.base_currency && s.currency) {
+    db.run('UPDATE users SET base_currency = ?, updated_at = ? WHERE id = ? AND base_currency IS NULL', s.currency, db.now(), req.user.id);
+  }
+  res.redirect(303, '/resultado');
+}));
 
 router.post('/test/repetir', (req, res) => {
   const o = owner(req);
-  const open = qs.findEvaluation('gratuito', o, 'en_curso');
-  if (!open) {
-    const ev = qs.startEvaluation('gratuito', o);
-    track('test_iniciado', { anonId: req.session.anon_id, userId: req.user && req.user.id, dedupe: `test_iniciado:${ev.id}` });
-  }
+  if (!engine.findOwned(o, 'en_curso')) startSession(req);
   res.redirect(303, '/test');
 });
 
-function indicatorList(r) {
-  const cur = r.currency;
-  const i = r.indicators;
-  const row = (label, value, cls = '') => html`<li class="${cls}"><span class="k">${label}${c.src('calculo')}</span><span class="v num">${value}</span></li>`;
-  const bal = money.dec(i.balance);
-  return html`<ul class="figures">
-    ${row('Ingresos al mes', i.income !== null ? c.fmt(i.income, cur) : 'Sin dato')}
-    ${row('Gastos al mes', i.expenses !== null ? c.fmt(i.expenses, cur) : 'Sin dato')}
-    ${row('Pagos de deuda al mes', i.debtPayments !== null ? c.fmt(i.debtPayments, cur) : 'Sin dato')}
-    <li class="total">
-      <span class="k">Saldo disponible ${c.src('calculo')}</span>
-      <span class="v num ${bal && bal.lt(0) ? 'neg' : ''}">${i.balance !== null ? c.fmt(i.balance, cur) : 'No calculable'}</span>
-    </li>
-    ${row(
-      'Tasa de ahorro',
-      i.savingsRate !== null ? money.formatPercent(i.savingsRate, 1) : i.savingsRateReason === 'ingresos_cero' ? 'No aplica sin ingresos' : 'Sin dato'
-    )}
-    ${row('Meses que cubre tu ahorro', i.reserveMonths !== null ? money.formatNumber(i.reserveMonths, cur, 1) : 'Sin dato')}
-  </ul>`;
-}
+router.post('/test/reintentar', (req, res) => {
+  const s = workingSession(req);
+  if (s) {
+    try {
+      engine.retryDiagnostic(s.id);
+    } catch (err) {
+      if (!(err instanceof FreeError)) throw err;
+    }
+  }
+  res.redirect(303, '/resultado');
+});
 
 router.get('/resultado', (req, res) => {
   const o = owner(req);
-  const ev = qs.latestFinished('gratuito', o);
-  if (!ev) return res.redirect(303, '/test');
-  const row = db.one('SELECT * FROM free_results WHERE evaluation_id = ?', ev.id);
-  const r = JSON.parse(row.result_json);
+  const s = engine.findLatestResultSession(o);
+  if (!s) return res.redirect(303, '/test');
+  const open = engine.findOwned(o, 'en_curso');
+  let diag;
+  try {
+    diag = engine.getDiagnostic(s.id);
+  } catch (err) {
+    if (!(err instanceof FreeError)) throw err;
+    // Cambiaste respuestas después de finalizar: el resultado anterior se retira.
+    return res.page({
+      title: 'Tu diagnóstico',
+      body: html`<h1 class="section">Tu diagnóstico preliminar</h1>
+        <div class="note note--warn"><strong>Cambiaste respuestas.</strong> Retiramos el resultado anterior porque ya no coincide con lo que respondiste. Revisa tus respuestas y vuelve a finalizar para generar uno nuevo.</div>
+        <div class="actions"><a class="btn btn-primary" href="/test">Continuar mi test</a><a class="btn btn-quiet" href="/test/revision">Revisar mis respuestas</a></div>`,
+    });
+  }
+  if (diag.status !== 'ready') {
+    return res.page({
+      title: 'Tu diagnóstico',
+      body: html`<h1 class="section">Tu diagnóstico preliminar</h1>
+        ${diag.status === 'pending'
+          ? html`<div class="note note--warn" role="status">Estamos redactando tu diagnóstico. Suele tardar unos segundos.</div><div class="actions"><a class="btn btn-primary" href="/resultado">Actualizar</a></div>`
+          : html`<div class="note note--risk" role="alert">No pudimos generar tu diagnóstico. Tus respuestas siguen guardadas: no necesitas repetir el test.</div><form method="post" action="/test/reintentar">${c.csrfField(res.locals.ctx)}<button class="btn btn-primary" type="submit">Reintentar</button></form>`}`,
+    });
+  }
   const offer = content('oferta_evaluacion');
-  const ents = req.user ? entitlements.active(req.user.id) : {};
+  const owned = req.user ? entitlements.active(req.user.id) : {};
   const products = db.all("SELECT * FROM products WHERE active = 1 AND code IN ('evaluacion', 'paquete') ORDER BY sort");
-  const open = qs.findEvaluation('gratuito', o, 'en_curso');
-
   res.page({
-    title: 'Tu orientación',
-    body: html`<section class="reward-card" aria-label="Recompensa">
-        <div class="trophy" aria-hidden="true">${raw(game.icon('trophy'))}</div>
-        <div>
-          <h2>¡Mundo 1 completado!</h2>
-          <p><span class="plus">+100 XP</span> y el logro <strong>«Primer paso»</strong>. ${req.user ? 'Ya cuentan en tu nivel.' : 'Crea tu cuenta para guardarlos.'}</p>
-        </div>
-      </section>
-      <div class="label-line"><span class="status-pill">Orientación preliminar</span><span class="small faint">${c.dateEs(ev.completed_at)}</span></div>
-      <h1 class="section" style="margin-top:20px">Tu orientación</h1>
-      <p class="lead">Una primera lectura de tus ${qs.load(ev.questionnaire_id).questions.length} respuestas. No es un diagnóstico ni un plan: no incluye proyecciones.</p>
-
-      ${r.missing.length
-        ? html`<div class="note note--warn"><strong>Hay datos insuficientes.</strong> Algunas cifras no se pudieron calcular; las verás abajo.</div>`
-        : ''}
-
-      <section class="section" aria-labelledby="h-cifras">
-        <h2 id="h-cifras">Tus cifras de hoy</h2>
-        <p class="small muted">Calculadas a partir de tus respuestas y convertidas a un mes.</p>
-        ${indicatorList(r)}
-      </section>
-
-      <section class="section" aria-labelledby="h-fort">
-        <h2 id="h-fort">Fortalezas</h2>
-        ${r.strengths.length ? html`<ul class="findings">${r.strengths.map((s) => html`<li>${s}</li>`)}</ul>` : html`<p class="muted">Con tus respuestas aún no identificamos fortalezas claras. Es un punto de partida, no un juicio.</p>`}
-      </section>
-
-      <section class="section" aria-labelledby="h-riesgos">
-        <h2 id="h-riesgos">Riesgos</h2>
-        ${r.risks.length
-          ? html`<ul class="findings findings--risk">${r.risks.map((x) => html`<li class="${x.level}"><span class="visually-hidden">Riesgo ${x.level}: </span>${x.text}</li>`)}</ul>`
-          : html`<p class="muted">No detectamos riesgos importantes con los datos que diste.</p>`}
-      </section>
-
-      <section class="section" aria-labelledby="h-prio">
-        <h2 id="h-prio">Prioridades</h2>
-        <ol class="priority-list">${r.priorities.map((p) => html`<li>${p.title}</li>`)}</ol>
-      </section>
-
-      <section class="section" aria-labelledby="h-acciones">
-        <h2 id="h-acciones">Para empezar</h2>
-        ${r.actions.map((a) => html`<div class="action-card"><h3>${a.title}</h3><p>${a.detail}</p></div>`)}
-      </section>
-
-      ${r.missing.length
-        ? html`<section class="section" aria-labelledby="h-faltan">
-            <h2 id="h-faltan">Datos insuficientes</h2>
-            <ul class="findings findings--missing">${r.missing.map((m) => html`<li>${m}</li>`)}</ul>
-          </section>`
-        : ''}
-
-      ${!req.user
-        ? html`<div class="next-step">
-            <p class="kicker">Guarda tu resultado</p>
-            <h2>Crea una cuenta para no perderlo</h2>
-            <p class="muted">Tus respuestas quedarán ligadas a tu cuenta y podrás consultarlas desde cualquier dispositivo. Sin cuenta, se borran a los 30 días.</p>
-            <div class="actions"><a class="btn btn-primary" href="/registro">Crear mi cuenta</a><a class="btn btn-quiet" href="/entrar?siguiente=/resultado">Ya tengo cuenta</a></div>
-          </div>`
-        : ''}
-
-      <hr class="rule" />
-      <section aria-labelledby="h-oferta">
-        <h2 id="h-oferta">${offer ? offer.title : 'Evaluación profunda'}</h2>
-        <p class="muted">${offer ? offer.body : ''}</p>
-        ${ents.evaluacion_profunda
-          ? html`<div class="actions"><a class="btn btn-primary" href="/evaluacion">Empezar mi evaluación profunda</a></div>`
-          : products.map((p) => c.offerCard(res.locals.ctx, p, { featured: p.code === 'evaluacion', cta: p.code === 'evaluacion' ? 'Comprar la evaluación' : 'Comprar el paquete' }))}
-      </section>
-
+    title: 'Tu diagnóstico',
+    body: html`${ft.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products, offer, owned, reward: true, completedAt: s.completed_at })}
       <div class="actions actions--center section">
         ${open
           ? html`<a class="btn btn-quiet" href="/test">Continuar el test que empezaste</a>`

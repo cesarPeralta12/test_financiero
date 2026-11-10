@@ -5,7 +5,8 @@ const money = require('../lib/money');
 const c = require('./components');
 const qs = require('../domain/questionnaire');
 
-const { CURRENCY_ICONS } = require('../db/content-v2');
+// Banderas para elegir la moneda con tarjetas.
+const CURRENCY_ICONS = { MXN: '🇲🇽', COP: '🇨🇴', USD: '🇺🇸', EUR: '🇪🇺', PEN: '🇵🇪', CLP: '🇨🇱', ARS: '🇦🇷', GTQ: '🇬🇹', DOP: '🇩🇴' };
 
 const CURRENCY_OPTIONS = Object.entries(money.CURRENCIES).map(([value, v]) => ({ value, label: v.label }));
 const CURRENCY_TILES = Object.entries(money.CURRENCIES).map(([value, v]) => ({ value, label: v.label, icon: CURRENCY_ICONS[value] || '💱' }));

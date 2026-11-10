@@ -65,7 +65,7 @@ async function main() {
   const anonCookie = { ...c.cookies };
   await h.consent(c);
   const q1 = await c.get('/test');
-  await h.answerAll(c, '/test', h.FREE_ANSWERS);
+  await h.answerFree(c);
   await c.post('/test/finalizar', {});
   await h.registerUser(c, 'demo@diauno.test', { name: 'Ana' });
   await h.payViaWebhook(c, 'paquete');

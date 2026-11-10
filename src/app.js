@@ -84,6 +84,7 @@ function createApp() {
   app.use(require('./routes/calculator'));
   app.use(require('./routes/dashboard'));
   app.use('/admin', require('./routes/admin'));
+  app.use('/api/free-tests', require('./routes/freeApi'));
   app.use('/api/v1', require('./routes/api'));
   if (config.payments.sandboxEnabled) app.use(require('./routes/sandbox'));
 

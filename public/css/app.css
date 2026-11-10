@@ -1990,3 +1990,57 @@ details.more[open] > summary {
     padding: 16px;
   }
 }
+
+/* Test gratuito de 25 preguntas */
+.qf-note {
+  margin: 0 0 14px;
+  color: var(--muted, #5b6560);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+.evidence {
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+.evidence summary {
+  cursor: pointer;
+  color: var(--muted, #5b6560);
+}
+.evidence ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.map {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.map-item {
+  border: 1px solid var(--line, #d9ded9);
+  border-left-width: 5px;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.map-item p {
+  margin: 6px 0 0;
+}
+.map-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.map-item--critical { border-left-color: #b3261e; }
+.map-item--attention { border-left-color: #b26a00; }
+.map-item--strength { border-left-color: #2e7d4f; }
+.map-item--potential { border-left-color: #2b5fa6; }
+.map-item--unknown { border-left-style: dashed; }
+.roadmap {
+  padding-left: 20px;
+}
+.roadmap li {
+  margin-bottom: 8px;
+}

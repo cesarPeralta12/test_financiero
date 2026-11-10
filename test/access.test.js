@@ -13,7 +13,7 @@ test.beforeEach(() => h.resetRateLimits());
 async function fullUser(email) {
   const c = new h.Client();
   await h.consent(c);
-  await h.answerAll(c, '/test', h.FREE_ANSWERS);
+  await h.answerFree(c);
   await c.post('/test/finalizar', {});
   await h.registerUser(c, email);
   await h.payViaWebhook(c, 'paquete');
@@ -120,7 +120,10 @@ test('exportación y eliminación de datos de una cuenta por administración', a
   assert.equal(exp.status, 200);
   const data = await exp.json();
   assert.equal(data.cuenta.email, 'borrar@ejemplo.test');
-  assert.ok(data.evaluaciones.length >= 2);
+  assert.ok(data.evaluaciones.length >= 1);
+  assert.equal(data.tests_gratuitos.length, 1);
+  assert.equal(data.tests_gratuitos[0].answers.filter((a) => a.active).length, 25);
+  assert.equal(data.tests_gratuitos[0].results[0].resultado.profile.title, 'Ingreso estable y reserva limitada');
   assert.ok(data.conversaciones[0].messages.length >= 2);
   assert.ok(!JSON.stringify(data).includes('password_hash'));
   await admin.get(`/admin/usuarios/${X.user.id}`);
@@ -128,7 +131,7 @@ test('exportación y eliminación de datos de una cuenta por administración', a
   assert.equal(wrong.status, 422);
   await admin.post(`/admin/usuarios/${X.user.id}/eliminar`, { reason: 'Solicitud del titular', confirm_email: 'borrar@ejemplo.test' });
   assert.equal(h.db.one('SELECT id FROM users WHERE id = ?', X.user.id), null);
-  for (const t of ['evaluations', 'diagnoses', 'plan_versions', 'tasks', 'movements', 'messages', 'conversations', 'entitlements', 'goals', 'debts']) {
+  for (const t of ['ft_sessions', 'evaluations', 'diagnoses', 'plan_versions', 'tasks', 'movements', 'messages', 'conversations', 'entitlements', 'goals', 'debts']) {
     assert.equal(h.db.value(`SELECT COUNT(*) FROM ${t} WHERE user_id = ?`, X.user.id), 0, `${t} debería quedar vacío`);
   }
   const order = h.db.one("SELECT * FROM orders WHERE product_code = 'paquete' AND user_id IS NULL");

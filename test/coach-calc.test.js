@@ -22,7 +22,7 @@ const today = new Date().toISOString().slice(0, 10);
 test('preparación: cuenta con paquete, diagnóstico y plan', async () => {
   c = new h.Client();
   await h.consent(c);
-  await h.answerAll(c, '/test', h.FREE_ANSWERS);
+  await h.answerFree(c);
   await c.post('/test/finalizar', {});
   await h.registerUser(c, 'coach@ejemplo.test');
   await h.payViaWebhook(c, 'paquete');

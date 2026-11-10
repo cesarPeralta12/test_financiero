@@ -41,9 +41,10 @@ test('una cuenta nueva empieza en nivel 1 con el logro de registro', async () =>
 test('el XP crece con las acciones del recorrido y desbloquea logros', async () => {
   const c = new h.Client();
   await h.consent(c);
-  await h.answerAll(c, '/test', h.FREE_ANSWERS);
+  await h.answerFree(c);
   const fin = await c.post('/test/finalizar', {});
-  assert.match(fin.text, /Mundo 1 completado/);
+  assert.match(fin.text, /\+100 XP/);
+  assert.match(fin.text, /Primer paso/);
   await h.registerUser(c, 'xp@ejemplo.test');
   const u = h.db.one("SELECT id FROM users WHERE email = 'xp@ejemplo.test'");
   const p1 = game.profile(u.id);
@@ -78,12 +79,12 @@ test('el XP no depende del dinero: dos cuentas con ingresos distintos y las mism
   const run = async (email, ingreso) => {
     const c = new h.Client();
     await h.consent(c);
-    await h.answerAll(c, '/test', { ...h.FREE_ANSWERS, ingreso_mensual: { amount: ingreso, period: 'mensual' } });
+    await h.answerFree(c, { ...h.FREE_ANSWERS, Q18: { kind: 'AMOUNT', amount: ingreso, currency: 'USD' } });
     await c.post('/test/finalizar', {});
     await h.registerUser(c, email);
     return game.profile(h.db.one('SELECT id FROM users WHERE email = ?', email).id).xp;
   };
-  assert.equal(await run('poco@ejemplo.test', '8000'), await run('mucho@ejemplo.test', '900000'));
+  assert.equal(await run('poco@ejemplo.test', '800.00'), await run('mucho@ejemplo.test', '90000.00'));
 });
 
 test('la página de logros exige sesión y muestra niveles y logros', async () => {
@@ -107,32 +108,15 @@ test('la portada muestra el mapa de mundos y el test usa el modo enfoque por cap
   await h.consent(c);
   const q = await c.get('/test');
   assert.match(q.text, /class="qf-progress"/);
-  assert.match(q.text, /Tu dinero/);
+  assert.match(q.text, /Pregunta 1 de 25/);
   assert.doesNotMatch(q.text, /<header>/, 'las preguntas se muestran en modo enfoque, sin cabecera');
 });
 
-test('el test gratuito v2 usa tarjetas con imagen y conserva los valores de la v1', async () => {
-  const v1 = h.db.one("SELECT id FROM questionnaires WHERE kind = 'gratuito' AND version = 1");
-  const v2 = h.db.one("SELECT * FROM questionnaires WHERE kind = 'gratuito' AND version = 2");
-  assert.ok(v2, 'existe la versión 2');
-  const q1 = h.db.all('SELECT code, type, options_json FROM questions WHERE questionnaire_id = ? ORDER BY position', v1.id);
-  const q2 = h.db.all('SELECT code, type, options_json, config_json FROM questions WHERE questionnaire_id = ? ORDER BY position', v2.id);
-  assert.equal(q2.length, 25);
-  q1.forEach((q, i) => {
-    assert.equal(q2[i].code, q.code);
-    assert.equal(q2[i].type, q.type);
-    const a = JSON.parse(q.options_json || '[]').map((o) => o.value);
-    const b = JSON.parse(q2[i].options_json || '[]').map((o) => o.value);
-    assert.deepEqual(b, a, `valores de ${q.code}`);
-  });
-  assert.ok(JSON.parse(q2.find((q) => q.code === 'estabilidad_ingreso').options_json).every((o) => o.icon));
+test('cada pregunta ofrece «No lo sé» y «Prefiero no responder»', async () => {
   const c = new h.Client();
   await h.consent(c);
   const first = await c.get('/test');
-  assert.match(first.text, /options--tiles/);
-  assert.match(first.text, /🇲🇽/);
-  await c.post('/test/pregunta/1', { action: 'next', value: 'MXN' });
-  const second = await c.get('/test/pregunta/2');
-  assert.match(second.text, /¿De dónde sale tu dinero\?/);
-  assert.match(second.text, /class="opt-ico"/);
+  assert.match(first.text, /value="DK"/);
+  assert.match(first.text, /value="PNA"/);
+  assert.match(first.text, /Prefiero no responder/);
 });

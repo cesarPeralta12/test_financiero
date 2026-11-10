@@ -106,7 +106,7 @@ function levelFor(xp) {
 /** Perfil de juego de una cuenta. */
 function profile(userId) {
   const c = {
-    tests: v("SELECT COUNT(*) FROM evaluations WHERE user_id = ? AND kind = 'gratuito' AND status = 'finalizada'", userId),
+    tests: v("SELECT COUNT(*) FROM ft_sessions WHERE user_id = ? AND completed_revision IS NOT NULL", userId) + v("SELECT COUNT(*) FROM evaluations WHERE user_id = ? AND kind = 'gratuito' AND status = 'finalizada'", userId),
     verified: v('SELECT COUNT(*) FROM users WHERE id = ? AND email_verified_at IS NOT NULL', userId),
     diagnoses: v('SELECT COUNT(*) FROM diagnoses WHERE user_id = ?', userId),
     plans: v("SELECT COUNT(*) FROM plan_versions WHERE user_id = ? AND status = 'completo'", userId),

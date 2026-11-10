@@ -12,6 +12,10 @@
 | Entregar identidad visual, dominio, condiciones y política de datos | Responsable de producto | **Pendiente.** Identidad provisional sobria; textos legales en borrador marcados como tales y editables en *Administración > Textos*. |
 | Confirmar stack, hosting, capacidad esperada y presupuesto operativo | Desarrollador y producto | **Pendiente.** Ver «Stack» abajo. |
 
+## Test gratuito
+
+El test gratuito usa el catálogo `FREE_25_V2_ES` del código (no el panel de cuestionarios), con API JSON y resultado de 12 secciones. La IA es OpenAI y es opcional. Detalle en `docs/TEST-GRATUITO.md`.
+
 ## Stack
 
 El documento propone Laravel con MySQL, «pendiente de validación técnica». Esta versión usa **Node.js con SQLite** porque el entorno disponible no tenía PHP ni MySQL. Consecuencias:

@@ -81,6 +81,15 @@ const config = {
     apiKey: env.ANTHROPIC_API_KEY || '',
     model: env.AI_MODEL || 'claude-opus-5-5',
     timeoutMs: int(env.AI_TIMEOUT_MS, 60000),
+    // Redacción del resultado gratuito con OpenAI. Sin clave (o con FREE_RESULT_AI=false)
+    // el resultado se genera con plantillas deterministas: el test nunca depende de la IA.
+    openai: {
+      apiKey: env.OPENAI_API_KEY || '',
+      model: env.OPENAI_MODEL || 'gpt-4o-mini',
+      baseUrl: (env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
+      enabled: bool(env.FREE_RESULT_AI, true) && Boolean(env.OPENAI_API_KEY),
+      timeoutMs: int(env.OPENAI_TIMEOUT_MS, 20000),
+    },
   },
 
   mail: {

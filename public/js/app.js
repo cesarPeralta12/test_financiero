@@ -51,6 +51,23 @@
     if (msg && !window.confirm(msg)) e.preventDefault();
   });
 
+  // Test gratuito: «Ninguno», «No lo sé» y «Prefiero no responder» no se combinan con otras opciones
+  document.addEventListener('change', function (e) {
+    const el = e.target;
+    if (!el || el.type !== 'checkbox' || el.name !== 'value') return;
+    const group = el.closest('.q-body');
+    if (!group) return;
+    if (el.hasAttribute('data-exclusive') && el.checked) {
+      group.querySelectorAll('input[name=value]').forEach(function (o) {
+        if (o !== el) o.checked = false;
+      });
+    } else if (el.checked) {
+      group.querySelectorAll('input[name=value][data-exclusive]').forEach(function (o) {
+        o.checked = false;
+      });
+    }
+  });
+
   // «No lo sé» desactiva los campos de la pregunta
   const unknown = document.querySelector('[data-unknown]');
   if (unknown) {

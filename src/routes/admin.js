@@ -103,7 +103,7 @@ router.get('/', (req, res) => {
 
 // ───────── Usuarios ─────────
 function userRow(u) {
-  const free = db.one("SELECT id, questionnaire_id, status FROM evaluations WHERE user_id = ? AND kind = 'gratuito' ORDER BY updated_at DESC LIMIT 1", u.id);
+  const freeTest = db.one('SELECT id, status, completed_revision FROM ft_sessions WHERE user_id = ? ORDER BY updated_at DESC, rowid DESC LIMIT 1', u.id);
   const deepEv = db.one("SELECT id, questionnaire_id, status FROM evaluations WHERE user_id = ? AND kind = 'profundo' ORDER BY updated_at DESC LIMIT 1", u.id);
   const prog = (ev) => {
     if (!ev) return '—';
@@ -114,7 +114,8 @@ function userRow(u) {
   };
   const ents = entitlements.active(u.id);
   const plan = db.one('SELECT status, version_number FROM plan_versions WHERE user_id = ? ORDER BY id DESC LIMIT 1', u.id);
-  return { free: prog(free), deep: prog(deepEv), ents, plan, orders: db.value("SELECT COUNT(*) FROM orders WHERE user_id = ? AND status = 'pagada'", u.id) };
+  const freeProg = !freeTest ? '—' : freeTest.completed_revision !== null && freeTest.status === 'completada' ? 'Terminado' : `${db.value('SELECT COUNT(*) FROM ft_answers WHERE session_id = ? AND active = 1', freeTest.id)} de 25`;
+  return { free: freeProg, deep: prog(deepEv), ents, plan, orders: db.value("SELECT COUNT(*) FROM orders WHERE user_id = ? AND status = 'pagada'", u.id) };
 }
 
 router.get('/usuarios', (req, res) => {
@@ -389,8 +390,9 @@ router.get('/cuestionarios', (req, res) => {
   const list = db.all('SELECT q.*, (SELECT COUNT(*) FROM evaluations e WHERE e.questionnaire_id = q.id) AS evals FROM questionnaires q ORDER BY kind, version DESC');
   const ctx = res.locals.ctx;
   page(res, 'cuestionarios', 'Cuestionarios', html`<p class="muted">Edita un borrador y publícalo. Las evaluaciones ya empezadas o terminadas conservan la versión con la que se hicieron. Cambiar el tipo o el código de una pregunta, o añadir ramificaciones complejas, requiere una ampliación del desarrollo.</p>
-    ${['gratuito', 'profundo'].map(
-      (kind) => html`<h2 class="section">${kind === 'gratuito' ? 'Test gratuito' : 'Evaluación profunda'}</h2>
+    <div class="note"><strong>Test gratuito:</strong> usa el catálogo inmutable FREE_25_V2_ES (25 preguntas con variantes, anotaciones ANN_V1_ES y resultado RESULT_FREE_V1_ES). Se versiona en el código (<code>src/domain/free/catalog.js</code>), no desde este panel, para que las sesiones ya iniciadas conserven su versión.</div>
+    ${['profundo'].map(
+      (kind) => html`<h2 class="section">Evaluación profunda</h2>
         <table class="data"><thead><tr><th>Versión</th><th>Estado</th><th class="r">Evaluaciones</th><th>Publicada</th><th></th></tr></thead><tbody>
         ${list.filter((q) => q.kind === kind).map((q) => html`<tr><td>v${q.version}</td><td>${c.badge(q.status, q.status === 'publicado' ? 'ok' : q.status === 'borrador' ? 'warn' : '')}</td><td class="r">${q.evals}</td><td>${q.published_at ? c.dateShort(q.published_at) : '—'}</td><td><a href="/admin/cuestionarios/${q.id}">${q.status === 'borrador' ? 'Editar' : 'Ver'}</a></td></tr>`)}
         </tbody></table>
@@ -400,7 +402,7 @@ router.get('/cuestionarios', (req, res) => {
 
 router.post('/cuestionarios/:kind/borrador', (req, res, next) => {
   const kind = req.params.kind;
-  if (!['gratuito', 'profundo'].includes(kind)) return next(notFound());
+  if (kind !== 'profundo') return next(notFound());
   const pub = qs.published(kind);
   if (db.one("SELECT id FROM questionnaires WHERE kind = ? AND status = 'borrador'", kind)) return res.redirect(303, '/admin/cuestionarios');
   db.tx(() => {

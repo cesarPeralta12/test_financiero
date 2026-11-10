@@ -168,6 +168,9 @@ function destroyUserSessions(userId, exceptId = null) {
 function csrf(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
   if (req.path.startsWith('/webhooks/')) return next();
+  // API del test gratuito: el token «Bearer» no es una credencial ambiental del navegador
+  // (no se envía solo), y crear un test sin sesión de navegador no tiene a quién suplantar.
+  if (req.path.startsWith('/api/free-tests') && (/^Bearer\s+\S+$/i.test(req.get('authorization') || '') || !req.session)) return next();
   const sent = (req.body && req.body._csrf) || req.get('x-csrf-token');
   if (!req.session || !sent || !safeEqual(sent, req.session.csrf)) {
     const err = new Error('csrf');

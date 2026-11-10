@@ -18,7 +18,7 @@ test('preparación', async () => {
   userClient = new h.Client();
   await h.consent(userClient);
   await userClient.get('/?utm_source=instagram&utm_campaign=lanzamiento');
-  await h.answerAll(userClient, '/test', h.FREE_ANSWERS);
+  await h.answerFree(userClient);
   await userClient.post('/test/finalizar', {});
   await h.registerUser(userClient, 'panel@ejemplo.test');
   await h.payViaWebhook(userClient, 'paquete');
@@ -50,16 +50,17 @@ test('todas las pantallas del panel renderizan y muestran el embudo', async () =
 });
 
 test('una versión nueva del cuestionario no modifica evaluaciones terminadas', async () => {
-  const finished = h.db.one("SELECT * FROM evaluations WHERE kind = 'gratuito' AND status = 'finalizada' LIMIT 1");
+  const finished = h.db.one("SELECT * FROM evaluations WHERE kind = 'profundo' AND status = 'finalizada' LIMIT 1");
   const oldQ = h.db.one('SELECT * FROM questions WHERE questionnaire_id = ? AND position = 1', finished.questionnaire_id);
-  await admin.get('/admin/cuestionarios');
-  await admin.post('/admin/cuestionarios/gratuito/borrador', {});
-  const draft = h.db.one("SELECT * FROM questionnaires WHERE kind = 'gratuito' AND status = 'borrador'");
-  assert.equal(draft.version, 3);
+  const list = await admin.get('/admin/cuestionarios');
+  assert.match(list.text, /FREE_25_V2_ES/, 'el panel explica que el test gratuito se versiona en el código');
+  await admin.post('/admin/cuestionarios/profundo/borrador', {});
+  const draft = h.db.one("SELECT * FROM questionnaires WHERE kind = 'profundo' AND status = 'borrador'");
+  assert.equal(draft.version, 2);
   const q = h.db.one('SELECT * FROM questions WHERE questionnaire_id = ? AND position = 1', draft.id);
   await admin.post(`/admin/cuestionarios/${draft.id}/preguntas/${q.id}`, { prompt: '¿Con qué moneda trabajas?', help: 'Texto nuevo', required: '1' });
   // No se pueden cambiar los valores de las opciones (los usa el motor).
-  const q2 = h.db.one("SELECT * FROM questions WHERE questionnaire_id = ? AND code = 'fuente_ingreso'", draft.id);
+  const q2 = h.db.one("SELECT * FROM questions WHERE questionnaire_id = ? AND code = 'ingreso_es_neto'", draft.id);
   const bad = await admin.post(`/admin/cuestionarios/${draft.id}/preguntas/${q2.id}`, { prompt: q2.prompt, options: 'otro|Otro', required: '1' });
   assert.equal(bad.status, 422);
   await admin.post(`/admin/cuestionarios/${draft.id}/publicar`, {});
@@ -68,11 +69,11 @@ test('una versión nueva del cuestionario no modifica evaluaciones terminadas', 
   // La evaluación terminada sigue con su versión y su texto original.
   assert.equal(h.db.one('SELECT questionnaire_id FROM evaluations WHERE id = ?', finished.id).questionnaire_id, finished.questionnaire_id);
   assert.equal(h.db.one('SELECT prompt FROM questions WHERE id = ?', oldQ.id).prompt, oldQ.prompt);
-  // Un test nuevo usa la versión publicada.
+  // El test gratuito no cambia por publicar otra versión del cuestionario profundo.
   const c = new h.Client();
   await h.consent(c);
   const r = await c.get('/test');
-  assert.match(r.text, /¿Con qué moneda trabajas\?/);
+  assert.match(r.text, /¿Cuál es tu principal objetivo financiero\?/);
   assert.ok(h.db.one('SELECT id FROM audit_log WHERE action = ?', 'cuestionario.publicado'));
 });
 
