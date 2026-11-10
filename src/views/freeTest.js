@@ -5,6 +5,7 @@ const money = require('../lib/money');
 const c = require('./components');
 const catalog = require('../domain/free/catalog');
 const { STATE_LABEL } = require('../domain/free/result');
+const config = require('../config');
 
 const SPECIAL_CODES = catalog.SPECIAL_CODES;
 const CURRENCY_OPTIONS = Object.entries(money.CURRENCIES).map(([value, v]) => ({ value, label: v.label }));
@@ -156,6 +157,36 @@ function section(n, title, body, id) {
   return html`<section class="section" aria-labelledby="h-${id}"><h2 id="h-${id}"><span class="kicker">${n}</span> ${title}</h2>${body}</section>`;
 }
 
+/** Resultado V2 de crecimiento patrimonial: seis bloques compactos (documento 02 §4.1). */
+function patrimonialBlocks(p, answers) {
+  const f = p.first_action;
+  const o = p.opportunity;
+  return html`<div class="v2" data-version="${p.version}">
+    ${section(1, 'Tu punto de partida', html`<p>${p.starting_point.text}</p>${evidenceList(p.starting_point.evidence_refs, answers)}`, 'v2-partida')}
+
+    ${section(2, 'Qué está frenando tu crecimiento', p.brakes.length
+      ? html`<ul class="findings">${p.brakes.map((b) => html`<li><strong>${b.title}.</strong> ${b.why}${evidenceList(b.evidence_refs, answers)}</li>`)}</ul>`
+      : html`<p class="muted">Con tus respuestas no vemos un freno urgente. Eso no significa que no exista: faltan tus cifras reales para confirmarlo.</p>`, 'v2-frenos')}
+
+    ${section(3, 'Tus recursos para progresar', p.resources.length
+      ? html`<ul class="findings">${p.resources.map((x) => html`<li>${x.text}${evidenceList(x.evidence_refs, answers)}</li>`)}</ul>`
+      : html`<p class="muted">Todavía no declaraste recursos que podamos señalar. No queremos inventarlos.</p>`, 'v2-recursos')}
+
+    ${section(4, 'Oportunidad por explorar', html`<article class="action-card"><p class="kicker">${o.status === 'HIPOTESIS' ? 'Hipótesis por comprobar' : 'Sin datos suficientes'}</p><h3>${o.title}</h3>
+      ${o.hypothesis ? html`<p>${o.hypothesis}</p>` : ''}
+      <p class="meta"><strong>Para confirmarlo:</strong> ${o.question}</p>${evidenceList(o.evidence_refs, answers)}</article>
+      ${p.dual_focus ? html`<p class="small muted">Aunque hay algo urgente que proteger, no dejamos de buscar cómo puedes generar más: ambas cosas pueden avanzar a la vez.</p>` : ''}`, 'v2-oportunidad')}
+
+    ${section(5, 'Tu Día Uno', html`<article class="action-card"><p class="kicker">${f.category_label}</p><h3>${f.title}</h3><p>${f.instruction}</p>
+      <p class="meta"><strong>Por qué ahora:</strong> ${f.why}</p>
+      <p class="meta"><strong>Tiempo:</strong> ${f.effort} · <strong>Dinero:</strong> ${f.capital}</p>
+      <p class="meta"><strong>Sabrás que lo lograste cuando:</strong> ${f.done_when}</p></article>`, 'v2-diauno')}
+
+    ${section(6, 'Qué necesitamos para diseñar tu plan patrimonial', html`<ul class="findings findings--missing">${p.missing.map((m) => html`<li><strong>${m.question}</strong><br /><span class="muted">${m.reason}</span></li>`)}</ul>
+      <p class="small muted">${p.scope_note}</p>`, 'v2-falta')}
+  </div>`;
+}
+
 function resultPage(ctx, o) {
   const { result: r, answers, user, products, offer, owned, reward, completedAt } = o;
   const goal = r.goal;
@@ -171,11 +202,14 @@ function resultPage(ctx, o) {
     goalLines.push(html`<li><strong>Independencia:</strong> ${[amount, age].filter(Boolean).join(', ')}. <span class="muted">${ind.note}</span></li>`);
   }
   const f = r.first_action;
-  return html`<div class="label-line"><span class="status-pill">Lectura preliminar</span><span class="small faint">${c.dateEs(completedAt)}</span></div>
+  const v2 = Boolean(r.patrimonial) && config.freeResultV2;
+  const head = html`<div class="label-line"><span class="status-pill">Lectura preliminar</span><span class="small faint">${c.dateEs(completedAt)}</span></div>
     <h1 class="section" style="margin-top:20px">${r.title}</h1>
     <p class="lead">${r.scope_text}</p>
-    ${r.narrative_source === 'ai' ? html`<p class="small muted">Redactado con ayuda de IA a partir de tus respuestas y de reglas fijas; no inventa cifras.</p>` : ''}
+    ${r.narrative_source === 'ai' ? html`<p class="small muted">Redactado con ayuda de IA a partir de tus respuestas y de reglas fijas; no inventa cifras.</p>` : ''}`;
 
+  // Lectura V1 detallada (doce secciones), sin cambios de contenido.
+  const detail = html`
     ${section(1, 'Tu perfil financiero', html`<h3>${r.profile.title}</h3><p>${r.profile.summary}</p>${evidenceList(r.profile.evidence_refs, answers)}`, 'perfil')}
 
     ${section(2, 'Prioridad y alcance', html`<p><span class="status-pill">Prioridad de atención: ${r.attention.level}</span> <span class="status-pill">${r.coverage.label} (${r.coverage.known_domains} de ${r.coverage.total_domains} temas)</span></p>
@@ -208,17 +242,26 @@ function resultPage(ctx, o) {
 
     ${section(11, 'Tu primer paso', html`<article class="action-card"><h3>${f.title}</h3><p>${f.instruction}</p><p class="meta"><strong>Cómo sabrás que lo lograste:</strong> ${f.completion_criterion}</p></article>`, 'paso')}
 
-    ${section(12, 'Qué falta y cómo seguir', html`
-      ${r.missing_data.length ? html`<ul class="findings findings--missing">${r.missing_data.map((m) => html`<li>${m.reason}</li>`)}</ul>` : html`<p class="muted">No hay datos pendientes destacados.</p>`}
+    ${section(12, 'Qué falta y cómo seguir', r.missing_data.length ? html`<ul class="findings findings--missing">${r.missing_data.map((m) => html`<li>${m.reason}</li>`)}</ul>` : html`<p class="muted">No hay datos pendientes destacados.</p>`, 'seguir')}`;
+
+  // Guardar el resultado y continuar a la evaluación profunda.
+  const followUp = html`
       ${!user
         ? html`<div class="next-step"><p class="kicker">Guarda tu resultado</p><h3>Crea una cuenta para no perderlo</h3><p class="muted">Tus respuestas y tu resultado quedarán ligados a tu cuenta. ${r.save_result.policy_text}</p><div class="actions"><a class="btn btn-primary" href="/registro">Crear mi cuenta</a><a class="btn btn-quiet" href="/entrar?siguiente=/resultado">Ya tengo cuenta</a></div></div>`
         : ''}
       <hr class="rule" />
       <h3>${offer ? offer.title : 'Evaluación profunda'}</h3>
-      <p class="muted">${r.next_step.reason}</p>
+      <p class="muted">${v2 ? r.patrimonial.next_step : r.next_step.reason}</p>
       <p class="muted">${offer ? offer.body : ''}</p>
       ${owned.evaluacion_profunda ? html`<div class="actions"><a class="btn btn-primary" href="/evaluacion">Empezar mi evaluación profunda</a></div>` : products.map((p) => c.offerCard(ctx, p, { featured: p.code === 'evaluacion', cta: p.code === 'evaluacion' ? 'Comprar la evaluación' : 'Comprar el paquete' }))}
-      <p class="small muted">¿Algo no coincide? <a href="/test/revision">Corrige tus respuestas</a>: generaremos un resultado nuevo y retiraremos el anterior. No necesitas pagar para hacerlo.</p>`, 'seguir')}
+      <p class="small muted">¿Algo no coincide? <a href="/test/revision">Corrige tus respuestas</a>: generaremos un resultado nuevo y retiraremos el anterior. No necesitas pagar para hacerlo.</p>`;
+
+  return html`${head}
+    ${v2
+      ? html`${patrimonialBlocks(r.patrimonial, answers)}
+        <section class="section" aria-label="Cómo seguir">${followUp}</section>
+        <details class="v1-detail section"><summary>Ver el análisis detallado</summary>${detail}</details>`
+      : html`${detail}<section class="section" aria-label="Cómo seguir">${followUp}</section>`}
 
     ${reward ? html`<section class="reward-card" aria-label="Recompensa"><div><p><span class="plus">+100 XP</span> y el logro <strong>«Primer paso»</strong>. ${user ? 'Ya cuentan en tu nivel.' : 'Crea tu cuenta para guardarlos.'}</p></div></section>` : ''}`;
 }

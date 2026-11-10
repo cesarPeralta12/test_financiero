@@ -180,3 +180,34 @@ En el sitio publicado no se crearon cuentas ni compras durante esta revisión.
 | Copia de respaldos fuera del servidor | Los respaldos diarios se guardan en el volumen `/app/backups`; falta copiarlos a un almacenamiento externo. |
 | Lector de pantalla en un teléfono real | No probado. |
 | Aprobación del recorrido por el responsable de producto | Pendiente (condición de cierre del documento). |
+
+## Ronda 3 · Fases 1 y 2 del paquete técnico (10-11-2026)
+
+Suite completa: **174 pruebas, 174 aprobadas** (`npm test`). Nuevas: `test/knowledge-facts.test.js` (8) y `test/patrimonial.test.js` (25).
+
+| Caso | Qué se comprueba | Resultado |
+|---|---|---|
+| G01 | Empleado estable con habilidad: palanca de ingresos y acción de creación | ✔ |
+| G02 / C03 / P01 | Sin ingresos + habilidad + poco tiempo: protección y oferta por validar sin capital | ✔ |
+| G03 / C01 / P02 | Negocio sin retiro personal no se trata como desempleo | ✔ |
+| G04 / P05 | Pagos vencidos + quiere invertir: acción de pagos, inversión y crédito bloqueados | ✔ |
+| G05 / C06 / P03 | Meta en dinero (Q18) no aparece como ingreso ni patrimonio | ✔ |
+| G06 / C09 / P07 | Habilidad marcada sin experiencia: potencial por validar, sin precio | ✔ |
+| G07 / C08 / P06 | Sin tiempo ni presupuesto: ninguna acción de más de una hora ni con costo | ✔ |
+| G08 / C05 / P04 | DK en deuda/ahorro: DESCONOCIDO, nunca cero | ✔ |
+| G09 / C07 | Contradicción: se pregunta antes de concluir | ✔ |
+| G11 | Oportunidad sin evidencia: sin puntajes | ✔ |
+| G13 / C10 / P10 | Falla de IA: resultado V2 completo por plantilla | ✔ |
+| C10 | La IA no modifica el bloque V2 | ✔ |
+| G15 / P12 | Mismas respuestas ⇒ mismo resultado; perfiles distintos ⇒ acciones distintas | ✔ |
+| G16 / C11 / P11 | Cambiar una respuesta crea un resultado nuevo y conserva el anterior | ✔ |
+| C02 | Ingreso variable + ventas: propuesta condicionada, sin precio ni plazo | ✔ |
+| C04 | Ingreso estable y reserva: se muestran recursos, no solo gastos | ✔ |
+| RFP-105 / RFP-108 | Dependientes sin respaldo; fraude previo bloquea inversión | ✔ |
+| Honestidad | Ningún número en el texto visible del bloque V2 | ✔ |
+| Vista | Seis bloques primero, V1 plegada; con el flag apagado solo V1 | ✔ |
+| Fase 1 | Versiones, paquete de hechos, huellas, resultados antiguos legibles, prompt y modelo con IA | ✔ |
+
+Revisión en navegador: test completo de 25 preguntas en local, resultado sin errores de consola y sin desborde a 360 px (`check:mobile`: resultado ✔ en 360 y 1280 px). Las advertencias de `pregunta-dinero` y `pregunta-tarjetas` ya existían antes de estos cambios: el script de revisión apunta a preguntas del catálogo anterior.
+
+No cubiertos aquí (fases siguientes): G10 (monedas), G12 (proyección a 3 años), G14 (coach), G17 (consulta tributaria), G18 (cifra inventada por IA en V2).

@@ -9,8 +9,13 @@ const config = require('../../config');
 const catalog = require('./catalog');
 const metrics = require('./metrics');
 const narrative = require('./narrative');
+const factsSvc = require('./facts');
+const patrimonial = require('./patrimonial');
+const knowledge = require('../knowledge');
 
 const RULES_VERSION = 'RESULT_FREE_V1_ES';
+// Esquema del JSON guardado: bloques V1 + trazabilidad (Fase 1) + bloque patrimonial V2 (Fase 2).
+const RESULT_SCHEMA_VERSION = 'RESULT_FREE_V2_ES';
 const TITLE = 'Tu diagnóstico financiero preliminar';
 const SCOPE_TEXT = 'Una primera lectura de tus respuestas para entender tu situación, reconocer prioridades y elegir un primer paso. El análisis detallado requiere información adicional.';
 
@@ -564,6 +569,12 @@ function build(session, answers, { monetary = null } = {}) {
   const action = firstAction(r, cands, prios);
   const att = attention(r, dims, cands);
   const retention = config.anonymousRetentionDays;
+  const pkg = factsSvc.build(session, answers);
+  const v2 = patrimonial.build(pkg);
+  pkg.signals = v2.signals;
+  pkg.eligible_actions = v2.eligible;
+  pkg.blocked_actions = v2.blocked;
+  pkg.opportunity_candidates = v2.candidates;
 
   return {
     result_id: null,
@@ -572,6 +583,9 @@ function build(session, answers, { monetary = null } = {}) {
     questionnaire_version: session.version_id,
     result_rules_version: RULES_VERSION,
     narrative_version: 'NARR_V1_ES',
+    result_schema_version: RESULT_SCHEMA_VERSION,
+    traceability: knowledge.stamp({ catalog_version: session.version_id, result_rules_version: RULES_VERSION, result_schema_version: RESULT_SCHEMA_VERSION, input_hash: pkg.input_hash, prompt_version: null, model: null }),
+    evidence: { confidence: pkg.confidence, unknowns: pkg.unknowns, contradictions: pkg.contradictions },
     locale: session.locale,
     generated_at: db.now(),
     title: TITLE,
@@ -597,6 +611,8 @@ function build(session, answers, { monetary = null } = {}) {
     missing_data: missing,
     save_result: { enabled: true, policy_text: `Si no creas una cuenta, tus respuestas se conservan ${retention} días desde tu última actividad.`, actions: ['create_account', 'login'] },
     next_step: nextStep(r, cands, missing),
+    patrimonial: v2.block,
+    _fact_package: pkg,
   };
 }
 
@@ -622,8 +638,13 @@ function generate(session, answers, options = {}) {
   }
   const wantsAi = narrative.enabled();
   result.status = wantsAi ? 'pending' : 'ready';
+  const pkg = result._fact_package;
+  delete result._fact_package;
+  const t = result.traceability;
   const r = db.run(
-    'INSERT INTO ft_results (session_id, answer_revision, rules_version, status, narrative_source, result_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    `INSERT INTO ft_results (session_id, answer_revision, rules_version, status, narrative_source, result_json, created_at, updated_at,
+       catalog_version, knowledge_version, rules_framework_version, prompt_version, model, result_schema_version, methodology_hash, input_hash, fact_package_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     session.id,
     session.revision,
     RULES_VERSION,
@@ -631,7 +652,16 @@ function generate(session, answers, options = {}) {
     'template',
     JSON.stringify(result),
     now,
-    now
+    now,
+    t.catalog_version,
+    t.knowledge_version,
+    t.rules_framework_version,
+    null,
+    null,
+    t.result_schema_version,
+    t.methodology_hash,
+    t.input_hash,
+    JSON.stringify(pkg)
   );
   result.result_id = r.lastId;
   db.run('UPDATE ft_results SET result_json = ? WHERE id = ?', JSON.stringify(result), r.lastId);
@@ -639,4 +669,4 @@ function generate(session, answers, options = {}) {
   return db.one('SELECT * FROM ft_results WHERE id = ?', r.lastId);
 }
 
-module.exports = { RULES_VERSION, TITLE, SCOPE_TEXT, STATE_LABEL, build, generate, reader, wordCount };
+module.exports = { RULES_VERSION, RESULT_SCHEMA_VERSION, TITLE, SCOPE_TEXT, STATE_LABEL, build, generate, reader, wordCount };

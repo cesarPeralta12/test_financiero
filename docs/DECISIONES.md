@@ -48,3 +48,21 @@ El documento propone Laravel con MySQL, «pendiente de validación técnica». E
 ## Fuera de alcance (sin cambios respecto al documento)
 
 Apps nativas; conexión con cuentas bancarias; lectura automática de extractos; ejecución de pagos o inversiones; créditos y scoring crediticio; cotizaciones en tiempo real; atención humana; múltiples monedas con conversión; múltiples pasarelas; suscripciones recurrentes; cupones; afiliados; facturación fiscal; WhatsApp, SMS, notificaciones móviles y campañas de correo; módulos de inventario o ventas. Ramificaciones complejas en los cuestionarios requieren ampliación (solo se admite una condición simple por pregunta).
+
+## Fase 1 · Trazabilidad y paquete de hechos (10-11-2026)
+
+- `src/domain/knowledge/` reúne las versiones vigentes (`BCP_V1_ES`, `RFP_V1_ES`, `POIA_V1_ES`, `FACTS_V1_ES`), su procedencia documental, las 10 palancas, las 7 fases y el registro de prompts. Ningún prompt V2 está activo todavía.
+- `src/domain/free/facts.js` convierte las 25 respuestas en hechos con estado (`DECLARADO`, `DESCONOCIDO`, `CONTRADICTORIO`, `NO_APLICA`…), evidencia y naturaleza: Q17, Q18 y Q25 son metas y Q23 es presupuesto de exploración, nunca ingreso real. DK/PNA nunca valen cero.
+- Dos reglas de contradicción iniciales (Q02 frente a Q06) bloquean solo los datos implicados y proponen una pregunta.
+- La migración `003_trazabilidad_versiones` añade a `ft_results` catálogo, conocimiento, reglas, prompt, modelo, esquema, huella de metodología, huella de entrada y el paquete de hechos. Las columnas son opcionales: los resultados anteriores se leen igual.
+- El resultado pasa a `RESULT_FREE_V1_1` (mismo contenido V1 + bloques `traceability` y `evidence`). Las reglas del resultado no cambian.
+
+## Fase 2 · Resultado gratuito V2 de crecimiento patrimonial (10-11-2026)
+
+- `src/domain/free/patrimonial.js` (`RESULT_FREE_V2_ES`) aplica reglas `RFP_V1_ES` sobre el paquete de hechos: protección (RFP-101 a 108), restricciones (RFP-207 y tiempo) y crecimiento por ruta (RFP-201 a 206). Enfoque dual RFP-109: una alerta no borra la búsqueda de ingresos.
+- Catálogo de 14 acciones autorizadas, todas sin costo. Precedencia dura: protección urgente → organización → creación de valor → construcción. Bloqueos registrados: crédito nuevo, inversión especulativa, pasos pagados y pasos de más de una hora.
+- Un negocio sin retiro personal (ruta B con Q04 = ZERO) activa RFP-107 y no RFP-102: no se trata como desempleo.
+- La oportunidad siempre es HIPÓTESIS (o DESCONOCIDO con una pregunta); sin puntajes 1–10 porque el test no da evidencia de mercado.
+- La vista muestra seis bloques compactos y deja la lectura V1 plegada en «Ver el análisis detallado». `FREE_RESULT_V2=false` vuelve a la vista V1.
+- La redacción con IA (NARR_AI_V1_ES) solo toca perfil y hallazgos V1; el bloque V2 no lo modifica ningún modelo.
+- Pendiente de aprobación del ingeniero: textos de las acciones, umbrales de las reglas y la recompensa de XP que sigue en la página del resultado.

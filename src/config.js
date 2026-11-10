@@ -92,6 +92,10 @@ const config = {
     },
   },
 
+  // Resultado gratuito V2 (crecimiento patrimonial, Fase 2). Con FREE_RESULT_V2=false se
+  // muestra solo la lectura V1; el cálculo V2 se guarda igual para auditoría.
+  freeResultV2: bool(env.FREE_RESULT_V2, true),
+
   mail: {
     from: env.MAIL_FROM || 'Día Uno <no-responder@diauno.local>',
     smtpHost: env.SMTP_HOST || '',

@@ -93,8 +93,19 @@ async function callModel(prompt) {
 function finish(row, result, source) {
   result.status = 'ready';
   result.narrative_source = source;
+  const promptVersion = source === 'ai' ? NARRATIVE_VERSION : null;
+  const model = source === 'ai' ? (client ? 'cliente_de_prueba' : config.ai.openai.model) : null;
   if (source === 'ai') result.narrative_version = NARRATIVE_VERSION;
-  db.run("UPDATE ft_results SET status = 'ready', narrative_source = ?, result_json = ?, updated_at = ? WHERE id = ? AND status = 'pending'", source, JSON.stringify(result), db.now(), row.id);
+  if (result.traceability) Object.assign(result.traceability, { prompt_version: promptVersion, model });
+  db.run(
+    "UPDATE ft_results SET status = 'ready', narrative_source = ?, result_json = ?, prompt_version = ?, model = ?, updated_at = ? WHERE id = ? AND status = 'pending'",
+    source,
+    JSON.stringify(result),
+    promptVersion,
+    model,
+    db.now(),
+    row.id
+  );
 }
 
 /** Manejador de cola: pide la redacción y la valida; ante fallos usa la plantilla. */
