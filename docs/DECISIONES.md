@@ -66,3 +66,10 @@ Apps nativas; conexión con cuentas bancarias; lectura automática de extractos;
 - La vista muestra seis bloques compactos y deja la lectura V1 plegada en «Ver el análisis detallado». `FREE_RESULT_V2=false` vuelve a la vista V1.
 - La redacción con IA (NARR_AI_V1_ES) solo toca perfil y hallazgos V1; el bloque V2 no lo modifica ningún modelo.
 - Pendiente de aprobación del ingeniero: textos de las acciones, umbrales de las reglas y la recompensa de XP que sigue en la página del resultado.
+
+## Migración del resultado gratuito a gpt-6-luna (11-11-2026)
+
+- Causa del fallo en producción: `gpt-6-luna` rechaza `temperature: 0.2` (400 `unsupported_value`), por lo que todas las llamadas caían a la plantilla. El cliente ya no envía `temperature` salvo que se configure `OPENAI_TEMPERATURE`.
+- Salida estructurada estricta (`json_schema`, `strict: true`) con el esquema de la redacción; `reasoning_effort: none` por defecto en la familia gpt-6 (`OPENAI_REASONING_EFFORT` lo cambia). Modelo por defecto: `gpt-6-luna`.
+- Cada resultado guarda en `traceability` el modelo, los tokens, la latencia y, si se usó la plantilla, el motivo (`PROVIDER_ERROR` o el código del validador). El log registra lo mismo, sin contenido del usuario.
+- Prueba real (4 perfiles, base temporal): 4/4 redacciones aceptadas por el validador; promedio 504 tokens de entrada + 235 de salida y 4,5 s por test. El bloque V2 (Día Uno) no depende de la IA.

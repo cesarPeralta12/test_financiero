@@ -85,10 +85,15 @@ const config = {
     // el resultado se genera con plantillas deterministas: el test nunca depende de la IA.
     openai: {
       apiKey: env.OPENAI_API_KEY || '',
-      model: env.OPENAI_MODEL || 'gpt-4o-mini',
+      // gpt-4o-mini se retira el 14-01-2027; gpt-6-luna es el reemplazo probado.
+      model: env.OPENAI_MODEL || 'gpt-6-luna',
       baseUrl: (env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
       enabled: bool(env.FREE_RESULT_AI, true) && Boolean(env.OPENAI_API_KEY),
       timeoutMs: int(env.OPENAI_TIMEOUT_MS, 20000),
+      // gpt-6-luna solo admite temperature = 1: no se envía salvo que se configure.
+      temperature: env.OPENAI_TEMPERATURE ? Number(env.OPENAI_TEMPERATURE) : null,
+      // Redacción corta: sin razonamiento extra en la familia gpt-6 (menos costo y latencia).
+      reasoningEffort: env.OPENAI_REASONING_EFFORT || (/^gpt-6/.test(env.OPENAI_MODEL || 'gpt-6-luna') ? 'none' : null),
     },
   },
 

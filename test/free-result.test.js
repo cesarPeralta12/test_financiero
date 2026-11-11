@@ -391,6 +391,7 @@ test('cliente OpenAI: formato de la petición, errores y tiempo de espera', asyn
   const body = JSON.parse(captured.init.body);
   assert.equal(body.model, 'gpt-x');
   assert.deepEqual(body.response_format, { type: 'json_object' });
+  assert.equal('temperature' in body, false, 'gpt-6-luna no admite temperature: no se envía por defecto');
   assert.equal(captured.init.headers.authorization, 'Bearer sk-test');
   await assert.rejects(() => openai.chatJson({ system: 's', user: 'u', apiKey: '', model: 'm' }), /OPENAI_API_KEY/);
   await assert.rejects(() => openai.chatJson({ system: 's', user: 'u', apiKey: 'k', model: 'm', fetchImpl: async () => ({ ok: false, status: 429 }) }), /429/);

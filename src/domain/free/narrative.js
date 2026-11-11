@@ -11,6 +11,25 @@ const queue = require('../../lib/queue');
 const openai = require('../ai/openai');
 
 const NARRATIVE_VERSION = 'NARR_AI_V1_ES';
+
+// Esquema estricto de la salida (json_schema, strict: true).
+const NARR_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['profile_summary', 'findings'],
+  properties: {
+    profile_summary: { type: 'string' },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['candidate_id', 'explanation'],
+        properties: { candidate_id: { type: 'string' }, explanation: { type: 'string' } },
+      },
+    },
+  },
+};
 let client = null; // inyectable en pruebas: async (prompt) => objeto JSON
 
 function setClient(fn) {
@@ -85,18 +104,27 @@ function buildPrompt(result) {
   return { system, user };
 }
 
+/** Devuelve { json, usage, latencyMs, model }. El cliente de pruebas devuelve solo el JSON. */
 async function callModel(prompt) {
-  if (client) return client(prompt);
-  return openai.chatJson({ ...prompt, ...config.ai.openai });
+  if (client) return { json: await client(prompt), usage: null, latencyMs: null, model: 'cliente_de_prueba' };
+  return openai.chat({ ...prompt, ...config.ai.openai, schema: NARR_SCHEMA, schemaName: 'redaccion_resultado' });
 }
 
-function finish(row, result, source) {
+/** Metadatos operativos (sin contenido del usuario). */
+function usageMeta(call) {
+  if (!call) return null;
+  const u = call.usage || {};
+  return { model: call.model, latency_ms: call.latencyMs, input_tokens: u.prompt_tokens ?? null, output_tokens: u.completion_tokens ?? null };
+}
+
+function finish(row, result, source, meta = null, reason = null) {
   result.status = 'ready';
   result.narrative_source = source;
   const promptVersion = source === 'ai' ? NARRATIVE_VERSION : null;
-  const model = source === 'ai' ? (client ? 'cliente_de_prueba' : config.ai.openai.model) : null;
+  const model = source === 'ai' ? (meta && meta.model) || config.ai.openai.model : null;
   if (source === 'ai') result.narrative_version = NARRATIVE_VERSION;
-  if (result.traceability) Object.assign(result.traceability, { prompt_version: promptVersion, model });
+  if (result.traceability) Object.assign(result.traceability, { prompt_version: promptVersion, model, ai_usage: meta, ai_fallback_reason: reason });
+  log.info('Redacción del resultado gratuito', { result: row.id, source, reason, ...(meta || {}) });
   db.run(
     "UPDATE ft_results SET status = 'ready', narrative_source = ?, result_json = ?, prompt_version = ?, model = ?, updated_at = ? WHERE id = ? AND status = 'pending'",
     source,
@@ -114,22 +142,25 @@ async function handle({ resultId }, job) {
   if (!row || row.status !== 'pending') return;
   const result = db.parse(row.result_json);
   let out;
+  let meta = null;
   try {
-    out = await callModel(buildPrompt(result));
+    const call = await callModel(buildPrompt(result));
+    out = call.json;
+    meta = usageMeta(call);
   } catch (err) {
     if (job && job.attempts < job.max_attempts) throw err; // reintento con espera
     log.warn('IA no disponible para el resultado gratuito; se usa la plantilla', { result: resultId, error: String(err.message).slice(0, 120) });
-    return finish(row, result, 'template');
+    return finish(row, result, 'template', null, 'PROVIDER_ERROR');
   }
   const check = validateOutput(result, out);
   if (!check.ok) {
     log.warn('Salida de IA rechazada; se usa la plantilla', { result: resultId, reason: check.reason });
-    return finish(row, result, 'template');
+    return finish(row, result, 'template', meta, check.reason);
   }
   result.profile.summary = out.profile_summary.trim();
   const byId = Object.fromEntries(out.findings.map((f) => [f.candidate_id, f.explanation.trim()]));
   for (const f of result.findings) f.explanation = byId[f.candidate_id];
-  finish(row, result, 'ai');
+  finish(row, result, 'ai', meta);
 }
 
 queue.register('free_narrative', handle);

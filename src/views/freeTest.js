@@ -206,7 +206,7 @@ function resultPage(ctx, o) {
   const head = html`<div class="label-line"><span class="status-pill">Lectura preliminar</span><span class="small faint">${c.dateEs(completedAt)}</span></div>
     <h1 class="section" style="margin-top:20px">${r.title}</h1>
     <p class="lead">${r.scope_text}</p>
-    ${r.narrative_source === 'ai' ? html`<p class="small muted">Redactado con ayuda de IA a partir de tus respuestas y de reglas fijas; no inventa cifras.</p>` : ''}`;
+    ${r.narrative_source === 'ai' ? html`<p class="small muted">Redactamos tus resultados en detalle a partir de tus respuestas.</p>` : ''}`;
 
   // Lectura V1 detallada (doce secciones), sin cambios de contenido.
   const detail = html`
