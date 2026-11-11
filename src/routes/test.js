@@ -17,6 +17,8 @@ const ft = require('../views/freeTest');
 const { owner, intParam, notFound, wrap } = require('./util');
 const { rateLimit } = require('../lib/security');
 const game = require('../domain/game');
+const config = require('../config');
+const ft3 = require('../views/freeTest3');
 
 const router = express.Router();
 
@@ -35,7 +37,7 @@ function workingSession(req) {
 
 function startSession(req) {
   const o = owner(req);
-  const { session } = engine.createSession({ userId: o.userId, anonId: o.anonId, currency: (req.user && req.user.base_currency) || null, consent: true });
+  const { session } = engine.createSession({ userId: o.userId, anonId: o.anonId, currency: (req.user && req.user.base_currency) || null, consent: true, versionId: config.freeCatalogVersion });
   track('test_iniciado', { anonId: req.session.anon_id, userId: req.user && req.user.id, dedupe: `test_iniciado:${session.id}` });
   return session;
 }
@@ -94,6 +96,7 @@ function toValue(variant, body, session) {
 
 function formFromAnswer(q, a) {
   if (!a) return {};
+  if (q.catalog_version === 'FREE_25_V3_ES') return engine.CATALOGS.FREE_25_V3_ES.toForm(engine.CATALOGS.FREE_25_V3_ES.VARIANT_BY_ID[q.variant_id], a);
   if (a.status !== 'answered') {
     if (q.type === 'single' || q.type === 'multi') return { value: q.type === 'multi' ? [a.status === 'unknown' ? 'DK' : 'PNA'] : a.status === 'unknown' ? 'DK' : 'PNA' };
     return { choice: a.status === 'unknown' ? 'DK' : 'PNA' };
@@ -113,9 +116,12 @@ function renderQuestion(req, res, session, question, { form, errors = {}, status
 }
 
 function reviewItems(session) {
+  const C = engine.catalogOf(session);
   const answers = engine.activeAnswers(session.id);
   const ctx = engine.buildCtx(answers, session);
-  return catalog.SLOTS.map((s) => {
+  const applicable = new Set(engine.applicableOrder(answers, session));
+  return C.SLOTS.map((s) => {
+    if (!applicable.has(s.slot_id)) return { ordinal: s.ordinal, text: C.renderVariant(s.variants[0], ctx).text, answered: true, skipped: true, display: 'No aplica: indicaste que no tienes deudas' };
     let text = `Pregunta ${s.ordinal}`;
     try {
       text = engine.publicQuestion(s.slot_id, ctx, session).text;
@@ -123,7 +129,7 @@ function reviewItems(session) {
       /* pregunta aún sin resolver: depende de respuestas pendientes */
     }
     const a = answers[s.slot_id];
-    return { ordinal: s.ordinal, text, answered: Boolean(a), display: a ? ft.answerText(a.variant_id, a) : '' };
+    return { ordinal: s.ordinal, text, answered: Boolean(a), display: a ? (C.answerText ? C.answerText(a.variant_id, a) : ft.answerText(a.variant_id, a)) : '' };
   });
 }
 
@@ -135,8 +141,8 @@ router.get('/test', (req, res) => {
     if (engine.findLatestResultSession(o) && req.query.nuevo !== '1') return res.redirect(303, '/resultado');
     s = startSession(req);
   }
-  const next = engine.nextPending(engine.activeAnswers(s.id));
-  res.redirect(303, next ? `/test/pregunta/${catalog.SLOT_BY_ID[next].ordinal}` : '/test/revision');
+  const next = engine.nextPending(engine.activeAnswers(s.id), s);
+  res.redirect(303, next ? `/test/pregunta/${engine.catalogOf(s).SLOT_BY_ID[next].ordinal}` : '/test/revision');
 });
 
 router.get('/test/pregunta/:n', (req, res, next) => {
@@ -144,10 +150,12 @@ router.get('/test/pregunta/:n', (req, res, next) => {
   const s = workingSession(req);
   if (!s) return res.redirect(303, '/test');
   const n = intParam(req.params.n);
-  const slot = n && catalog.SLOTS[n - 1];
+  const C = engine.catalogOf(s);
+  const slot = n && C.SLOTS[n - 1];
   if (!slot) return next(notFound());
   const r = engine.questionAt(s, slot.slot_id);
-  if (r.redirect) return res.redirect(303, `/test/pregunta/${catalog.SLOT_BY_ID[r.redirect].ordinal}`);
+  if (r.skipped && !r.redirect) return res.redirect(303, '/test/revision');
+  if (r.redirect) return res.redirect(303, `/test/pregunta/${C.SLOT_BY_ID[r.redirect].ordinal}`);
   const note = typeof req.query.nota === 'string' ? engine.takeAnnotationToShow(s.id, req.query.nota) : null;
   renderQuestion(req, res, s, r.question, { answer: r.answer, note });
 });
@@ -163,13 +171,19 @@ router.post('/test/pregunta/:n', (req, res, next) => {
   const s = workingSession(req);
   if (!s) return res.redirect(303, '/test');
   const n = intParam(req.params.n);
-  const slot = n && catalog.SLOTS[n - 1];
+  const C = engine.catalogOf(s);
+  const slot = n && C.SLOTS[n - 1];
   if (!slot) return next(notFound());
-  if (String(req.body.action) === 'prev') return res.redirect(303, n > 1 ? `/test/pregunta/${n - 1}` : '/test');
+  if (String(req.body.action) === 'prev') {
+    // Pregunta anterior que aplica (V3 omite Q12/Q13 sin deudas).
+    const order = engine.applicableOrder(engine.activeAnswers(s.id), s);
+    const prev = order.filter((x) => C.SLOT_BY_ID[x].ordinal < n).pop();
+    return res.redirect(303, prev ? `/test/pregunta/${C.SLOT_BY_ID[prev].ordinal}` : '/test');
+  }
 
-  const variant = catalog.VARIANT_BY_ID[req.body.variant_id];
+  const variant = C.VARIANT_BY_ID[req.body.variant_id];
   if (!variant || variant.slot_id !== slot.slot_id) return res.redirect(303, '/test');
-  const parsed = toValue(variant, req.body, s);
+  const parsed = C.fromForm ? { ...C.fromForm(variant, req.body), errors: {} } : toValue(variant, req.body, s);
   const q = (() => {
     const r = engine.questionAt(s, slot.slot_id);
     return r.question || null;
@@ -178,7 +192,7 @@ router.post('/test/pregunta/:n', (req, res, next) => {
   if (Object.keys(parsed.errors).length) return renderQuestion(req, res, s, q, { form: parsed.form, errors: parsed.errors, status: 422 });
 
   const expected = Number.parseInt(req.body.expected_revision, 10);
-  const changeCurrency = Boolean(s.currency && parsed.value && parsed.value.kind === 'AMOUNT' && parsed.value.currency !== s.currency);
+  const changeCurrency = Boolean(!C.fromForm && s.currency && parsed.value && parsed.value.kind === 'AMOUNT' && parsed.value.currency !== s.currency);
   const idem = `web:${sha256(`${s.id}|${slot.slot_id}|${req.body.variant_id}|${expected}|${JSON.stringify(parsed.value)}`).slice(0, 32)}`;
   try {
     const out = engine.saveAnswer(s.id, slot.slot_id, {
@@ -198,9 +212,9 @@ router.post('/test/pregunta/:n', (req, res, next) => {
     const errors = {};
     let confirmNeeded = false;
     if (err.code === 'CONFIRMATION_REQUIRED') confirmNeeded = true;
-    else if (['INVALID_AMOUNT', 'CURRENCY_MISMATCH'].includes(err.code)) errors.amount = err.message;
+    else if (!C.fromForm && ['INVALID_AMOUNT', 'CURRENCY_MISMATCH'].includes(err.code)) errors.amount = err.message;
     else if (['INVALID_AGE', 'AGE_BELOW_RANGE'].includes(err.code)) errors.age = err.message;
-    else errors[variant.type === 'single' || variant.type === 'multi' ? 'value' : 'choice'] = err.message;
+    else errors[C.fromForm || variant.type === 'single' || variant.type === 'multi' ? 'value' : 'choice'] = err.message;
     return renderQuestion(req, res, s, q, { form: parsed.form, errors, status: 422, confirmNeeded });
   }
 });
@@ -272,13 +286,24 @@ router.get('/resultado', (req, res) => {
       title: 'Tu diagnóstico',
       body: html`<h1 class="section">Tu diagnóstico preliminar</h1>
         ${diag.status === 'pending'
-          ? html`<div class="note note--warn" role="status">Estamos redactando tu diagnóstico. Suele tardar unos segundos.</div><div class="actions"><a class="btn btn-primary" href="/resultado">Actualizar</a></div>`
+          ? html`<div class="dx-wait" role="status" aria-live="polite" data-autorefresh="/resultado"><div class="dx-spinner" aria-hidden="true"></div><p><strong>Estamos preparando tu diagnóstico.</strong></p><p class="muted">Analizamos tus respuestas; tarda unos segundos y la página se actualizará sola.</p><noscript><a class="btn btn-primary" href="/resultado">Ver mi diagnóstico</a></noscript></div>`
           : html`<div class="note note--risk" role="alert">No pudimos generar tu diagnóstico. Tus respuestas siguen guardadas: no necesitas repetir el test.</div><form method="post" action="/test/reintentar">${c.csrfField(res.locals.ctx)}<button class="btn btn-primary" type="submit">Reintentar</button></form>`}`,
     });
   }
   const offer = content('oferta_evaluacion');
   const owned = req.user ? entitlements.active(req.user.id) : {};
   const products = db.all("SELECT * FROM products WHERE active = 1 AND code IN ('evaluacion', 'paquete') ORDER BY sort");
+  if (s.version_id === 'FREE_25_V3_ES') {
+    return res.page({
+      title: 'Tu diagnóstico',
+      body: html`${ft3.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products, owned, completedAt: s.completed_at })}
+        <div class="actions actions--center section">
+          ${open
+            ? html`<a class="btn btn-quiet" href="/test">Continuar el test que empezaste</a>`
+            : html`<form class="inline-form" method="post" action="/test/repetir">${c.csrfField(res.locals.ctx)}<button class="btn btn-quiet" type="submit">Repetir el test</button></form>`}
+        </div>`,
+    });
+  }
   res.page({
     title: 'Tu diagnóstico',
     body: html`${ft.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products, offer, owned, reward: true, completedAt: s.completed_at })}

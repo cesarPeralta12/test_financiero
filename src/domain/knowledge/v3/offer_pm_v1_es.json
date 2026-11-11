@@ -1,0 +1,89 @@
+{
+  "offer_id": "OFFER_PM_V1_ES",
+  "source_url": "https://docs.google.com/document/d/1gc_hIpFANpqoM0apJqoeMk4wgFidAeOX39Dcjmg1frI/edit",
+  "benefits": [
+    {
+      "id": "PM01",
+      "title": "Diagnóstico financiero y patrimonial integral",
+      "description": "Análisis de ingresos, gastos, flujo de caja, deudas, activos, ahorro, liquidez, riesgos, habilidades, fortalezas, hábitos y obstáculos."
+    },
+    {
+      "id": "PM02",
+      "title": "Selección de acciones de mayor impacto",
+      "description": "Entre tres y siete prioridades, explicando impacto esperado, dificultad, tiempo, capital necesario y riesgos."
+    },
+    {
+      "id": "PM03",
+      "title": "Mapa de oportunidades de riqueza",
+      "description": "Alternativas para generar ingresos inmediatos, mejorar el ingreso principal, crear ingresos adicionales y construir activos. Comparación y orden de prioridad."
+    },
+    {
+      "id": "PM04",
+      "title": "Máquina de generación de ingresos",
+      "description": "Propuestas concretas con cliente, problema, oferta, monetización, precio por explorar, inversión, tiempo estimado, potencial, riesgos y primer paso."
+    },
+    {
+      "id": "PM05",
+      "title": "Estrategia de ingresos recurrentes y escalabilidad",
+      "description": "Cómo explorar continuidad y aumentar resultados sin incrementar proporcionalmente las horas de trabajo."
+    },
+    {
+      "id": "PM06",
+      "title": "Ruta de acumulación patrimonial",
+      "description": "Etapas desde el fondo de seguridad y el primer capital hasta niveles mayores de patrimonio e independencia financiera, adaptadas a tu realidad."
+    },
+    {
+      "id": "PM07",
+      "title": "Estrategia de creación o adquisición de activos",
+      "description": "Qué activos considerar, qué capacidades desarrollar, dónde dedicar tiempo y dinero y qué condiciones deben cumplirse antes de avanzar."
+    },
+    {
+      "id": "PM08",
+      "title": "Plan de 30 días",
+      "description": "Acciones semanales y metas relacionadas con ingresos, gastos, ahorro, ventas, oportunidades y activos."
+    },
+    {
+      "id": "PM09",
+      "title": "Plan de 90 días",
+      "description": "Objetivos financieros, profesionales o empresariales, resultados esperados e indicadores para comprobar avances."
+    },
+    {
+      "id": "PM10",
+      "title": "Plan de un año y visión a tres años",
+      "description": "Metas y escenarios de ingresos, patrimonio, deuda, inversiones, activos, diversificación y recurrencia."
+    },
+    {
+      "id": "PM11",
+      "title": "Prevención de errores y protección patrimonial",
+      "description": "Riesgos y decisiones que podrían perjudicarte, cómo detectarlos y qué reglas adoptar para proteger lo acumulado."
+    },
+    {
+      "id": "PM12",
+      "title": "Principios para tomar mejores decisiones",
+      "description": "Cómo evaluar oportunidades, distinguir inversión y especulación, reinvertir, conservar efectivo, abandonar proyectos y decir no."
+    },
+    {
+      "id": "PM13",
+      "title": "Tabla de objetivos por horizonte",
+      "description": "Ingreso objetivo, patrimonio objetivo, activos a construir y acción principal a 30 días, 90 días, un año y tres años."
+    },
+    {
+      "id": "PM14",
+      "title": "Las cinco decisiones más importantes ahora",
+      "description": "Qué decidir, por qué importa, qué habilita y qué consecuencias puede tener postergarlo."
+    },
+    {
+      "id": "TOOL01",
+      "title": "Coach por chat",
+      "description": "Acompañamiento para entender, ejecutar y revisar el plan."
+    },
+    {
+      "id": "TOOL02",
+      "title": "Control financiero y simulador",
+      "description": "Registro de ingresos, gastos, deudas, ahorros y patrimonio; comparación de escenarios y seguimiento del avance."
+    }
+  ],
+  "cta": "Construir mi Plan de Crecimiento Patrimonial",
+  "price_source": "server_commercial_configuration",
+  "availability_source": "server_entitlements_and_capabilities"
+}

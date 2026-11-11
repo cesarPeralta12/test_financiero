@@ -50,6 +50,43 @@ async function cdp(wsUrl) {
   };
 }
 
+// Respuestas de la simulación ficticia del ingeniero para recorrer el test V3.
+const V3_ANSWERS = {
+  Q01: { country: 'BO', currency: 'BOB' }, Q02: 'A25_34', Q03: 'D1',
+  Q04: { route: 'EMPLOYEE', occupation: 'Técnico de refrigeración y aire acondicionado' },
+  Q05: { priority: 'INCOME', description: 'Aumentar mis ingresos y luego ahorrar para una vivienda', amount: '1500', target_kind: 'ADDITIONAL_INCOME', horizon_months: '6' },
+  Q06: { amount: '5100' }, Q07: 'MODERATE', Q08: { amount: '3500' }, Q09: { amount: '500' },
+  Q10: { presence: 'YES', monthly_due: { amount: '800' } }, Q11: { presence: 'YES', total_balance: { amount: '12000' }, types: ['LOAN'] },
+  Q12: { code: 'ON_TIME' }, Q13: 'DK', Q14: { amount: '600' }, Q15: { codes: ['NONE'] },
+  Q16: { codes: ['VEHICLE', 'EQUIPMENT'], detail: 'Motocicleta propia y herramientas' }, Q17: { hours: '8' },
+  Q18: { skills: 'Diagnosticar fallas y reparar equipos', task: 'Reparé equipos sin cambiar piezas que parecían dañadas', result: 'Los clientes me volvieron a llamar' },
+  Q19: { text: 'Viviendas, pequeños restaurantes y tiendas con refrigeradores' },
+  Q20: { paid_before: 'YES', activity: 'Reparación y limpieza de aires acondicionados', frequency: 'REPEATED' },
+  Q21: { text: 'Antiguos clientes y dos conocidos con restaurantes' },
+  Q22: { code: 'OTHER', detail: 'Dependo de recomendaciones y no sé cuánto gano por trabajo' },
+  Q23: { codes: ['KEEP_JOB', 'CARE'], detail: 'No trabajar todos los domingos' }, Q24: { amount: '300', available_now: 'LATER' }, Q25: 'SELL_SERVICE',
+};
+
+/** Cliente anónimo con una sesión V3 respondida hasta la pregunta `upTo` (y finalizada si se pide). */
+async function v3Client(upTo, finish = false) {
+  const config = require('../src/config');
+  const engine = require('../src/domain/free/engine');
+  const prev = config.freeCatalogVersion;
+  config.freeCatalogVersion = 'FREE_25_V3_ES';
+  const a = new h.Client();
+  await h.consent(a);
+  await a.get('/test?nuevo=1');
+  config.freeCatalogVersion = prev;
+  const s = h.db.one("SELECT id FROM ft_sessions WHERE version_id = 'FREE_25_V3_ES' ORDER BY rowid DESC LIMIT 1");
+  for (const [slot, value] of Object.entries(V3_ANSWERS).slice(0, upTo)) {
+    const cur = engine.loadSession(s.id);
+    const r = engine.questionAt(cur, slot);
+    if (r.question) engine.saveAnswer(s.id, slot, { variant_id: r.question.variant_id, expected_revision: cur.revision, value });
+  }
+  if (finish) await a.post('/test/finalizar', {});
+  return a.cookies;
+}
+
 async function main() {
   const exe = chromePath();
   if (!exe) {
@@ -94,21 +131,10 @@ async function main() {
     ['consentimiento', '/consentimiento', {}],
     ['entrar', '/entrar', {}],
     ['registro', '/registro', {}],
-    ['pregunta-dinero', '/test/pregunta/3', anonCookie, async () => {
-      const a = new h.Client();
-      await h.consent(a);
-      await a.get('/test');
-      await a.post('/test/pregunta/1', { action: 'next', value: 'MXN' });
-      await a.post('/test/pregunta/2', { action: 'next', value: 'empleo' });
-      return a.cookies;
-    }],
-    ['pregunta-tarjetas', '/test/pregunta/5', anonCookie, async () => {
-      const a = new h.Client();
-      await h.consent(a);
-      await a.get('/test');
-      for (const [n, v] of [[1, { value: 'MXN' }], [2, { value: 'empleo' }], [3, { amount: '30000', period: 'mensual' }], [4, { value: 'neto' }]]) await a.post(`/test/pregunta/${n}`, { action: 'next', ...v });
-      return a.cookies;
-    }],
+    // Test gratuito V3 (FREE_25_V3_ES): primera pregunta, deudas y diagnóstico.
+    ['v3-pregunta-pais', '/test/pregunta/1', anonCookie, () => v3Client(0)],
+    ['v3-pregunta-deudas', '/test/pregunta/10', anonCookie, () => v3Client(9)],
+    ['v3-resultado', '/resultado', anonCookie, () => v3Client(25, true)],
     ['resultado', '/resultado', userCookie],
     ['inicio', '/inicio', userCookie],
     ['comprar', '/comprar/acompanamiento', userCookie],

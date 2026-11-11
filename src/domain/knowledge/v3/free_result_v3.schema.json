@@ -1,0 +1,374 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "RESULT_FREE_V3_ES"
+    },
+    "catalog_version": {
+      "const": "FREE_25_V3_ES"
+    },
+    "conclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "interpretation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        }
+      },
+      "required": [
+        "title",
+        "interpretation",
+        "evidence_refs"
+      ]
+    },
+    "insights": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 140
+          },
+          "meaning": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 800
+          },
+          "implication": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 600
+          },
+          "evidence_refs": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            }
+          },
+          "metric_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 6
+          }
+        },
+        "required": [
+          "title",
+          "meaning",
+          "implication",
+          "evidence_refs",
+          "metric_refs"
+        ]
+      }
+    },
+    "bottleneck": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "interpretation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 800
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "hypothesis",
+            "insufficient"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        }
+      },
+      "required": [
+        "interpretation",
+        "status",
+        "evidence_refs"
+      ]
+    },
+    "opportunity": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 140
+            },
+            "hypothesis": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 700
+            },
+            "why_this_person": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 800
+            },
+            "alternative": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 600
+            },
+            "test": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 700
+            },
+            "continue_if": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "revise_if": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "unknowns": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 220
+              },
+              "maxItems": 4
+            },
+            "evidence_refs": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 10,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              }
+            }
+          },
+          "required": [
+            "title",
+            "hypothesis",
+            "why_this_person",
+            "alternative",
+            "test",
+            "continue_if",
+            "revise_if",
+            "unknowns",
+            "evidence_refs"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "first_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "CLARIFY",
+            "RECORD",
+            "COMPARE",
+            "CONTACT",
+            "PLAN"
+          ]
+        },
+        "instruction": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 900
+        },
+        "why_now": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600
+        },
+        "done_when": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "resource_fit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "risk": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "instruction",
+        "why_now",
+        "done_when",
+        "resource_fit",
+        "risk",
+        "evidence_refs"
+      ]
+    },
+    "decision_to_review": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "decision": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 700
+            },
+            "evidence_refs": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 10,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              }
+            }
+          },
+          "required": [
+            "decision",
+            "reason",
+            "evidence_refs"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "growth_direction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 800
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        }
+      },
+      "required": [
+        "text",
+        "evidence_refs"
+      ]
+    },
+    "missing_data": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "why": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400
+          }
+        },
+        "required": [
+          "field",
+          "question",
+          "why"
+        ]
+      }
+    },
+    "offer_id": {
+      "const": "OFFER_PM_V1_ES"
+    }
+  },
+  "required": [
+    "schema_version",
+    "catalog_version",
+    "conclusion",
+    "insights",
+    "bottleneck",
+    "opportunity",
+    "first_action",
+    "decision_to_review",
+    "growth_direction",
+    "missing_data",
+    "offer_id"
+  ]
+}

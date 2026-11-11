@@ -1,0 +1,83 @@
+[
+  {
+    "id": "TECH",
+    "net_income": "5100",
+    "essential": "3500",
+    "other": "500",
+    "debt_due": "800",
+    "reserve": "600",
+    "expected_balance": "300",
+    "occupation": "técnico",
+    "hours": "8",
+    "budget": "300",
+    "expected_action": "Comparar rentabilidad de servicios previos antes de promocionar; comprobar demanda programada."
+  },
+  {
+    "id": "NO_SIDE_JOB",
+    "net_income": "4500",
+    "essential": "3500",
+    "other": "500",
+    "debt_due": "800",
+    "expected_balance": "-300",
+    "expected_action": "Reconocer dependencia del ingreso variable, no tratar sueldo como suficiente."
+  },
+  {
+    "id": "UNKNOWN_EXPENSE",
+    "net_income": "5100",
+    "essential": null,
+    "other": "500",
+    "debt_due": "800",
+    "expected_balance": null,
+    "expected_action": "No calcular saldo; preguntar básico pendiente y mantener hallazgos independientes."
+  },
+  {
+    "id": "ZERO_INCOME",
+    "net_income": "0",
+    "essential": "1000",
+    "other": "0",
+    "debt_due": "0",
+    "expected_balance": "-1000",
+    "expected_action": "No dividir por cero ni prometer incremento porcentual; explorar apoyo/entrada viable."
+  },
+  {
+    "id": "NO_DEBT_CONFIRMED",
+    "net_income": "3000",
+    "essential": "2000",
+    "other": "200",
+    "debt_due": "0",
+    "expected_balance": "800",
+    "expected_action": "Cuota cero solo por ausencia explícita y coherente."
+  },
+  {
+    "id": "UNKNOWN_DEBT",
+    "net_income": "3000",
+    "essential": "2000",
+    "other": "200",
+    "debt_due": null,
+    "expected_balance": null,
+    "expected_action": "Desconocido no es deuda cero."
+  },
+  {
+    "id": "NO_TIME",
+    "net_income": "5100",
+    "essential": "3500",
+    "other": "500",
+    "debt_due": "800",
+    "expected_balance": "300",
+    "hours": "0",
+    "budget": "0",
+    "expected_action": "No recomendar trabajo adicional ni gastos; revisar alternativas compatibles."
+  },
+  {
+    "id": "DIFFERENT_CAPABILITY",
+    "net_income": "5100",
+    "essential": "3500",
+    "other": "500",
+    "debt_due": "800",
+    "expected_balance": "300",
+    "occupation": "docente",
+    "experience": "clases particulares pagadas",
+    "hours": "8",
+    "expected_action": "Explorar experiencia educativa, no refrigeración; conservar cálculos monetarios."
+  }
+]

@@ -1,0 +1,396 @@
+{
+  "catalog_version": "FREE_25_V3_ES",
+  "date": "2026-11-11",
+  "status": "documented_not_deployed",
+  "question_count": 25,
+  "questions": [
+    {
+      "id": "Q01",
+      "field": "locale",
+      "prompt": "¿En qué país vives y en qué moneda manejas normalmente tu dinero?",
+      "help": "País y moneda.",
+      "type": "locale",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q02",
+      "field": "age_band",
+      "prompt": "¿En qué rango de edad estás?",
+      "help": "Rangos; no hace falta fecha de nacimiento.",
+      "type": "enum",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": [
+        "LT18",
+        "A18_24",
+        "A25_34",
+        "A35_44",
+        "A45_54",
+        "A55_64",
+        "GE65"
+      ]
+    },
+    {
+      "id": "Q03",
+      "field": "dependents",
+      "prompt": "¿Cuántas personas dependen económicamente de ti?",
+      "help": "Ninguna, una, dos, tres, cuatro o más.",
+      "type": "enum",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": [
+        "D0",
+        "D1",
+        "D2",
+        "D3",
+        "D4PLUS"
+      ]
+    },
+    {
+      "id": "Q04",
+      "field": "activity",
+      "prompt": "¿A qué te dedicas actualmente?",
+      "help": "Empleado, independiente, dueño de negocio, varias actividades, sin ingresos u otra situación. Añadir puesto o actividad en una frase.",
+      "type": "activity",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q05",
+      "field": "goal",
+      "prompt": "¿Qué cambio económico te gustaría conseguir y en qué plazo?",
+      "help": "Elegir una prioridad y concretarla cuando sea posible: recibir cierta cantidad, ponerse al día, formar una reserva, hacer crecer el negocio o construir patrimonio.",
+      "type": "goal",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q06",
+      "field": "net_income_month",
+      "prompt": "¿Cuánto dinero recibes personalmente en un mes normal, después de los costos de tu actividad?",
+      "help": "Monto o rango. Para empresarios: dinero personal, no facturación del negocio.",
+      "type": "money",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q07",
+      "field": "income_variability",
+      "prompt": "¿Cómo cambia ese ingreso de un mes a otro?",
+      "help": "Es parecido, varía moderadamente, varía mucho, está disminuyendo o actualmente es cero.",
+      "type": "enum",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": [
+        "SIMILAR",
+        "MODERATE",
+        "HIGH",
+        "DECREASING",
+        "NO_INCOME"
+      ]
+    },
+    {
+      "id": "Q08",
+      "field": "essential_expense_month",
+      "prompt": "¿Cuánto necesitas al mes para vivienda, alimentación, servicios, transporte, salud y otras necesidades básicas?",
+      "help": "Total aproximado, sin pagos de deuda. Ayuda opcional para sumar categorías.",
+      "type": "money",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q09",
+      "field": "other_expense_month",
+      "prompt": "Además de lo básico, ¿cuánto gastas al mes en compras, salidas, suscripciones y otros gastos?",
+      "help": "Total aproximado, sin deuda y sin repetir la pregunta anterior.",
+      "type": "money",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q10",
+      "field": "debt_due_month",
+      "prompt": "¿Cuánto debes pagar este mes por todas tus deudas?",
+      "help": "Cuotas o pagos exigibles del mes; distinguir cualquier monto adicional para regularizar atrasos.",
+      "type": "debt_payment",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q11",
+      "field": "debt_inventory",
+      "prompt": "¿Cuánto debes en total y qué tipos de deuda tienes?",
+      "help": "Saldo aproximado y categorías: tarjeta, préstamo, vivienda, familiares, negocio u otras.",
+      "type": "debt_inventory",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q12",
+      "field": "payment_status",
+      "prompt": "¿Cómo estás cumpliendo esos pagos?",
+      "help": "Al día, pagando mínimos, atrasos ocasionales, pagos vencidos que no puede cubrir. Permitir señalar una consecuencia urgente, si existe.",
+      "type": "enum",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": [
+        "ON_TIME",
+        "MINIMUM",
+        "OCCASIONAL_DELAY",
+        "OVERDUE_UNABLE"
+      ]
+    },
+    {
+      "id": "Q13",
+      "field": "debt_cost",
+      "prompt": "¿Conoces el interés o costo de tu deuda más preocupante?",
+      "help": "Tasa y período, si los conoce; o “no lo sé”. No pedir que lo adivine.",
+      "type": "rate",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q14",
+      "field": "emergency_cash",
+      "prompt": "¿Cuánto dinero tienes disponible para una emergencia?",
+      "help": "Ahorro líquido accesible, excluyendo dinero comprometido y caja del negocio.",
+      "type": "money",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q15",
+      "field": "backup",
+      "prompt": "Si tus ingresos se interrumpieran, ¿qué otro respaldo real tendrías?",
+      "help": "Otro ingreso del hogar, seguro, apoyo confirmado, ninguno o desconocido. Aclarar que su suficiencia se revisará después.",
+      "type": "multi_enum",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": [
+        "HOUSEHOLD_INCOME",
+        "INSURANCE",
+        "CONFIRMED_SUPPORT",
+        "OTHER",
+        "NONE"
+      ]
+    },
+    {
+      "id": "Q16",
+      "field": "productive_resources",
+      "prompt": "¿Qué bienes, herramientas o recursos podrías aprovechar para generar ingresos?",
+      "help": "Equipo, vehículo, espacio, inventario, negocio, producto, software u otros. Indicar qué está realmente disponible.",
+      "type": "resources",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q17",
+      "field": "available_hours_week",
+      "prompt": "¿Cuántas horas reales podrías dedicar cada semana a mejorar tus ingresos?",
+      "help": "Horas disponibles, respetando trabajo y obligaciones. Cero es una respuesta válida.",
+      "type": "hours",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q18",
+      "field": "skill_evidence",
+      "prompt": "¿Qué sabes hacer bien? Cuéntanos una tarea que hayas resuelto y qué resultado obtuviste.",
+      "help": "Máximo dos habilidades y un ejemplo breve. Esta respuesta es esencial para personalizar.",
+      "type": "skill_examples",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q19",
+      "field": "sector_experience",
+      "prompt": "¿Qué tipo de clientes, empresas o sectores conoces por experiencia?",
+      "help": "Sector y relación: trabajó allí, vendió, atendió clientes, gestionó un negocio u otra experiencia.",
+      "type": "text",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q20",
+      "field": "paid_experience",
+      "prompt": "¿Alguien ya te ha pagado por alguna de esas habilidades fuera de tu actividad principal?",
+      "help": "Qué hizo y si fue una vez o de forma repetida. También “nunca”.",
+      "type": "paid_experience",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q21",
+      "field": "market_access",
+      "prompt": "¿A qué personas o negocios podrías acercarte para comprobar una oportunidad?",
+      "help": "Descripción del contacto o acceso; sin solicitar nombres ni teléfonos.",
+      "type": "text",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q22",
+      "field": "income_bottleneck",
+      "prompt": "¿Qué impide hoy que aumentes tu ingreso principal?",
+      "help": "Pregunta adaptada: sueldo limitado, falta de clientes, precios, costos, capacidad, cobros, desconocimiento del camino u otro obstáculo.",
+      "type": "text",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q23",
+      "field": "constraints",
+      "prompt": "¿Qué condición debe respetar cualquier propuesta que te hagamos?",
+      "help": "Conservar empleo, cuidar familiares, salud, horarios, movilidad u otra restricción. Priorizar la más importante.",
+      "type": "text",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q24",
+      "field": "safe_test_budget",
+      "prompt": "¿Cuánto podrías destinar a probar una oportunidad sin afectar necesidades básicas ni obligaciones?",
+      "help": "Monto disponible o cero. No asumir que el ahorro de emergencia puede invertirse.",
+      "type": "money",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": []
+    },
+    {
+      "id": "Q25",
+      "field": "preferred_path",
+      "prompt": "¿Qué camino estarías dispuesto a explorar primero?",
+      "help": "Mejorar empleo, cambiar de empleo, vender un servicio, vender un producto, mejorar negocio o recibir ayuda para elegir.",
+      "type": "enum",
+      "states": [
+        "answered",
+        "unknown",
+        "declined",
+        "not_applicable"
+      ],
+      "options": [
+        "IMPROVE_JOB",
+        "CHANGE_JOB",
+        "SERVICE",
+        "PRODUCT",
+        "BUSINESS",
+        "HELP_CHOOSE"
+      ]
+    }
+  ]
+}

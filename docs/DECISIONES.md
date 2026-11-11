@@ -73,3 +73,13 @@ Apps nativas; conexión con cuentas bancarias; lectura automática de extractos;
 - Salida estructurada estricta (`json_schema`, `strict: true`) con el esquema de la redacción; `reasoning_effort: none` por defecto en la familia gpt-6 (`OPENAI_REASONING_EFFORT` lo cambia). Modelo por defecto: `gpt-6-luna`.
 - Cada resultado guarda en `traceability` el modelo, los tokens, la latencia y, si se usó la plantilla, el motivo (`PROVIDER_ERROR` o el código del validador). El log registra lo mismo, sin contenido del usuario.
 - Prueba real (4 perfiles, base temporal): 4/4 redacciones aceptadas por el validador; promedio 504 tokens de entrada + 235 de salida y 4,5 s por test. El bloque V2 (Día Uno) no depende de la IA.
+
+## Paquete V3: test FREE_25_V3_ES y diagnóstico RESULT_FREE_V3_ES (11-11-2026)
+
+- Nuevo catálogo `src/domain/free/catalog3.js` (25 preguntas del documento 07, textos idénticos al JSON del ingeniero). Montos aproximados o rango en la moneda de Q01 (incluye bolivianos); Q12/Q13 se omiten solo si Q10 y Q11 confirman que no hay deudas; Q22 se adapta a la actividad (Q04). «No lo sé» y «Prefiero no responder» en todas; nunca cuentan como cero.
+- El motor (`engine.js`) interpreta cada sesión con su propio catálogo: las sesiones V2 siguen igual. Sesiones nuevas según `FREE_CATALOG_VERSION` (V3 por defecto).
+- Métricas del servidor (`metrics3.js`, decimal.js): salida mensual, saldo, margen sobre lo básico, meses de reserva, cobertura y brecha con el objetivo. Con un dato desconocido, rango o contradicción, la métrica queda vacía con su motivo. Los 8 fixtures del ingeniero coinciden.
+- Diagnóstico (`result3.js`): la IA (`gpt-6-luna`, prompt FREE_PATRIMONIAL_V3_ES) recibe respuestas con estado, métricas, bloqueos y restricciones, y responde con el esquema estricto del ingeniero. El servidor valida forma, evidencia, métricas citadas, cifras (solo declaradas o calculadas), términos prohibidos (las advertencias como «no garantiza» se permiten) y gastos bloqueados. Si algo falla, publica un respaldo determinista y guarda el motivo.
+- La oferta OFFER_PM_V1_ES (14 componentes + coach y control financiero) la añade el servidor con precio real; sin XP ni logros en el diagnóstico. La espera del diagnóstico se actualiza sola.
+- Prueba real: técnico, docente y persona sin ingresos con atrasos → 3/3 redactados por la IA y aceptados (~4.700 tokens y ~17 s por diagnóstico).
+- Pendiente de producto: la oferta promete 14 componentes; el Plan Maestro actual aún no los cubre todos (resolver alcance antes de cobrar, según el documento 00).

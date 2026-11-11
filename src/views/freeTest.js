@@ -6,6 +6,7 @@ const c = require('./components');
 const catalog = require('../domain/free/catalog');
 const { STATE_LABEL } = require('../domain/free/result');
 const config = require('../config');
+const v3 = require('./freeTest3');
 
 const SPECIAL_CODES = catalog.SPECIAL_CODES;
 const CURRENCY_OPTIONS = Object.entries(money.CURRENCIES).map(([value, v]) => ({ value, label: v.label }));
@@ -84,10 +85,12 @@ function questionPage(ctx, o) {
   const { q, form = {}, errors = {} } = o;
   const total = 25;
   const pct = Math.round(((q.ordinal - 1) / total) * 100);
-  const isGroup = ['single', 'multi'].includes(q.type);
+  const isV3 = q.catalog_version === 'FREE_25_V3_ES';
+  const isGroup = !isV3 && ['single', 'multi'].includes(q.type);
   const Tag = isGroup ? 'fieldset' : 'div';
   let input;
-  if (isGroup) input = optionBlock(q, form, errors);
+  if (isV3) input = v3.input(q, form, errors);
+  else if (isGroup) input = optionBlock(q, form, errors);
   else if (q.type === 'money_or_choice') input = moneyBlock(q, form, errors);
   else input = ageBlock(q, form, errors, o.confirmNeeded);
   return html`<form class="qf" method="post" action="/test/pregunta/${q.ordinal}" data-slot="${q.slot_id}" data-variant="${q.variant_id}" novalidate>

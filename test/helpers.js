@@ -3,6 +3,8 @@
 process.env.APP_ENV = 'testing';
 process.env.DATABASE_PATH = ':memory:';
 process.env.AI_PROVIDER = 'local';
+// Las pruebas históricas usan el catálogo V2; las de V3 lo eligen explícitamente.
+process.env.FREE_CATALOG_VERSION = process.env.FREE_CATALOG_VERSION || 'FREE_25_V2_ES';
 process.env.PAYMENT_WEBHOOK_SECRET = 'whsec_pruebas';
 process.env.SANDBOX_AUTO_DELIVER = 'false';
 process.env.ADMIN_EMAIL = 'admin@diauno.test';

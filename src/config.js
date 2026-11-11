@@ -100,6 +100,8 @@ const config = {
   // Resultado gratuito V2 (crecimiento patrimonial, Fase 2). Con FREE_RESULT_V2=false se
   // muestra solo la lectura V1; el cálculo V2 se guarda igual para auditoría.
   freeResultV2: bool(env.FREE_RESULT_V2, true),
+  // Catálogo de las sesiones nuevas del test gratuito. Las sesiones existentes siguen con el suyo.
+  freeCatalogVersion: ['FREE_25_V2_ES', 'FREE_25_V3_ES'].includes(env.FREE_CATALOG_VERSION) ? env.FREE_CATALOG_VERSION : 'FREE_25_V3_ES',
 
   mail: {
     from: env.MAIL_FROM || 'Día Uno <no-responder@diauno.local>',

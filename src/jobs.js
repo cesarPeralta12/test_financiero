@@ -13,6 +13,7 @@ const tasks = require('./domain/tasks');
 require('./lib/mailer');
 require('./domain/plan');
 require('./domain/free/narrative');
+require('./domain/free/result3');
 require('./domain/gateways/sandbox');
 
 function purgeAnonymous(days = config.anonymousRetentionDays) {

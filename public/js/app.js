@@ -68,6 +68,65 @@
     }
   });
 
+  // Test V3: mostrar campos solo cuando aplican («Sí tengo deudas» → montos) y
+  // marcar «No lo sé» desmarca lo escrito (y al revés).
+  const v3 = document.querySelector('.v3-input');
+  if (v3) {
+    const form = v3.closest('form');
+    const syncIf = function () {
+      form.querySelectorAll('[data-show-if]').forEach(function (box) {
+        const parts = box.getAttribute('data-show-if').split('=');
+        const sel = form.querySelector('input[name="' + parts[0] + '"]:checked');
+        const show = Boolean(sel && sel.value === parts[1]);
+        box.hidden = !show;
+        box.querySelectorAll('input, select, textarea').forEach(function (el) {
+          el.disabled = !show;
+        });
+      });
+    };
+    form.addEventListener('change', function (e) {
+      const el = e.target;
+      if (el.name === 'special' && el.checked) {
+        v3.querySelectorAll('input[type=radio]:checked, input[type=checkbox]:checked').forEach(function (o) {
+          o.checked = false;
+        });
+      } else if (el.closest && el.closest('.v3-input')) {
+        form.querySelectorAll('input[name=special]').forEach(function (o) {
+          o.checked = false;
+        });
+      }
+      if (el.type === 'checkbox' && el.checked && el.closest('.v3-input')) {
+        const all = el.closest('.options').querySelectorAll('input[type=checkbox]');
+        all.forEach(function (o) {
+          if (o !== el && (el.hasAttribute('data-exclusive') || o.hasAttribute('data-exclusive'))) o.checked = false;
+        });
+      }
+      syncIf();
+    });
+    syncIf();
+  }
+
+  // Diagnóstico en preparación: la página se actualiza sola, sin pedir clic.
+  const wait = document.querySelector('[data-autorefresh]');
+  if (wait) {
+    let tries = 0;
+    const poll = function () {
+      tries += 1;
+      fetch(wait.getAttribute('data-autorefresh'), { headers: { accept: 'text/html' }, credentials: 'same-origin' })
+        .then(function (r) {
+          return r.text();
+        })
+        .then(function (t) {
+          if (t.indexOf('data-autorefresh') === -1) location.reload();
+          else if (tries < 40) setTimeout(poll, 1500);
+        })
+        .catch(function () {
+          if (tries < 40) setTimeout(poll, 3000);
+        });
+    };
+    setTimeout(poll, 1200);
+  }
+
   // «No lo sé» desactiva los campos de la pregunta
   const unknown = document.querySelector('[data-unknown]');
   if (unknown) {

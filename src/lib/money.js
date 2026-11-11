@@ -17,6 +17,7 @@ const CURRENCIES = {
   ARS: { label: 'Peso argentino (ARS)', locale: 'es-AR', decimals: 2, decimalSep: ',' },
   GTQ: { label: 'Quetzal (GTQ)', locale: 'es-GT', decimals: 2, decimalSep: '.' },
   DOP: { label: 'Peso dominicano (DOP)', locale: 'es-DO', decimals: 2, decimalSep: '.' },
+  BOB: { label: 'Boliviano (Bs)', locale: 'es-BO', decimals: 2, decimalSep: ',' },
 };
 
 const MAX_AMOUNT = new D('1e13');
@@ -52,7 +53,7 @@ function parseAmount(input, currency, { allowNegative = false } = {}) {
   if (input === null || input === undefined) return { ok: false, empty: true };
   let s = String(input).trim();
   if (!s) return { ok: false, empty: true };
-  s = s.replace(/[\s $€]|MXN|COP|USD|EUR|PEN|CLP|ARS|GTQ|DOP|S\/|Q/gi, '');
+  s = s.replace(/[\s $€]|MXN|COP|USD|EUR|PEN|CLP|ARS|GTQ|DOP|BOB|Bs\.?|S\/|Q/gi, '');
   let negative = false;
   if (s.startsWith('-') || s.startsWith('−')) {
     negative = true;

@@ -1,0 +1,98 @@
+{
+  "schema_version": "RESULT_FREE_V3_ES",
+  "catalog_version": "FREE_25_V3_ES",
+  "conclusion": {
+    "title": "Medir tus servicios antes de captar más trabajos",
+    "interpretation": "La experiencia y los trabajos pagados justifican comparar margen y capacidad antes de promocionar.",
+    "evidence_refs": [
+      "Q18",
+      "Q20",
+      "Q22"
+    ]
+  },
+  "insights": [
+    {
+      "title": "Dependencia del ingreso adicional",
+      "meaning": "El sueldo y los compromisos muestran una diferencia que cubre el ingreso variable.",
+      "implication": "Comprobar continuidad y rentabilidad ayuda a evaluar esa dependencia.",
+      "evidence_refs": [
+        "Q06",
+        "Q07",
+        "Q08",
+        "Q09",
+        "Q10"
+      ],
+      "metric_refs": [
+        "monthly_balance",
+        "salary_only_balance"
+      ]
+    }
+  ],
+  "bottleneck": {
+    "interpretation": "No conoces el resultado por servicio y no realizas seguimiento.",
+    "status": "supported",
+    "evidence_refs": [
+      "Q22"
+    ]
+  },
+  "opportunity": {
+    "title": "Atención programada",
+    "hypothesis": "Investigar necesidades programables entre antiguos clientes y comercios conocidos.",
+    "why_this_person": "Experiencia pagada, recursos y acceso declarados; horario acotado.",
+    "alternative": "Comparar una mejora laboral cuando se conozcan requisitos y condiciones.",
+    "test": "Preguntar a un contacto qué necesidad tiene y en qué horario.",
+    "continue_if": "Existe una necesidad específica compatible con la disponibilidad.",
+    "revise_if": "Exige atención incompatible con el empleo o recursos no disponibles.",
+    "unknowns": [
+      "Demanda y margen por servicio."
+    ],
+    "evidence_refs": [
+      "Q16",
+      "Q17",
+      "Q18",
+      "Q20",
+      "Q21",
+      "Q23"
+    ]
+  },
+  "first_action": {
+    "kind": "COMPARE",
+    "instruction": "Reconstruye cobros, materiales, transporte y tiempo de trabajos recientes, marcando faltantes.",
+    "why_now": "Sin medir el resultado por trabajo no sabes qué conviene promover.",
+    "done_when": "Puedes comparar lo que dejaron los trabajos o identificar datos faltantes.",
+    "resource_fit": "Usar registros existentes en un espacio compatible con la disponibilidad, sin gasto propuesto.",
+    "risk": "No utilizar datos confidenciales del empleador.",
+    "evidence_refs": [
+      "Q17",
+      "Q20",
+      "Q22",
+      "Q23"
+    ]
+  },
+  "decision_to_review": {
+    "decision": "Destinar presupuesto a publicidad de inmediato.",
+    "reason": "Primero comprobar oferta, rentabilidad y capacidad.",
+    "evidence_refs": [
+      "Q17",
+      "Q22",
+      "Q24"
+    ]
+  },
+  "growth_direction": {
+    "text": "Conservar empleo, medir servicios y comprobar una oferta antes de estudiar continuidad y acumulación.",
+    "evidence_refs": [
+      "Q05",
+      "Q18",
+      "Q20",
+      "Q23"
+    ]
+  },
+  "missing_data": [
+    {
+      "field": "service_margin",
+      "question": "¿Qué cobros, costos y tiempo tuvieron tus trabajos recientes?",
+      "why": "Permite comparar rentabilidad y capacidad."
+    }
+  ],
+  "offer_id": "OFFER_PM_V1_ES"
+}
