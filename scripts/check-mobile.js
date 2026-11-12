@@ -133,6 +133,7 @@ async function main() {
     ['registro', '/registro', {}],
     // Test gratuito V3 (FREE_25_V3_ES): primera pregunta, deudas y diagnóstico.
     ['v3-pregunta-pais', '/test/pregunta/1', anonCookie, () => v3Client(0)],
+    ['v3-pregunta-interes', '/test/pregunta/13', anonCookie, () => v3Client(12)],
     ['v3-pregunta-deudas', '/test/pregunta/10', anonCookie, () => v3Client(9)],
     ['v3-resultado', '/resultado', anonCookie, () => v3Client(25, true)],
     ['resultado', '/resultado', userCookie],

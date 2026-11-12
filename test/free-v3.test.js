@@ -79,7 +79,8 @@ test('catálogo V3: 25 IDs únicos con los textos y campos del catálogo del ing
     const s = cat.SLOT_BY_ID[q.id];
     assert.ok(s, `falta ${q.id}`);
     assert.equal(s.field, q.field, `campo de ${q.id}`);
-    assert.equal(s.variants[0].text, q.prompt, `texto de ${q.id}`);
+    // Q10 y Q13 se reescribieron tras la prueba con usuarios (el resto, igual al catálogo).
+    if (!['Q10', 'Q13'].includes(q.id)) assert.equal(s.variants[0].text, q.prompt, `texto de ${q.id}`);
   }
   for (const s of cat.SLOTS) for (const v of s.variants) assert.ok(cat.renderVariant(v).options.some((o) => o.code === 'DK') && cat.renderVariant(v).options.some((o) => o.code === 'PNA'), `${v.id} sin No lo sé / Prefiero no responder`);
 });
@@ -408,4 +409,14 @@ test('V3: el texto de la IA se pule (sin «.00» ni jerga interna) y conserva re
   });
   assert.equal(out.a, 'Tus respuestas indican Bs 300 aproximados. Por ahora conviene evitar acciones con gasto. Meta Bs 3.000 y 12.000.');
   assert.deepEqual(out.evidence_refs, ['Q05.amount']);
+});
+
+test('V3: Q10 y Q13 simplificadas (sin «No estoy seguro», «Otro período» ni nominal/efectiva)', async () => {
+  const q10 = cat.SLOT_BY_ID.Q10.variants[0];
+  assert.equal(q10.text, '¿Tienes que pagar alguna deuda este mes?');
+  assert.deepEqual(q10.presence.map((x) => x.code), ['YES', 'NO']);
+  assert.deepEqual(cat.SLOT_BY_ID.Q13.variants[0].periods.map((x) => x.code), ['MONTH', 'YEAR']);
+  const v3view = require('../src/views/freeTest3');
+  const page = String(v3view.input({ ...cat.renderVariant(cat.SLOT_BY_ID.Q13.variants[0]), catalog_version: 'FREE_25_V3_ES' }, {}, {}));
+  assert.ok(!/Nominal|Efectiva|Otro período/.test(page));
 });

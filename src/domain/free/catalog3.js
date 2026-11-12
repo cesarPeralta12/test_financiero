@@ -53,6 +53,11 @@ const DEBT_TYPES = o('CARD = Tarjeta de crédito; LOAN = Préstamo; HOME = Créd
 const PAYMENT = o('ON_TIME = Al día; MINIMUM = Pago solo los mínimos; OCCASIONAL_DELAY = Con atrasos ocasionales; OVERDUE_UNABLE = Con pagos vencidos que no puedo cubrir');
 const RATE_TYPES = o('NOMINAL = Nominal; EFFECTIVE = Efectiva; UNKNOWN = No sé de qué tipo');
 const RATE_PERIODS = o('MONTH = Mensual; YEAR = Anual; OTHER = Otro período');
+// Opciones que se muestran (las demás siguen siendo válidas para respuestas ya guardadas):
+// «No estoy seguro» duplicaba «No lo sé», y «Otro período» y nominal/efectiva confundían.
+const PRESENCE_DUE = o('YES = Sí, tengo pagos este mes; NO = No tengo deudas');
+const PRESENCE_TOTAL = o('YES = Sí, tengo deudas; NO = No tengo deudas');
+const RATE_PERIODS_SHOWN = RATE_PERIODS.filter((x) => x.code !== 'OTHER');
 const BACKUP = o('HOUSEHOLD_INCOME = Otro ingreso en mi hogar; INSURANCE = Un seguro; SUPPORT = Apoyo confirmado de familiares u otras personas; NONE = Ninguno');
 const RESOURCES = o('EQUIPMENT = Equipo o herramientas; VEHICLE = Vehículo; SPACE = Un espacio o local; INVENTORY = Inventario o mercadería; BUSINESS = Un negocio en marcha; PRODUCT = Un producto propio; SOFTWARE = Software o cuentas digitales; PHONE_INTERNET = Teléfono e internet; OTHER = Otro recurso');
 const FREQUENCY = o('ONCE = Una vez; REPEATED = Varias veces; UNKNOWN = No lo recuerdo');
@@ -81,10 +86,10 @@ slot(6, 'net_income_month', one('V3_Q06', 'money', '¿Cuánto dinero recibes per
 slot(7, 'income_variability', one('V3_Q07', 'enum', '¿Cómo cambia ese ingreso de un mes a otro?', 'Es parecido, varía moderadamente, varía mucho, está disminuyendo o actualmente es cero.', { options: VARIABILITY }));
 slot(8, 'essential_expense_month', one('V3_Q08', 'money', '¿Cuánto necesitas al mes para vivienda, alimentación, servicios, transporte, salud y otras necesidades básicas?', 'Total aproximado, sin incluir pagos de deudas.', { period: 'MONTH' }));
 slot(9, 'other_expense_month', one('V3_Q09', 'money', 'Además de lo básico, ¿cuánto gastas al mes en compras, salidas, suscripciones y otros gastos?', 'Total aproximado, sin deudas y sin repetir lo de la pregunta anterior.', { period: 'MONTH' }));
-slot(10, 'debt_due_month', one('V3_Q10', 'debt_payment', '¿Cuánto debes pagar este mes por todas tus deudas?', 'Cuotas o pagos que te corresponden este mes. Si además tienes pagos atrasados, anótalos aparte.', { presence: PRESENCE }));
-slot(11, 'debt_inventory', one('V3_Q11', 'debt_inventory', '¿Cuánto debes en total y qué tipos de deuda tienes?', 'Saldo aproximado de todas tus deudas y de qué tipo son. El saldo no es la cuota.', { presence: PRESENCE, types: DEBT_TYPES }));
+slot(10, 'debt_due_month', one('V3_Q10', 'debt_payment', '¿Tienes que pagar alguna deuda este mes?', 'Cuotas de préstamos, tarjetas o compras a plazos que te toca pagar este mes. Si además tienes pagos atrasados, anótalos aparte.', { presence: PRESENCE_DUE, amount_label: '¿Cuánto pagas en total este mes?' }));
+slot(11, 'debt_inventory', one('V3_Q11', 'debt_inventory', '¿Cuánto debes en total y qué tipos de deuda tienes?', 'Saldo aproximado de todas tus deudas y de qué tipo son. El saldo no es la cuota.', { presence: PRESENCE_TOTAL, types: DEBT_TYPES }));
 slot(12, 'payment_status', one('V3_Q12', 'enum_detail', '¿Cómo estás cumpliendo esos pagos?', 'Si hay una consecuencia urgente (un embargo, un corte, una demanda), puedes contarla.', { options: PAYMENT, detail_label: 'Consecuencia urgente (opcional)', detail_max: 300 }));
-slot(13, 'debt_cost', one('V3_Q13', 'rate', '¿Conoces el interés o costo de tu deuda más preocupante?', 'Tasa y período, si los conoces. Si no, elige «No lo sé»: no hace falta adivinarlo.', { rate_types: RATE_TYPES, periods: RATE_PERIODS }));
+slot(13, 'debt_cost', one('V3_Q13', 'rate', '¿Qué interés pagas por tu deuda más importante?', 'Lo encuentras en tu contrato o estado de cuenta. Si no lo sabes, elige «No lo sé»: no hace falta adivinarlo.', { rate_types: RATE_TYPES, periods: RATE_PERIODS_SHOWN }));
 slot(14, 'emergency_cash', one('V3_Q14', 'money', '¿Cuánto dinero tienes disponible para una emergencia?', 'Ahorro que puedes usar de inmediato. No cuentes dinero ya comprometido ni la caja de tu negocio.', { period: 'STOCK' }));
 slot(15, 'backup', one('V3_Q15', 'multi_enum', 'Si tus ingresos se interrumpieran, ¿qué otro respaldo real tendrías?', 'Elige todos los que apliquen. Más adelante revisaremos si serían suficientes.', { options: BACKUP, exclusive: ['NONE'], detail_label: 'Detalle (opcional)', detail_max: 300 }));
 slot(16, 'productive_resources', one('V3_Q16', 'resources', '¿Qué bienes, herramientas o recursos podrías aprovechar para generar ingresos?', 'Marca solo lo que realmente puedes usar. No hace falta valorarlo.', { options: RESOURCES, max_selected: 5, detail_label: 'Cuéntanos brevemente qué es (opcional)', detail_max: 300 }));

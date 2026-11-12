@@ -80,7 +80,7 @@ function input(q, form = {}, errors = {}) {
       break;
     case 'debt_payment':
       body = html`${radios('presence', cfg.presence, form.presence, { cls: 'pills', pill: true })}
-        <div class="qf-if" data-show-if="presence=YES">${moneyFields(form, cur, '', { label: 'Cuotas de este mes' })}
+        <div class="qf-if" data-show-if="presence=YES">${moneyFields(form, cur, '', { label: cfg.amount_label || 'Cuotas de este mes' })}
         ${field('Pagos atrasados para ponerte al día (opcional)', amountInput('extra_amount', form.extra_amount, cur))}</div>`;
       break;
     case 'debt_inventory':
@@ -89,9 +89,9 @@ function input(q, form = {}, errors = {}) {
         ${field('Tipos de deuda', checks('types', cfg.types, form.types))}</div>`;
       break;
     case 'rate':
-      body = html`${field('Tasa (%)', html`<input class="input input--num input--short" name="rate" inputmode="decimal" value="${form.rate || ''}" placeholder="Ej.: 2,5" />`)}
-        ${field('Período', radios('period', cfg.periods, form.period, { cls: 'pills', pill: true }))}
-        ${field('Tipo (si lo sabes)', radios('rate_type', cfg.rate_types, form.rate_type || 'UNKNOWN', { cls: 'pills', pill: true }))}`;
+      body = html`${field('Tasa de interés (%)', html`<input class="input input--num input--short" name="rate" inputmode="decimal" value="${form.rate || ''}" placeholder="Ej.: 2,5" />`)}
+        ${field('¿Es mensual o anual?', radios('period', cfg.periods, form.period, { cls: 'pills', pill: true }))}
+        <input type="hidden" name="rate_type" value="${form.rate_type || 'UNKNOWN'}" />`;
       break;
     case 'multi_enum':
     case 'multi_text':
