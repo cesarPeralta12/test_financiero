@@ -70,6 +70,23 @@
 
   // Test V3: mostrar campos solo cuando aplican («Sí tengo deudas» → montos) y
   // marcar «No lo sé» desmarca lo escrito (y al revés).
+  // Evaluación profunda: «¿Recibes otros ingresos?» Sí/No → el monto solo aparece con «Sí».
+  document.querySelectorAll('.qf-has').forEach(function (fs) {
+    const form = fs.closest('form');
+    const sync = function () {
+      const sel = form.querySelector('input[name="has"]:checked');
+      form.querySelectorAll('[data-show-if="has=si"]').forEach(function (box) {
+        const show = Boolean(sel && sel.value === 'si');
+        box.hidden = !show;
+        box.querySelectorAll('input, select, textarea').forEach(function (el) {
+          el.disabled = !show;
+        });
+      });
+    };
+    form.addEventListener('change', sync);
+    sync();
+  });
+
   const v3 = document.querySelector('.v3-input');
   if (v3) {
     const form = v3.closest('form');

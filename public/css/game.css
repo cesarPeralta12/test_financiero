@@ -1663,3 +1663,6 @@ table.data td {
 @keyframes dx-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .dx-spinner { animation: none; } }
 @media (max-width: 520px) { .offer-table th { width: auto; } .offer-table th, .offer-table td { display: block; border: 0; padding: 4px 0; } .offer-table tr { display: block; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.08); } .offer-table thead { display: none; } }
+
+.q-sub { margin: 12px 0 6px; font-weight: 600; }
+.qf-has { margin-bottom: 8px; }

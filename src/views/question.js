@@ -6,7 +6,7 @@ const c = require('./components');
 const qs = require('../domain/questionnaire');
 
 // Banderas para elegir la moneda con tarjetas.
-const CURRENCY_ICONS = { MXN: '🇲🇽', COP: '🇨🇴', USD: '🇺🇸', EUR: '🇪🇺', PEN: '🇵🇪', CLP: '🇨🇱', ARS: '🇦🇷', GTQ: '🇬🇹', DOP: '🇩🇴' };
+const CURRENCY_ICONS = { MXN: '🇲🇽', COP: '🇨🇴', USD: '🇺🇸', EUR: '🇪🇺', PEN: '🇵🇪', CLP: '🇨🇱', ARS: '🇦🇷', GTQ: '🇬🇹', DOP: '🇩🇴', BOB: '🇧🇴', PYG: '🇵🇾', UYU: '🇺🇾' };
 
 const CURRENCY_OPTIONS = Object.entries(money.CURRENCIES).map(([value, v]) => ({ value, label: v.label }));
 const CURRENCY_TILES = Object.entries(money.CURRENCIES).map(([value, v]) => ({ value, label: v.label, icon: CURRENCY_ICONS[value] || '💱' }));
@@ -159,7 +159,8 @@ function inputFor(q, form, errors, currency) {
       const common = ['mensual', 'quincenal', 'semanal', 'anual'].filter((p) => all.includes(p));
       const current = form.period || 'mensual';
       const shown = common.includes(current) || !all.includes(current) ? common : [...common, current];
-      return html`<div class="field qf-amount">
+      const presence = qs.asksPresence(q);
+      const fields = html`<div class="field qf-amount">
           <label for="${c.fieldId('amount')}" class="visually-hidden">Importe en ${currency}</label>
           ${c.moneyInput({ name: 'amount', value: form.amount, currency, errors })}
         </div>
@@ -172,6 +173,21 @@ function inputFor(q, form, errors, currency) {
           </div>
           ${c.errorText(errors, 'period')}
         </fieldset>`;
+      if (!presence) return fields;
+      const has = form.has || '';
+      return html`<fieldset class="field qf-has">
+          <legend class="visually-hidden">¿Recibes este ingreso?</legend>
+          <div class="pills" ${c.describedBy(errors, 'has')}>
+            ${[['si', 'Sí'], ['no', 'No']].map(
+              ([v, l]) => html`<label class="pill" for="${c.fieldId('has')}-${v}"><input type="radio" name="has" id="${c.fieldId('has')}-${v}" value="${v}" ${has === v ? raw('checked') : ''} /><span>${l}</span></label>`
+            )}
+          </div>
+          ${c.errorText(errors, 'has')}
+        </fieldset>
+        <div class="qf-if" data-show-if="has=si">
+          <p class="q-sub">¿Cuánto recibes y cada cuánto?</p>
+          ${fields}
+        </div>`;
     }
     case 'integer':
       return html`<div class="field">

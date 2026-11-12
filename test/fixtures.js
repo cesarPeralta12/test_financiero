@@ -35,7 +35,7 @@ const DEEP_ANSWERS = {
   moneda_base: { value: 'MXN' },
   ingreso_principal: { amount: '30000', period: 'mensual' },
   ingreso_es_neto: { value: 'neto' },
-  ingresos_adicionales: { amount: '0', period: 'mensual' },
+  ingresos_adicionales: { has: 'no', amount: '0', period: 'mensual' },
   caida_ingreso: { value: '0' },
   gasto_total: { amount: '20000', period: 'mensual' },
   gastos_desglose: { f: { vivienda: '8000', alimentacion: '5000', transporte: '2000', servicios: '1500', salud: '500', educacion: '1000', ocio: '1500', otros: '500' } },

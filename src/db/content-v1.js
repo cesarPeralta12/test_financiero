@@ -57,7 +57,7 @@ const DEEP = {
       section: 'ingresos',
       type: 'money_flow',
       prompt: '¿Recibes otros ingresos regulares?',
-      help: 'Rentas, trabajos extra o apoyos que recibes con regularidad. Escribe 0 si no tienes.',
+      help: 'Rentas, trabajos extra o apoyos que recibes con regularidad.',
       config: MONTHLY_FLOW,
     },
     {

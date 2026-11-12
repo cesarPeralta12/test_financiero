@@ -232,6 +232,15 @@ function parseSubmission(q, body, currency) {
     case 'money_flow': {
       form.amount = body.amount;
       form.period = body.period;
+      if (asksPresence(q)) {
+        // Primero Sí/No: quien no tiene ese ingreso no debería tener que escribir un 0.
+        form.has = body.has;
+        if (body.has === 'no') return result({ amount: money.parseAmount('0', currency).value, period: 'mensual' });
+        if (body.has !== 'si') {
+          errors.has = 'Elige Sí o No para continuar.';
+          return result(null);
+        }
+      }
       const p = money.parseAmount(body.amount, currency);
       const periods = q.config.periods || ['mensual'];
       if (p.empty) errors.amount = q.allowUnknown ? 'Escribe una cantidad o marca «No lo sé». Si no tienes, escribe 0.' : 'Escribe una cantidad. Si no tienes, escribe 0.';
@@ -369,6 +378,12 @@ function parseSubmission(q, body, currency) {
   }
 }
 
+/** Preguntas de ingreso opcional que primero preguntan Sí/No (el contenido vive en la BD). */
+const PRESENCE_CODES = new Set(['ingresos_adicionales']);
+function asksPresence(q) {
+  return q.type === 'money_flow' && (PRESENCE_CODES.has(q.code) || Boolean(q.config && q.config.presence));
+}
+
 /** Convierte una respuesta guardada en valores de formulario. */
 function toForm(q, a) {
   if (!a) return {};
@@ -378,7 +393,8 @@ function toForm(q, a) {
     case 'money':
       return { amount: v };
     case 'money_flow':
-      return { amount: v && v.amount, period: v && v.period };
+      if (asksPresence(q) && v && Number(v.amount) === 0) return { has: 'no' };
+      return { amount: v && v.amount, period: v && v.period, ...(asksPresence(q) && v ? { has: 'si' } : {}) };
     case 'breakdown':
       return { f: v || {} };
     case 'debts':
@@ -406,6 +422,7 @@ function display(q, a, currency) {
     case 'money':
       return money.format(v, currency);
     case 'money_flow':
+      if (asksPresence(q) && Number(v.amount) === 0) return 'No';
       return `${money.format(v.amount, currency)} · ${calc.PERIODS[v.period]?.label.toLowerCase() || v.period}`;
     case 'integer':
       return `${v}${q.config.unit ? ' ' + q.config.unit : ''}`;
@@ -425,6 +442,7 @@ function display(q, a, currency) {
 }
 
 module.exports = {
+  asksPresence,
   SECTIONS,
   RATE_TYPE_OPTIONS,
   load,
