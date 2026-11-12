@@ -344,9 +344,37 @@ function generate(session, answers) {
   return db.one('SELECT * FROM ft_results WHERE id = ?', r.lastId);
 }
 
+/**
+ * Pulido determinista del texto de la IA antes de validarlo: quita decimales «.00»
+ * y reemplaza jerga interna (métricas autorizadas, servidor, paquete) que el usuario
+ * no debe leer.
+ */
+const JARGON = [
+  [/(la|las) m[eé]tricas? autorizadas? (indica|indican|muestra|muestran)(?![a-z])/gi, 'tus respuestas indican'],
+  [/m[eé]tricas? autorizadas?/gi, 'tus números'],
+  [/el (servidor|sistema)( tambi[eé]n)? (bloquea|descarta|excluye)/gi, 'por ahora conviene evitar'],
+  [/(seg[uú]n|en) el paquete de hechos/gi, 'según tus respuestas'],
+  [/paquete de hechos/gi, 'tus respuestas'],
+];
+function polishText(t) {
+  let s = t.replace(/(\d)[.,]00(?!\d)/g, '$1');
+  for (const [re, rep] of JARGON) s = s.replace(re, (m, ...g) => {
+    const off = g[g.length - 2];
+    const start = off === 0 || /[.!?:]\s*$/.test(s.slice(0, off));
+    return start ? rep[0].toUpperCase() + rep.slice(1) : rep;
+  });
+  return s;
+}
+function polish(o) {
+  if (typeof o === 'string') return polishText(o);
+  if (Array.isArray(o)) return o.map(polish);
+  if (o && typeof o === 'object') return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, /refs$|_id$|^id$|code/.test(k) ? v : polish(v)]));
+  return o;
+}
+
 function buildPrompt(pkg) {
   const user = JSON.stringify({ ...pkg, _facts: undefined, _metrics: undefined });
-  const system = `${PROMPT}\n\nFormato de cifras: escribe los montos tal como aparecen en las respuestas o métricas, con el símbolo de la moneda (${pkg.currency === 'BOB' ? 'Bs' : pkg.currency}). Español neutro, cercano y directo.`;
+  const system = `${PROMPT}\n\nFormato de cifras: escribe los montos tal como aparecen en las respuestas o métricas, con el símbolo de la moneda (${pkg.currency === 'BOB' ? 'Bs' : pkg.currency}). Escribe los montos sin decimales cuando sean exactos (Bs 300, no Bs 300.00) y con punto de miles (Bs 12.000). Español neutro, cercano y directo. Escribe para la persona, nunca sobre el proceso: no menciones «métricas autorizadas», «el servidor», «el sistema», «paquete de hechos», bloqueos, reglas internas ni identificadores como Q05 o nombres de campos.`;
   return { system, user };
 }
 
@@ -390,6 +418,7 @@ async function handle({ resultId }, job) {
   }
   const u = call.usage || {};
   const meta = { model: call.model, latency_ms: call.latencyMs, input_tokens: u.prompt_tokens ?? null, output_tokens: u.completion_tokens ?? null };
+  call.json = polish(call.json);
   const check = validateOutput(call.json, pkg);
   if (!check.ok) {
     log.warn('Diagnóstico V3 de la IA rechazado; se usa el respaldo', { result: resultId, reason: check.reason });
@@ -403,4 +432,4 @@ async function handle({ resultId }, job) {
 
 queue.register('free_v3_diagnosis', handle);
 
-module.exports = { RULES_VERSION, PROMPT_VERSION, VERSIONS, SCHEMA, API_SCHEMA, OFFER, setClient, aiEnabled, buildPackage, validateOutput, template, generate, handle, buildPrompt, contradictions, blocks };
+module.exports = { RULES_VERSION, PROMPT_VERSION, VERSIONS, SCHEMA, API_SCHEMA, OFFER, setClient, aiEnabled, buildPackage, validateOutput, template, generate, handle, buildPrompt, polish, contradictions, blocks };

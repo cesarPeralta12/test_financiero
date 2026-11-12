@@ -400,3 +400,12 @@ test('validador: las advertencias responsables y pagar deudas existentes no se r
   });
   assert.equal(d.narrative_source, 'ai', d.result.traceability.ai_fallback_reason);
 });
+
+test('V3: el texto de la IA se pule (sin «.00» ni jerga interna) y conserva referencias', () => {
+  const out = result3.polish({
+    a: 'La métrica autorizada indica Bs 300.00 aproximados. El servidor también bloquea acciones con gasto. Meta Bs 3.000 y 12.000,00.',
+    evidence_refs: ['Q05.amount'],
+  });
+  assert.equal(out.a, 'Tus respuestas indican Bs 300 aproximados. Por ahora conviene evitar acciones con gasto. Meta Bs 3.000 y 12.000.');
+  assert.deepEqual(out.evidence_refs, ['Q05.amount']);
+});
