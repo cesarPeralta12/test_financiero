@@ -258,6 +258,8 @@ function questionPage(ctx, o) {
   const chapter = CHAPTERS[ch - 1];
   return html`<form class="qf" method="post" action="${o.base}/pregunta/${q.position}${o.actionSuffix || ''}" data-code="${q.code}" ${firstOfChapter ? raw(`data-interlude="${ch}"`) : ''} novalidate>
       ${c.csrfField(ctx)}
+      <!-- Enter en un campo de texto avanza: este es el primer botón del formulario. -->
+      <button class="qf-enter" type="submit" name="action" value="next" tabindex="-1" aria-hidden="true">Siguiente</button>
       <div class="qf-top">
         ${q.position > 1 || o.prevHref
           ? html`<button class="qf-back" type="submit" name="action" value="prev" formnovalidate aria-label="Pregunta anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`

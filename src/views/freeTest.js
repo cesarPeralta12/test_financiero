@@ -106,6 +106,8 @@ function questionPage(ctx, o) {
       <input type="hidden" name="variant_id" value="${q.variant_id}" />
       <input type="hidden" name="expected_revision" value="${o.session.revision}" />
       <input type="hidden" name="resolved_context_hash" value="${q.resolved_context_hash}" />
+      <!-- Enter en un campo de texto avanza: este es el primer botón del formulario. -->
+      <button class="qf-enter" type="submit" name="action" value="next" tabindex="-1" aria-hidden="true">Siguiente</button>
       <div class="qf-top">
         ${q.ordinal > 1
           ? html`<button class="qf-back" type="submit" name="action" value="prev" formnovalidate aria-label="Pregunta anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`

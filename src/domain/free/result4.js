@@ -28,7 +28,8 @@ const API_SCHEMA = schemaLib.forStrictApi(SCHEMA);
 const OFFER = r3.OFFER;
 
 // Reglas propias del test V4 que se añaden al prompt del ingeniero.
-const V4_RULES = `REGLAS DEL TEST V4: las respuestas se dieron con botones. Las habilidades (Q17) y la experiencia (Q18) son declaradas: escribe «declaras…», nunca las presentes como capacidades comprobadas. Q19 dice si ya las usó en trabajos reales; no supongas ingresos futuros. Q20 son grupos a los que podría ofrecer algo: conocer personas no significa que comprarán. El tiempo (Q16) es un rango: no inventes una cantidad exacta de horas. En Q23 «Tal vez» no es dinero disponible. Este test no pregunta tasas de interés: no las pidas ni las supongas; el detalle de deudas es del diagnóstico completo. Respeta todas las condiciones de Q22. Si la persona es menor de 18 años, no propongas ventas, compras ni compromisos económicos. Evita etiquetas humillantes, urgencia artificial y rentabilidades o plazos de enriquecimiento.`;
+const V4_RULES = `REGLAS DEL TEST V4: las respuestas se dieron con botones. Las habilidades (Q17) y la experiencia (Q18) son declaradas: escribe «declaras…», nunca las presentes como capacidades comprobadas. Q19 dice si ya las usó en trabajos reales; no supongas ingresos futuros. Q20 son grupos a los que podría ofrecer algo: conocer personas no significa que comprarán. El tiempo (Q16) es un rango: no inventes una cantidad exacta de horas. En Q23 «Tal vez» no es dinero disponible. Este test no pregunta tasas de interés: no las pidas ni las supongas; el detalle de deudas es del diagnóstico completo. Respeta todas las condiciones de Q22. Si la persona es menor de 18 años, no propongas ventas, compras ni compromisos económicos. Evita etiquetas humillantes, urgencia artificial y rentabilidades o plazos de enriquecimiento.
+TÍTULO SEGÚN EL SALDO: si el saldo mensual es 0, di que lo que entra se utiliza por completo; nunca «te sobra» ni «tienes margen». Si es negativo: «Tus gastos y cuotas superan lo que recibes», y el primer paso es revisar números, vencimientos y gastos (nunca invertir). Si es positivo: «Al final del mes podría quedarte X», aclarando que es una estimación y no un ahorro comprobado. Nunca llames «ahorro» al margen. Si la reserva es 0, escribe «No declaras dinero reservado para emergencias». En los textos no menciones números de pregunta (ni «pregunta 10» ni «Q10»); los identificadores solo van en evidence_refs. No uses textos que no se entienden como habilidades. El primer paso debe tomar de 15 a 60 minutos o caber en el tiempo declarado, y decir cómo saber si funcionó.`;
 
 let client = null;
 function setClient(fn) {
@@ -63,7 +64,7 @@ function contradictions(answers) {
   const out = [];
   const q10 = val(answers, 'Q10');
   if (q10 && q10.status !== 'NO' && codes(answers, 'Q11').includes('NONE')) {
-    out.push({ id: 'CTR_DEBT_PRESENCE', refs: ['Q10', 'Q11'], text: 'En la pregunta 10 indicas deudas y en la 11 que no tienes. Tomamos «No tengo deudas».' });
+    out.push({ id: 'CTR_DEBT_PRESENCE', refs: ['Q10', 'Q11'], text: 'Primero indicaste deudas y después marcaste «No tengo deudas». Tomamos «No tengo deudas».' });
   }
   return out;
 }
@@ -109,7 +110,7 @@ function buildPackage(session, answers) {
 
 // ───────── Validación de la salida de la IA ─────────
 const BANNED = /garantiz|asegur(amos|ado)|sin riesgo|rentabilidad (asegurada|garantizada)|vas a (ganar|duplicar)|seguro que (vas|ganar)|invierte en |pide un (préstamo|crédito)|\b(renuncia|deja) (a )?tu (empleo|trabajo)\b|\bxp\b|nivel \d|\blogros?\b|insignia|tasa de inter[eé]s/i;
-const NEGATED = /\b(no|ni|sin|nunca)\s+((se|te|le|lo|nos|les)\s+)?(garantiz\w*|garantías?|asegur\w*)/gi;
+const NEGATED = /\b(no|ni|sin|nunca|nada|ningun[oa]?|ningún)\s+(\S+\s+){0,5}?(garantiz\w*|garantías?|asegur\w*)/gi;
 const PAID_HINT = /\b(compra|comprar|contrata|contratar|invierte|invertir|publicidad|anuncios?|gasta en|gastar en|inscríbete|matricúlate)\b/i;
 const SELL_HINT = /\b(vend[ea]r?|vendes|cobra[rs]?|ofrece[rs]?|cotiza[rs]?)\b/i;
 
@@ -138,14 +139,34 @@ function validateOutput(out, pkg) {
   const allowed = metrics4.authorizedNumbers(Object.fromEntries(pkg._facts.filter((x) => x.value !== null).map((x) => [x.id, { status: 'answered', value: x.value }])), pkg._metrics.metrics, range ? [range.min, range.max] : []);
   for (const t of collectStrings(out)) {
     const bad = t.replace(NEGATED, '').match(BANNED);
-    if (bad) return { ok: false, reason: `BANNED_TERM ${bad[0].trim()}` };
-    for (const raw of t.match(/\d[\d.,]*\d|\d/g) || []) {
+    if (bad) {
+      // Fragmento sin cifras para entender el rechazo desde Administración.
+      const i = t.search(BANNED);
+      const near = t.slice(Math.max(0, i - 40), i + 30).replace(/\d/g, '#');
+      return { ok: false, reason: `BANNED_TERM ${bad[0].trim()} «${near}»` };
+    }
+    // Duraciones del primer paso («15 minutos», «7 días») no son cifras financieras.
+    const plain = t.replace(/\b\d{1,3}\s*(a|y|o)\s*\d{1,3}\s*(minutos?|min|horas?|días?|semanas?)\b/gi, '').replace(/\b\d{1,3}\s*(minutos?|min|horas?|días?|semanas?)\b/gi, '');
+    for (const raw of plain.match(/\d[\d.,]*\d|\d/g) || []) {
       const n = raw.replace(/[.,]$/, '');
       if (/^\d{1,2}$/.test(n) && Number(n) <= 12) continue;
       const variants = [n, n.replace(/\./g, ''), n.replace(/\./g, '').replace(',', '.'), n.replace(/,/g, '')];
       if (!variants.some((x) => allowed.has(x) || allowed.has(String(Number(x))))) return { ok: false, reason: `UNAUTHORIZED_NUMBER ${n}` };
     }
   }
+  // El texto debe ser compatible con el saldo y la reserva (especificación V2, §4).
+  const balM = pkg._metrics.metrics.find((x) => x.id === 'monthly_balance');
+  const all = collectStrings(out).join(' ');
+  // «No tienes margen» o «no te sobra» son correctos: solo se rechaza la frase afirmativa.
+  const MARGIN = /te sobra|tienes (un )?margen|te queda(n)? (un )?margen|puedes ahorrar/i;
+  const affirm = all.replace(/\b(no|ni|nunca|sin)\s+(\S+\s+){0,2}?(te sobra|tienes (un )?margen|te queda(n)? (un )?margen|puedes ahorrar)/gi, '');
+  if (balM && balM.value !== null && new D(balM.value).lte(0) && MARGIN.test(affirm)) {
+    const i = affirm.search(MARGIN);
+    return { ok: false, reason: `BALANCE_WORDING «${affirm.slice(Math.max(0, i - 40), i + 30).replace(/\d/g, '#')}»` };
+  }
+  if (/\b(tu|tus) ahorros? (mensual|del mes|al mes)\b|\bahorras \S+ al mes\b/i.test(all)) return { ok: false, reason: 'MARGIN_AS_SAVINGS' };
+  if (/\breserva peque(ñ|n)a\b/i.test(all) && pkg._metrics.metrics.some((x) => x.id === 'committed_reserve_months' && x.value !== null && new D(x.value).isZero())) return { ok: false, reason: 'ZERO_RESERVE_WORDING' };
+  if (/\bpregunta \d|\bP\d{1,2}\b|\bQ\d{2}\b/.test(all)) return { ok: false, reason: 'QUESTION_NUMBER' };
   const blocked = new Set(pkg.bloqueos.map((b) => b.id));
   if (blocked.has('PAID_ACTION') && PAID_HINT.test(out.first_action.instruction)) return { ok: false, reason: 'PAID_ACTION_BLOCKED' };
   if (blocked.has('MINOR') && SELL_HINT.test(out.first_action.instruction)) return { ok: false, reason: 'MINOR_SELLING' };
@@ -174,7 +195,8 @@ function template(pkg, answers) {
   const andDues = hasDues ? ' y cuotas' : '';
   const pay = codes(answers, 'Q12')[0];
   const variability = codes(answers, 'Q07')[0];
-  const skills = codes(answers, 'Q17').filter((c) => !['UNSURE'].includes(c));
+  const q17 = val(answers, 'Q17');
+  const skills = codes(answers, 'Q17').filter((c) => c !== 'UNSURE' && !(c === 'OTHER' && (!q17.other || catalog.isGibberish(q17.other))));
   const exp = codes(answers, 'Q18').filter((c) => c !== 'NONE');
   const used = codes(answers, 'Q19');
   const paid = used.some((c) => ['PAID_JOB', 'PAID_SIDE'].includes(c));
@@ -190,37 +212,50 @@ function template(pkg, answers) {
     title = 'Tus pagos atrasados son lo primero que hay que ordenar';
     interpretation = 'Indicas pagos que hoy te cuesta cubrir. Antes de buscar nuevas oportunidades conviene saber qué debes, a quién y qué opciones de pago existen, para que el atraso no siga creciendo.';
     refs = ['Q10', 'Q12'];
+  } else if (bal === null && pkg._metrics.balance_range) {
+    // Con rangos se muestra el intervalo; no se elige un extremo (especificación V2, §4).
+    const lo = new D(pkg._metrics.balance_range.min);
+    const hi = new D(pkg._metrics.balance_range.max);
+    if (hi.lt(0)) {
+      title = `Tus gastos${andDues} superan lo que recibes`;
+      interpretation = `Con los rangos que diste, cada mes faltarían entre ${fmt(cur, hi.abs().toFixed(2))} y ${fmt(cur, lo.abs().toFixed(2))}. Antes de pensar en crecer conviene revisar tus números, tus vencimientos y tus gastos.`;
+    } else if (lo.gt(0)) {
+      title = `Al final del mes podría quedarte entre ${fmt(cur, lo.toFixed(2))} y ${fmt(cur, hi.toFixed(2))}`;
+      interpretation = 'Es una estimación con los rangos que diste, no un ahorro comprobado. Con cifras más exactas podremos decirte cuánto es.';
+    } else {
+      title = 'Según tus rangos, el mes puede cerrar justo, con algo libre o con faltante';
+      interpretation = `Con los rangos que diste, el saldo mensual va de ${fmt(cur, lo.toFixed(2))} a ${fmt(cur, hi.toFixed(2))}. Anotar tus gastos reales unas semanas dirá en qué lado estás.`;
+    }
   } else if (bal === null) {
     title = 'Para orientarte con precisión faltan algunos números';
     interpretation = 'Con tus respuestas todavía no podemos calcular cuánto te queda al mes. Te proponemos un primer paso que no depende de ese dato.';
   } else if (bal.isZero()) {
-    title = `Tus gastos${andDues} parecen consumir todo lo que recibes`;
-    interpretation = `Con los montos que declaraste no te queda margen al mes (${fmt(cur, '0')}). Cualquier imprevisto te obligaría a usar ahorros o pedir prestado; el primer paso es encontrar un gasto que puedas ajustar.`;
+    title = 'Tu dinero cubre tus gastos, pero hoy no queda libre al final del mes';
+    interpretation = `Lo que entra se utiliza por completo: recibes ${fmt(cur, M.monthly_balance.operands.ingreso)} y entre gastos${andDues} sale lo mismo. ${hasDues ? '' : 'No declaras pagos de deudas. '}Con estos datos no queda dinero libre al cerrar el mes.`;
   } else if (bal.lt(0)) {
-    title = `Tus gastos${andDues} parecen superar lo que recibes`;
-    interpretation = `Con los montos que declaraste, el mes cierra en ${fmt(cur, M.monthly_balance.value)}. Antes de pensar en crecer conviene ver de dónde sale esa diferencia.`;
-  } else if ((reserve !== null && reserve.lt(1)) || ['HIGH', 'DECREASING'].includes(variability)) {
-    title = 'Tienes margen mensual, pero poco respaldo ante un imprevisto';
-    interpretation = `Te quedan aproximadamente ${fmt(cur, M.monthly_balance.value)} al mes, pero ${reserve !== null && reserve.lt(1) ? 'tu dinero guardado no alcanza para un mes de gastos' : 'tu ingreso cambia de un mes a otro'}. Proteger ese margen es parte del primer paso.`;
-    refs.push('Q13', 'Q07');
+    title = `Tus gastos${andDues} superan lo que recibes`;
+    interpretation = `Con los montos que declaraste, cada mes faltan aproximadamente ${fmt(cur, bal.abs().toFixed(2))}. Antes de pensar en crecer conviene revisar tus números, tus vencimientos y tus gastos.`;
   } else {
-    title = 'Tienes margen: la clave es decidir a dónde va';
-    interpretation = `Con tus montos declarados te quedan aproximadamente ${fmt(cur, M.monthly_balance.value)} al mes. Ese margen puede ir a una reserva, a tus deudas o a probar una forma de ganar más.`;
+    const weak = (reserve !== null && reserve.lt(1)) || ['HIGH', 'DECREASING'].includes(variability);
+    title = `Al final del mes podría quedarte ${fmt(cur, M.monthly_balance.value)}`;
+    interpretation = `Es una estimación con tus respuestas, no un ahorro comprobado. ${weak ? (reserve !== null && reserve.isZero() ? 'Además, no declaras dinero reservado para emergencias.' : reserve !== null && reserve.lt(1) ? 'Tu reserva todavía no alcanza para un mes de gastos.' : 'Tu ingreso cambia de un mes a otro, así que esa cifra puede moverse.') : 'Conviene decidir a dónde va antes de que se gaste sin notarlo.'}`;
+    if (weak) refs.push('Q13', 'Q07');
   }
 
   const insights = [];
   if (num('committed_reserve_months') !== null) {
-    insights.push({ title: 'Tu dinero guardado frente a tus gastos', meaning: reserve.isZero() ? 'Hoy no tienes dinero guardado para una emergencia.' : `Lo que tienes guardado cubre aproximadamente ${String(M.committed_reserve_months.value).replace('.', ',')} meses de gastos básicos${andDues}.`, implication: reserve.isZero() ? 'Cualquier imprevisto tendría que cubrirse con deuda o con ayuda de otros.' : reserve.lt(1) ? 'Es un respaldo pequeño: un mes difícil lo agotaría.' : 'Te da cierto margen para probar cambios sin poner en riesgo lo básico.', evidence_refs: ['Q13', 'Q08', 'Q10'], metric_refs: ['committed_reserve_months'] });
+    insights.push({ title: 'Tu dinero guardado frente a tus gastos', meaning: reserve.isZero() ? 'No declaras dinero reservado para emergencias.' : `Lo que tienes guardado cubre aproximadamente ${String(M.committed_reserve_months.value).replace('.', ',')} meses de gastos básicos${andDues}.`, implication: reserve.isZero() ? 'Cualquier imprevisto tendría que cubrirse con deuda o con ayuda de otros.' : reserve.lt(1) ? 'Es un respaldo pequeño: un mes difícil lo agotaría.' : 'Te da cierto margen para probar cambios sin poner en riesgo lo básico.', evidence_refs: ['Q13', 'Q08', 'Q10'], metric_refs: ['committed_reserve_months'] });
   }
 
-  const b = val(answers, 'Q21');
+  const b0 = val(answers, 'Q21');
+  const b = b0 && !(b0.codes[0] === 'OTHER' && (!b0.other || catalog.isGibberish(b0.other))) ? b0 : null;
   const bottleneck = b
     ? { interpretation: `Señalas como principal obstáculo: ${lower(b.other || label(answers, 'Q21', b.codes[0]))}. Lo tomamos como punto de partida.`, status: 'supported', evidence_refs: ['Q21'] }
     : { interpretation: 'Todavía no sabemos qué te frena más; es de lo primero que conviene aclarar.', status: 'insufficient', evidence_refs: ['Q21'] };
 
   let opportunity = null;
   if (!minor && (skills.length || exp.length) && hours && hours !== 'H0') {
-    const what = skills.length ? label(answers, 'Q17', skills[0]) : label(answers, 'Q18', exp[0]);
+    const what = skills.length ? (skills[0] === 'OTHER' ? q17.other : label(answers, 'Q17', skills[0])) : label(answers, 'Q18', exp[0]);
     const who = audience.length ? AUDIENCE_2P[audience[0]] || 'personas de tu entorno' : null;
     opportunity = {
       title: who ? `Probar una oferta pequeña para ${who}` : 'Comprobar si alguien pagaría por lo que declaras saber hacer',
@@ -267,6 +302,69 @@ function template(pkg, answers) {
   };
 }
 
+// ───────── Bloques fijos de la pantalla (los calcula el servidor, no la IA) ─────────
+// Especificación del resultado gratuito V2: tres cifras, una fortaleza real, un freno
+// prioritario y una oportunidad en orden (recuperar margen → estabilizar ingresos →
+// mejorar empleo o negocio → explorar una nueva fuente).
+function screen(pkg, answers, diagnosis) {
+  const cur = pkg.currency;
+  const M = Object.fromEntries(pkg._metrics.metrics.map((m) => [m.id, m]));
+  const num = (id) => (M[id] && M[id].value !== null ? new D(M[id].value) : null);
+  const bal = num('monthly_balance');
+  const reserve = num('committed_reserve_months');
+  const q10 = val(answers, 'Q10');
+  const noDebt = codes(answers, 'Q11').includes('NONE') || Boolean(q10 && q10.status === 'NO');
+  const dues = q10 && q10.status === 'DUE' && !noDebt && q10.monthly_due && q10.monthly_due.amount !== null ? new D(q10.monthly_due.amount) : null;
+  const pay = codes(answers, 'Q12')[0];
+  const variability = codes(answers, 'Q07')[0];
+  const other = val(answers, 'Q09');
+  const otherAmt = other && other.amount !== null && other.currency === cur ? new D(other.amount) : null;
+  const hours = codes(answers, 'Q16')[0];
+  const route = codes(answers, 'Q04')[0];
+  const paid = codes(answers, 'Q19').some((c) => ['PAID_JOB', 'PAID_SIDE'].includes(c));
+
+  // Fortaleza: solo algo que las respuestas respaldan.
+  let strength;
+  if (noDebt) strength = 'No declaras deudas. Eso elimina una presión mensual que muchas personas sí enfrentan, aunque no significa que estés protegido frente a un imprevisto.';
+  else if (pay === 'ON_TIME') strength = 'Estás al día con tus pagos. Mantenerlo te deja más opciones cuando quieras hacer cambios.';
+  else if (reserve !== null && reserve.gte(3)) strength = 'Tienes dinero guardado para varios meses de gastos básicos. Te da tiempo para decidir sin apuro.';
+  else if (bal !== null && bal.gt(0)) strength = 'Con tus respuestas, lo que recibes alcanza para cubrir tus gastos del mes.';
+  else if (variability === 'SIMILAR') strength = 'Recibes más o menos lo mismo cada mes. Eso hace más fácil planificar.';
+  else if (paid) strength = 'Ya te pagaron por usar lo que sabes hacer. Es un punto de partida real.';
+  else strength = 'Ya pusiste tus números a la vista. Es el primer paso para decidir con información y no a ciegas.';
+
+  // Freno prioritario: flujo mensual → seguridad → lo que la persona señala.
+  let brake;
+  if (pay === 'UNABLE' || pay === 'LATE') brake = 'Tienes pagos atrasados. Mientras no se ordenen, pueden sumar cargos cada mes.';
+  else if (bal !== null && bal.lte(0) && otherAmt && otherAmt.gt(0)) brake = `Tus otros gastos suman ${fmt(cur, otherAmt.toFixed(2))} al mes. Todavía no sabemos cuáles pueden reducirse sin perjudicar tu bienestar; es lo primero que vale la pena revisar.`;
+  else if (bal !== null && bal.lte(0)) brake = 'Tus gastos básicos se llevan todo lo que recibes. Hay que revisarlos antes de pensar en crecer.';
+  else if (reserve !== null && reserve.isZero()) brake = 'No declaras dinero reservado para emergencias. Un imprevisto tendría que cubrirse con deuda o con ayuda de otros.';
+  else if (reserve !== null && reserve.lt(1)) brake = 'Tu reserva no alcanza para un mes de gastos básicos. Un mes difícil la agotaría.';
+  else if (['HIGH', 'DECREASING'].includes(variability)) brake = 'Tu ingreso cambia de un mes a otro. Eso hace difícil planificar con seguridad.';
+  else if (diagnosis.bottleneck && diagnosis.bottleneck.status === 'supported') brake = diagnosis.bottleneck.interpretation;
+  else brake = 'Todavía no sabemos qué te frena más; es de lo primero que conviene aclarar.';
+
+  // Oportunidad en el orden del documento. La de la IA o la plantilla solo entra en el escalón de crecimiento.
+  let improvement;
+  if (bal !== null && bal.lte(0)) improvement = { title: 'Recuperar margen cada mes', text: 'Encontrar uno o dos gastos que puedas ajustar sin afectar lo necesario te daría espacio para empezar una reserva.' };
+  else if (['HIGH', 'DECREASING'].includes(variability)) improvement = { title: 'Hacer más estable tu ingreso', text: 'Saber cuánto recibes en un mes flojo te permite planificar con esa cifra y guardar la diferencia en los meses buenos.' };
+  else if (diagnosis.opportunity) improvement = { title: diagnosis.opportunity.title, text: diagnosis.opportunity.hypothesis, test: diagnosis.opportunity.test, validate: true, evidence_refs: diagnosis.opportunity.evidence_refs };
+  else if (route === 'EMPLOYEE') improvement = { title: 'Mejorar tu ingreso en tu empleo actual', text: 'Revisar qué tareas o responsabilidades valoran más en tu trabajo puede abrir una conversación sobre tu ingreso.' };
+  else if (hours && hours !== 'H0') improvement = { title: 'Identificar algo que sabes hacer y que alguien necesite', text: 'Antes de pensar en un negocio, conviene identificar una habilidad que puedas comprobar y una persona que la necesite.' };
+  else improvement = { title: 'Ordenar lo que ya tienes', text: 'Sin tiempo libre por ahora, lo más útil es ordenar tus gastos y tu actividad actual antes de sumar algo nuevo.' };
+
+  const figures = {
+    income: M.monthly_balance ? M.monthly_balance.operands.ingreso : null,
+    balance: bal !== null ? bal.toFixed(2) : null,
+    balance_range: pkg._metrics.balance_range,
+    reserve_months: reserve !== null ? reserve.toString() : null,
+    dues: dues && dues.gt(0) ? dues.toFixed(2) : null,
+  };
+  // 02 · Hallazgo principal: siempre el del servidor, compatible con las cifras (flujo → seguridad → crecimiento).
+  const head = template(pkg, answers).conclusion;
+  return { headline: { title: head.title, text: head.interpretation, evidence_refs: head.evidence_refs }, strength, brake, improvement, figures };
+}
+
 // ───────── Generación y persistencia ─────────
 function stamp(extra = {}) {
   return knowledge.stamp({
@@ -295,8 +393,9 @@ function envelope(session, pkg, diagnosis, source, answers) {
     metrics: pkg._metrics.metrics,
     balance_range: pkg._metrics.balance_range,
     contradictions: pkg.contradicciones,
-    goal: goal ? { text: goal.code === 'OTHER' && goal.other ? goal.other : catalog.labelIn(catalog.OPTIONS.GOALS, goal.code), code: goal.code, horizon: catalog.labelIn(catalog.OPTIONS.HORIZONS, goal.horizon) } : null,
+    goal: goal ? { text: goal.code === 'OTHER' && goal.other && !catalog.isGibberish(goal.other) ? goal.other : catalog.labelIn(catalog.OPTIONS.GOALS, goal.code), code: goal.code, horizon: catalog.labelIn(catalog.OPTIONS.HORIZONS, goal.horizon) } : null,
     minor: isMinor(answers),
+    screen: screen(pkg, answers, diagnosis),
     offer: OFFER,
     traceability: stamp(),
   };
@@ -346,6 +445,15 @@ async function callModel(prompt) {
   return openai.chat({ ...prompt, ...config.ai.openai, schema: API_SCHEMA, schemaName: 'diagnostico_gratuito_v4', timeoutMs: Math.max(config.ai.openai.timeoutMs, 45000) });
 }
 
+/** La API no siempre respeta maxItems: las referencias quedan únicas, solo de preguntas y como máximo 10 (no cambia el texto). */
+function trimRefs(o) {
+  if (Array.isArray(o)) return o.map(trimRefs);
+  if (!o || typeof o !== 'object') return o;
+  const out = {};
+  for (const [k, v] of Object.entries(o)) out[k] = k === 'evidence_refs' && Array.isArray(v) ? [...new Set(v.filter((r) => /^Q[0-9]{2}/.test(String(r))))].slice(0, 10) : k === 'metric_refs' && Array.isArray(v) ? [...new Set(v)].slice(0, 6) : trimRefs(v);
+  return out;
+}
+
 function finish(row, result, source, meta, reason) {
   result.status = 'ready';
   result.narrative_source = source;
@@ -372,7 +480,7 @@ async function handle({ resultId }, job) {
   }
   const u = call.usage || {};
   const meta = { model: call.model, latency_ms: call.latencyMs, input_tokens: u.prompt_tokens ?? null, output_tokens: u.completion_tokens ?? null };
-  call.json = r3.polish(call.json);
+  call.json = trimRefs(r3.polish(call.json));
   const check = validateOutput(call.json, pkg);
   if (!check.ok) {
     log.warn('Diagnóstico V4 de la IA rechazado; se usa el respaldo', { result: resultId, reason: check.reason });

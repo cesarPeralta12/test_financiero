@@ -160,12 +160,12 @@ test('V4: respaldo determinista — prioridad de hallazgos y menor de edad sin o
   const late = finish({ ...BASE, Q12: { codes: ['LATE'] } });
   assert.match(late.diag.result.conclusion.title, /pagos atrasados/);
   const neg = finish({ ...BASE, Q06: { amount: '3000' } });
-  assert.match(neg.diag.result.conclusion.title, /superar lo que recibes/);
+  assert.match(neg.diag.result.conclusion.title, /superan lo que recibes/);
   const zero = finish({ ...BASE, Q06: { amount: '4800' } });
-  assert.match(zero.diag.result.conclusion.title, /consumir todo/);
+  assert.match(zero.diag.result.conclusion.title, /no queda libre al final del mes/);
   assert.equal(zero.diag.result.first_action.kind, 'RECORD');
   const ok = finish(BASE);
-  assert.match(ok.diag.result.conclusion.title, /poco respaldo/);
+  assert.match(ok.diag.result.conclusion.title, /podría quedarte/);
   assert.match(ok.diag.result.opportunity.hypothesis, /Declaras saber/);
   const minor = finish({ ...BASE, Q02: { codes: ['LT18'] } });
   assert.equal(minor.diag.result.minor, true);
@@ -186,7 +186,7 @@ test('V4: la salida de la IA se acepta o se rechaza (cifras, tasa, ventas de men
   assert.match(result4.validateOutput(rate, pkg).reason, /BANNED_TERM/);
 });
 
-test('V4: flujo por formularios y resultado en siete bloques con una sola oferta', async () => {
+test('V4: flujo por formularios y resultado en nueve módulos con una sola oferta', async () => {
   const prev = config.freeCatalogVersion;
   config.freeCatalogVersion = V4;
   try {
@@ -234,14 +234,13 @@ test('V4: flujo por formularios y resultado en siete bloques con una sola oferta
     assert.match(review.text, /Ver mi resultado gratuito/);
     assert.match(review.text, /22 de 22 respondidas/);
     const fin = await c.post('/test/finalizar', {});
-    assert.match(fin.text, /Ya tenemos una primera imagen de tu situación/);
-    assert.match(fin.text, /Tu prioridad parece ser: ganar más/);
+    assert.match(fin.text, /Tu primer mapa financiero/);
     assert.match(fin.text, /Saldo estimado al mes/);
     assert.match(fin.text, /Bs 1\.100/);
-    assert.match(fin.text, /Tu primer paso/);
-    assert.match(fin.text, /Quiero mi diagnóstico completo/);
-    assert.match(fin.text, /Seguir con mi resultado gratis/);
-    assert.match(fin.text, /Antes de pagar verás qué incluye/);
+    assert.match(fin.text, /Tu primer paso, gratis/);
+    assert.match(fin.text, /Quiero mi Plan Maestro/);
+    assert.match(fin.text, /Ver qué incluye mi Plan Maestro/);
+    assert.match(fin.text, /USD 69/);
     assert.doesNotMatch(fin.text, /XP|reward-card|tasa de inter/i);
     assert.match(fin.text, /Pregunta a dos amigos o familiares/);
   } finally {

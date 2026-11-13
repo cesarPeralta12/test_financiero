@@ -115,7 +115,7 @@ function buildPackage(session, answers) {
 // Promesas de resultado, órdenes de riesgo y gamificación. Las advertencias
 // responsables («no garantiza», «sin garantía») se quitan antes de comprobar.
 const BANNED = /garantiz|asegur(amos|ado)|sin riesgo|rentabilidad (asegurada|garantizada)|vas a (ganar|duplicar)|seguro que (vas|ganar)|invierte en |pide un (préstamo|crédito)|\b(renuncia|deja) (a )?tu (empleo|trabajo)\b|\bxp\b|nivel \d|\blogros?\b|insignia/i;
-const NEGATED = /\b(no|ni|sin|nunca)\s+((se|te|le|lo|nos|les)\s+)?(garantiz\w*|garantías?|asegur\w*)/gi;
+const NEGATED = /\b(no|ni|sin|nunca|nada|ningun[oa]?|ningún)\s+(\S+\s+){0,5}?(garantiz\w*|garantías?|asegur\w*)/gi;
 // Gasto en algo nuevo; pagar deudas existentes sí puede ser el paso correcto.
 const PAID_HINT = /\b(compra|comprar|contrata|contratar|invierte|invertir|publicidad|anuncios?|gasta en|gastar en|inscríbete|matricúlate)\b/i;
 

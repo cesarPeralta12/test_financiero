@@ -170,10 +170,41 @@ const oneOf = (list, code, msg) => {
   if (!list.some((x) => x.code === code)) fail(msg);
   return code;
 };
+// Pares de consonantes habituales en español (y en palabras comunes de otros idiomas).
+const CLUSTERS = new Set('bl br cl cr dr fl fr gl gr pl pr tr ch ll rr nc nd ng nt mp mb ns rt rd rm rn rc rg rs rl rb rp rv rk st sc sp sm sl sn sf sg nf nv nz nm nr nl nq nj nch lt ld lm lc lg lp ls lv lb lf lr bs bt bj bm ct cc cn pt ps pc gn gm mn tl tn tm ts dm dv dj xp xt xc xpl kl kr ft sh th ph ck wn ws rf rh nh lh sk tw kt'.split(' '));
+/**
+ * Texto incoherente («sdfd», «nD», «egfew»): no se acepta en «Otro» ni se usa en el resultado.
+ * Heurística simple: palabras sin vocales o con varios pares de consonantes imposibles.
+ */
+const ABBREV = new Set(['pc', 'tv', 'dj', 'cv', 'rrhh', 'crm', 'sql', 'php', 'css', 'html', 'cnc', 'gps', 'ups']);
+function isGibberish(raw) {
+  const s = String(raw || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const words = s.split(/[^a-zñ]+/).filter(Boolean);
+  if (!words.length || words.join('').length < 3) return true;
+  let bad = 0;
+  for (const w of words) {
+    if (ABBREV.has(w)) continue;
+    if (w.length >= 2 && !/[aeiouy]/.test(w)) bad += 1;
+    else if (/(.)/.test(w)) bad += 1;
+    else {
+      let odd = 0;
+      for (let i = 0; i < w.length - 1; i += 1) {
+        const pair = w.slice(i, i + 2);
+        if (!/[aeiouy]/.test(pair) && !CLUSTERS.has(pair)) odd += 1;
+      }
+      if (/q(?!u)/.test(w)) odd += 1;
+      if (w.length >= 4 && /[^aeiouydlnrszjxgkt]$/.test(w)) odd += 1;
+      if (odd >= 2) bad += 1;
+    }
+  }
+  return bad > 0 && bad * 2 >= words.length;
+}
+
 function otherText(raw, label = '¿Cuál?') {
-  const s = typeof raw === 'string' ? raw.trim() : '';
+  const s = typeof raw === 'string' ? raw.trim().replace(/\s+/g, ' ') : '';
   if (!s) fail(`Escribe una frase corta en «${label}».`);
   if (s.length > OTHER_MAX) fail(`Usa como máximo ${OTHER_MAX} caracteres.`);
+  if (isGibberish(s)) fail('Escribe unas palabras que se entiendan, por ejemplo «hacer pasteles». Si no lo tienes claro, elige otra opción.');
   return s;
 }
 const hasAmount = (m) => m && ((m.amount !== undefined && m.amount !== null && m.amount !== '') || (m.min !== undefined && m.min !== null && m.min !== '') || (m.max !== undefined && m.max !== null && m.max !== ''));
@@ -340,6 +371,7 @@ module.exports = {
   VARIANT_BY_ID,
   SKIP_REASON,
   OTHER_MAX,
+  isGibberish,
   OPTIONS: { COUNTRIES, CURRENCIES, ROUTES, GOALS, HORIZONS, DEBT_STATUS, DEBT_TYPES, PAYMENT, HOURS, SKILLS, EXPERIENCE, SKILL_USE, AUDIENCE, CONSTRAINTS, BUDGET, PATHS, CURRENCY_BY_COUNTRY },
   routeOf,
   applicable,

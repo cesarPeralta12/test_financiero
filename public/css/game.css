@@ -1673,3 +1673,16 @@ table.data td {
 .photo-table .is-total th, .photo-table .is-total td { border-top: 2px solid rgba(255, 255, 255, 0.18); }
 .dx4 .offer-cta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .dx4 .offer-cta p { flex-basis: 100%; }
+
+/* Resultado gratuito V4: cifras clave, beneficios y precio */
+.dx-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .6rem; margin: 1rem 0 .4rem; }
+.dx-figure { border: 1px solid var(--line, rgba(255,255,255,.12)); border-radius: 14px; padding: .75rem .9rem; display: flex; flex-direction: column; gap: .2rem; }
+.dx-figure strong { font-size: 1.15rem; }
+.dx-main h2 { font-size: 1.35rem; line-height: 1.25; }
+.dx-benefits { list-style: none; padding: 0; margin: 1rem 0; display: grid; gap: .6rem; }
+.dx-benefits li { display: flex; flex-direction: column; gap: .15rem; padding-left: 1.4rem; position: relative; }
+.dx-benefits li::before { content: "✓"; position: absolute; left: 0; color: var(--accent, #2fd08a); font-weight: 700; }
+.dx-price { font-size: 1.05rem; margin: .4rem 0 .8rem; }
+.dx-trust > * + * { margin-top: .8rem; }
+/* Botón invisible que hace que Enter avance (no retroceda) en las preguntas */
+.qf-enter { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
