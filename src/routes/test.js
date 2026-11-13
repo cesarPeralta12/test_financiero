@@ -42,6 +42,14 @@ function startSession(req) {
   return session;
 }
 
+// Motivo visible de cada pregunta que se salta en la revisión (catálogo V3).
+const SKIP_REASON = {
+  Q07: 'No aplica: indicaste que hoy no recibes ingresos',
+  Q11: 'No aplica: no indicaste pagos de deudas este mes',
+  Q12: 'No aplica: no indicaste pagos de deudas este mes',
+  Q13: 'No aplica: no indicaste pagos de deudas este mes',
+};
+
 const asArray = (v) => (v === undefined || v === null || v === '' ? [] : Array.isArray(v) ? v : typeof v === 'object' ? Object.values(v) : [v]);
 
 /** Convierte lo enviado por el formulario al `value` del contrato de la API. */
@@ -121,7 +129,7 @@ function reviewItems(session) {
   const ctx = engine.buildCtx(answers, session);
   const applicable = new Set(engine.applicableOrder(answers, session));
   return C.SLOTS.map((s) => {
-    if (!applicable.has(s.slot_id)) return { ordinal: s.ordinal, text: C.renderVariant(s.variants[0], ctx).text, answered: true, skipped: true, display: 'No aplica: indicaste que no tienes deudas' };
+    if (!applicable.has(s.slot_id)) return { ordinal: s.ordinal, text: C.renderVariant(s.variants[0], ctx).text, answered: true, skipped: true, display: SKIP_REASON[s.slot_id] || 'No aplica según tus respuestas anteriores' };
     let text = `Pregunta ${s.ordinal}`;
     try {
       text = engine.publicQuestion(s.slot_id, ctx, session).text;

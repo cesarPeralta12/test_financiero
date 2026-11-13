@@ -141,7 +141,7 @@ test('sin deudas confirmadas en Q10 y Q11, Q12 y Q13 no se preguntan; con dudas 
   const s = engine.loadSession(id);
   assert.ok(!engine.applicableOrder(answers, s).includes('Q12'));
   assert.equal(metric(diag.result, 'monthly_balance').value, '1100.00', 'cuota cero solo por ausencia explícita y coherente');
-  // «No tengo deudas» en Q10 salta Q11, Q12 y Q13; con «No lo sé» en Q10 se siguen preguntando.
+  // Q11, Q12 y Q13 solo aparecen si Q10 dice «Sí»; con «No tengo deudas» o «No lo sé» se saltan.
   const none = start();
   for (const q of ['Q01', 'Q02', 'Q03', 'Q04', 'Q05', 'Q06', 'Q07', 'Q08', 'Q09']) put(none.id, q, TECH[q]);
   put(none.id, 'Q10', { presence: 'NO' });
@@ -149,7 +149,7 @@ test('sin deudas confirmadas en Q10 y Q11, Q12 y Q13 no se preguntan; con dudas 
   const unsure = start();
   for (const q of ['Q01', 'Q02', 'Q03', 'Q04', 'Q05', 'Q06', 'Q07', 'Q08', 'Q09']) put(unsure.id, q, TECH[q]);
   put(unsure.id, 'Q10', 'DK');
-  assert.equal(engine.getState(unsure.id).next_question.slot_id, 'Q11');
+  assert.equal(engine.getState(unsure.id).next_question.slot_id, 'Q14');
 });
 
 test('cambiar la actividad (Q04) adapta Q22 y retira solo esa respuesta', () => {
@@ -425,6 +425,38 @@ test('V3: Q10 y Q13 simplificadas (sin «No estoy seguro», «Otro período» ni
   assert.deepEqual(q10.presence.map((x) => x.code), ['YES', 'NO']);
   assert.deepEqual(cat.SLOT_BY_ID.Q13.variants[0].periods.map((x) => x.code), ['MONTH', 'YEAR']);
   const v3view = require('../src/views/freeTest3');
-  const page = String(v3view.input({ ...cat.renderVariant(cat.SLOT_BY_ID.Q13.variants[0]), catalog_version: 'FREE_25_V3_ES' }, {}, {}));
-  assert.ok(!/Nominal|Efectiva|Otro período/.test(page));
+  const s13 = start();
+  for (const q of ['Q01', 'Q02', 'Q03', 'Q04', 'Q05', 'Q06', 'Q07', 'Q08', 'Q09', 'Q10', 'Q11', 'Q12']) put(s13.id, q, TECH[q]);
+  const page = String(v3view.input(engine.questionAt(engine.loadSession(s13.id), 'Q13').question, {}, {}));
+  assert.ok(/Tasa de interés/.test(page) && !/Nominal|Efectiva|Otro período/.test(page));
+});
+
+test('V3: Q11 sin Sí/No, con monto, tipos y «Otro» obligatorio', () => {
+  const v = cat.SLOT_BY_ID.Q11.variants[0];
+  assert.deepEqual(v.types.map((x) => x.code), ['CARD', 'LOAN', 'VEHICLE', 'HOME', 'FAMILY', 'OTHER']);
+  const s = start();
+  for (const q of ['Q01', 'Q02', 'Q03', 'Q04', 'Q05', 'Q06', 'Q07', 'Q08', 'Q09', 'Q10']) put(s.id, q, TECH[q]);
+  assert.equal(engine.getState(s.id).next_question.slot_id, 'Q11');
+  assert.throws(() => put(s.id, 'Q11', { total_balance: { amount: '5000' }, types: ['OTHER'] }), /Escribe qué tipo de deuda es/);
+  assert.throws(() => put(s.id, 'Q11', { total_balance: { amount: '5000' }, types: ['OTHER'], other_detail: 'x'.repeat(61) }), /60 caracteres/);
+  put(s.id, 'Q11', { total_balance: { amount: '5000' }, types: ['CARD', 'OTHER'], other_detail: 'Cooperativa' });
+  const a = engine.activeAnswers(s.id).Q11;
+  assert.equal(a.value.presence, 'YES');
+  assert.equal(a.value.other_detail, 'Cooperativa');
+  assert.match(cat.answerText('V3_Q11', a), /Otro: Cooperativa/);
+  const q11 = engine.questionAt(engine.loadSession(s.id), 'Q11').question;
+  const page = String(require('../src/views/freeTest3').input(q11, {}, {}));
+  assert.ok(!/Sí, tengo deudas/.test(page) && /Deuda total pendiente/.test(page) && /data-show-if="types=OTHER"/.test(page));
+});
+
+test('V3: con ingreso 0 en Q06 se salta Q07', () => {
+  const s = start();
+  for (const q of ['Q01', 'Q02', 'Q03', 'Q04', 'Q05']) put(s.id, q, TECH[q]);
+  put(s.id, 'Q06', { amount: '0' });
+  assert.equal(engine.getState(s.id).next_question.slot_id, 'Q08');
+});
+
+test('V3: cifras escritas por la persona en sus textos se pueden citar', () => {
+  const allowed = metrics3.authorizedNumbers({ Q18: { status: 'answered', value: { task: 'Preparé almuerzos para un evento de 40 personas' } } }, []);
+  assert.ok(allowed.has('40'));
 });

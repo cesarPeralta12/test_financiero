@@ -49,7 +49,10 @@ const AGE_BANDS = o('LT18 = Menos de 18 años; A18_24 = De 18 a 24 años; A25_34
 const DEPENDENTS = o('D0 = Ninguna; D1 = Una; D2 = Dos; D3 = Tres; D4PLUS = Cuatro o más');
 const VARIABILITY = o('SIMILAR = Es parecido cada mes; MODERATE = Varía moderadamente; HIGH = Varía mucho; DECREASING = Está disminuyendo; NO_INCOME = Actualmente es cero');
 const PRESENCE = o('YES = Sí tengo deudas; NO = No tengo deudas; UNSURE = No estoy seguro');
-const DEBT_TYPES = o('CARD = Tarjeta de crédito; LOAN = Préstamo; HOME = Crédito de vivienda; FAMILY = Familiares u otras personas; BUSINESS = Deuda del negocio que pago yo; OTHER = Otra');
+const DEBT_TYPES = o('CARD = Tarjeta de crédito; LOAN = Préstamo bancario; VEHICLE = Vehículo; HOME = Hipoteca / vivienda; FAMILY = Préstamo familiar; BUSINESS = Deuda del negocio que pago yo; OTHER = Otro');
+// BUSINESS ya no se ofrece, pero sigue siendo válido para respuestas guardadas.
+const DEBT_TYPES_SHOWN = DEBT_TYPES.filter((x) => x.code !== 'BUSINESS');
+const OTHER_DEBT_MAX = 60;
 const PAYMENT = o('ON_TIME = Al día; MINIMUM = Pago solo los mínimos; OCCASIONAL_DELAY = Con atrasos ocasionales; OVERDUE_UNABLE = Con pagos vencidos que no puedo cubrir');
 const RATE_TYPES = o('NOMINAL = Nominal; EFFECTIVE = Efectiva; UNKNOWN = No sé de qué tipo');
 const RATE_PERIODS = o('MONTH = Mensual; YEAR = Anual; OTHER = Otro período');
@@ -90,7 +93,7 @@ slot(7, 'income_variability', one('V3_Q07', 'enum', '¿Cómo cambia ese ingreso 
 slot(8, 'essential_expense_month', one('V3_Q08', 'money', '¿Cuánto necesitas al mes para vivienda, alimentación, servicios, transporte, salud y otras necesidades básicas?', 'Total aproximado, sin incluir pagos de deudas.', { period: 'MONTH' }));
 slot(9, 'other_expense_month', one('V3_Q09', 'money', 'Además de lo básico, ¿cuánto gastas al mes en compras, salidas, suscripciones y otros gastos?', 'Total aproximado, sin deudas y sin repetir lo de la pregunta anterior.', { period: 'MONTH' }));
 slot(10, 'debt_due_month', one('V3_Q10', 'debt_payment', '¿Tienes que pagar alguna deuda este mes?', 'Cuotas de préstamos, tarjetas o compras a plazos que te toca pagar este mes. Si además tienes pagos atrasados, anótalos aparte.', { presence: PRESENCE_DUE, amount_label: '¿Cuánto pagas en total este mes?' }));
-slot(11, 'debt_inventory', one('V3_Q11', 'debt_inventory', '¿Cuánto debes en total y qué tipos de deuda tienes?', 'Saldo aproximado de todas tus deudas y de qué tipo son. El saldo no es la cuota.', { presence: PRESENCE_TOTAL, types: DEBT_TYPES }));
+slot(11, 'debt_inventory', one('V3_Q11', 'debt_inventory', '¿Cuánto debes en total y qué tipos de deuda tienes?', 'Saldo aproximado de todas tus deudas y de qué tipo son. El saldo no es la cuota.', { types: DEBT_TYPES_SHOWN, other_max: OTHER_DEBT_MAX }));
 slot(12, 'payment_status', one('V3_Q12', 'enum_detail', '¿Cómo estás cumpliendo esos pagos?', 'Si hay una consecuencia urgente (un embargo, un corte, una demanda), puedes contarla.', { options: PAYMENT, detail_label: 'Consecuencia urgente (opcional)', detail_max: 300 }));
 slot(13, 'debt_cost', one('V3_Q13', 'rate', '¿Qué interés pagas por tu deuda más importante?', 'Lo encuentras en tu contrato o estado de cuenta. Si no lo sabes, elige «No lo sé»: no hace falta adivinarlo.', { rate_types: RATE_TYPES, periods: RATE_PERIODS_SHOWN }));
 slot(14, 'emergency_cash', one('V3_Q14', 'money', '¿Cuánto dinero tienes disponible para una emergencia?', 'Ahorro que puedes usar de inmediato. No cuentes dinero ya comprometido ni la caja de tu negocio.', { period: 'STOCK' }));
@@ -131,10 +134,15 @@ const presence = (a) => (a && a.status === 'answered' && a.value ? a.value.prese
 function noDebtConfirmed(ctx) {
   return presence(ctx.get('Q10')) === 'NO' && presence(ctx.get('Q11')) !== 'YES';
 }
+function zeroIncome(a) {
+  const v = a && a.status === 'answered' ? a.value : null;
+  return Boolean(v && v.amount !== null && v.amount !== undefined && !v.min && Number(v.amount) === 0);
+}
 function applicable(slotId, ctx) {
-  // Quien ya dijo «No tengo deudas» en Q10 no debe responderlo otra vez en Q11.
-  if (slotId === 'Q11') return presence(ctx.get('Q10')) !== 'NO';
-  if (slotId === 'Q12' || slotId === 'Q13') return !noDebtConfirmed(ctx);
+  // Saldo, cumplimiento e interés solo tienen sentido si Q10 confirmó pagos de deuda.
+  if (slotId === 'Q11' || slotId === 'Q12' || slotId === 'Q13') return presence(ctx.get('Q10')) === 'YES';
+  // Con ingreso 0 en Q06, «¿cómo cambia ese ingreso?» no tiene sentido.
+  if (slotId === 'Q07') return !zeroIncome(ctx.get('Q06'));
   return true;
 }
 
@@ -235,13 +243,21 @@ function validate(variant, raw, session) {
       return { status: 'answered', value: { presence: p, monthly_due: due, arrears_extra: extra } };
     }
     case 'debt_inventory': {
-      const p = oneOf(PRESENCE, r.presence, 'Indica si tienes deudas.');
+      // Q11 solo se muestra cuando Q10 dice «Sí»: ya no repite la pregunta de si hay deudas.
+      // `presence` se acepta por compatibilidad con respuestas guardadas antes del cambio.
+      const p = r.presence ? oneOf(PRESENCE, r.presence, 'Indica si tienes deudas.') : 'YES';
       if (p !== 'YES') return { status: 'answered', value: { presence: p, total_balance: null, types: [] } };
       const types = Array.isArray(r.types) ? [...new Set(r.types)] : [];
       for (const t of types) oneOf(DEBT_TYPES, t, 'Tipo de deuda no válido.');
       const bal = r.total_balance && (r.total_balance.amount || r.total_balance.min) ? moneyValue(r.total_balance, session, 'STOCK') : null;
-      if (!types.length && !bal) fail('Indica el saldo aproximado o al menos el tipo de deuda.');
-      return { status: 'answered', value: { presence: p, total_balance: bal, types } };
+      if (!types.length && !bal) fail('Escribe tu deuda total aproximada o marca al menos un tipo de deuda.');
+      let other = null;
+      if (types.includes('OTHER')) {
+        other = typeof r.other_detail === 'string' ? r.other_detail.trim() : '';
+        if (!other) fail('Escribe qué tipo de deuda es.');
+        if (other.length > OTHER_DEBT_MAX) fail(`El tipo de deuda admite hasta ${OTHER_DEBT_MAX} caracteres.`);
+      }
+      return { status: 'answered', value: { presence: p, total_balance: bal, types, ...(other ? { other_detail: other } : {}) } };
     }
     case 'rate': {
       if (!/^\d{1,3}([.,]\d{1,4})?$/.test(String(r.value || ''))) fail('Escribe la tasa como número, por ejemplo 2.5. Si no la sabes, elige «No lo sé».');
@@ -338,7 +354,7 @@ function fromForm(variant, body) {
     case 'debt_payment':
       return { value: { presence: body.presence, monthly_due: money(body), arrears_extra: money(body, 'extra_') }, form };
     case 'debt_inventory':
-      return { value: { presence: body.presence, total_balance: money(body), types: arr(body.types) }, form: { ...form, types: arr(body.types) } };
+      return { value: { total_balance: money(body), types: arr(body.types), other_detail: body.other_detail }, form: { ...form, types: arr(body.types) } };
     case 'rate':
       return { value: { value: body.rate, rate_type: body.rate_type, period: body.period }, form };
     case 'multi_enum':
@@ -374,7 +390,7 @@ function toForm(variant, a) {
     case 'debt_payment':
       return { presence: v.presence, ...m(v.monthly_due), ...m(v.arrears_extra, 'extra_') };
     case 'debt_inventory':
-      return { presence: v.presence, ...m(v.total_balance), types: v.types };
+      return { ...m(v.total_balance), types: v.types, other_detail: v.other_detail || '' };
     case 'rate':
       return { rate: v.value, rate_type: v.rate_type, period: v.period };
     case 'hours':
@@ -423,7 +439,7 @@ function answerText(variantId, a) {
     case 'debt_payment':
       return x.presence !== 'YES' ? labelIn(PRESENCE, x.presence) : `${fmtMoney(x.monthly_due)} este mes${x.arrears_extra ? ` + ${fmtMoney(x.arrears_extra)} de atrasos` : ''}`;
     case 'debt_inventory':
-      return x.presence !== 'YES' ? labelIn(PRESENCE, x.presence) : [x.total_balance ? `Saldo ${fmtMoney(x.total_balance)}` : null, x.types.map((t) => labelIn(DEBT_TYPES, t)).join(', ')].filter(Boolean).join(' · ');
+      return x.presence !== 'YES' ? labelIn(PRESENCE, x.presence) : [x.total_balance ? `Saldo ${fmtMoney(x.total_balance)}` : null, x.types.map((t) => (t === 'OTHER' && x.other_detail ? `Otro: ${x.other_detail}` : labelIn(DEBT_TYPES, t))).join(', ')].filter(Boolean).join(' · ');
     case 'rate':
       return `${x.value} % ${labelIn(RATE_PERIODS, x.period).toLowerCase()}`;
     case 'multi_enum':

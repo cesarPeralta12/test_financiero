@@ -93,11 +93,15 @@
     const syncIf = function () {
       form.querySelectorAll('[data-show-if]').forEach(function (box) {
         const parts = box.getAttribute('data-show-if').split('=');
-        const sel = form.querySelector('input[name="' + parts[0] + '"]:checked');
-        const show = Boolean(sel && sel.value === parts[1]);
+        // Sirve para radios y casillas: basta con que la opción indicada esté marcada.
+        const show = Array.prototype.some.call(form.querySelectorAll('input[name="' + parts[0] + '"]:checked'), function (x) {
+          return x.value === parts[1];
+        });
         box.hidden = !show;
         box.querySelectorAll('input, select, textarea').forEach(function (el) {
           el.disabled = !show;
+          // Al ocultarse (p. ej. desmarcar «Otro»), lo escrito se borra.
+          if (!show && el.type !== 'radio' && el.type !== 'checkbox') el.value = '';
         });
       });
     };
@@ -106,6 +110,10 @@
       if (el.name === 'special' && el.checked) {
         v3.querySelectorAll('input[type=radio]:checked, input[type=checkbox]:checked').forEach(function (o) {
           o.checked = false;
+        });
+        // «No lo sé» / «Prefiero no responder» también vacían montos y textos.
+        v3.querySelectorAll('input:not([type=radio]):not([type=checkbox]):not([type=hidden]), textarea').forEach(function (o) {
+          o.value = '';
         });
       } else if (el.closest && el.closest('.v3-input')) {
         form.querySelectorAll('input[name=special]').forEach(function (o) {

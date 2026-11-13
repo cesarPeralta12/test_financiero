@@ -135,6 +135,7 @@ async function main() {
     ['v3-pregunta-pais', '/test/pregunta/1', anonCookie, () => v3Client(0)],
     ['v3-pregunta-interes', '/test/pregunta/13', anonCookie, () => v3Client(12)],
     ['v3-pregunta-deudas', '/test/pregunta/10', anonCookie, () => v3Client(9)],
+    ['v3-pregunta-saldo', '/test/pregunta/11', anonCookie, () => v3Client(10)],
     ['v3-resultado', '/resultado', anonCookie, () => v3Client(25, true)],
     ['resultado', '/resultado', userCookie],
     ['inicio', '/inicio', userCookie],

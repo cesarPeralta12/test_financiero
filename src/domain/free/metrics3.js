@@ -110,6 +110,8 @@ function authorizedNumbers(answers, metrics) {
     if (v === null || v === undefined) return;
     if (typeof v === 'number') addNum(v);
     else if (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v)) addNum(v);
+    // Cifras que la persona escribió en sus propios textos (p. ej. «un evento de 40 personas»).
+    else if (typeof v === 'string') (v.match(/\d+(?:,\d+)?/g) || []).forEach((n) => addNum(n.replace(',', '.')));
     else if (Array.isArray(v)) v.forEach(walk);
     else if (typeof v === 'object') Object.values(v).forEach(walk);
   };

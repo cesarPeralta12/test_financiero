@@ -84,9 +84,9 @@ function input(q, form = {}, errors = {}) {
         ${field('Pagos atrasados para ponerte al día (opcional)', amountInput('extra_amount', form.extra_amount, cur))}</div>`;
       break;
     case 'debt_inventory':
-      body = html`${radios('presence', cfg.presence, form.presence, { cls: 'pills', pill: true })}
-        <div class="qf-if" data-show-if="presence=YES">${moneyFields(form, cur, '', { label: 'Saldo total aproximado' })}
-        ${field('Tipos de deuda', checks('types', cfg.types, form.types))}</div>`;
+      body = html`${moneyFields(form, cur, '', { label: 'Deuda total pendiente' })}
+        ${field('Tipo de deuda (puedes marcar varios)', checks('types', cfg.types, form.types))}
+        <div class="qf-if" data-show-if="types=OTHER">${field('¿Cuál?', textInput('other_detail', form.other_detail, { max: cfg.other_max || 60, placeholder: 'Ej.: crédito en tienda, cooperativa, prestamista…' }))}</div>`;
       break;
     case 'rate':
       body = html`${field('Tasa de interés (%)', html`<input class="input input--num input--short" name="rate" inputmode="decimal" value="${form.rate || ''}" placeholder="Ej.: 2,5" />`)}

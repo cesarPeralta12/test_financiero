@@ -186,6 +186,9 @@ function template(pkg, answers) {
   const bal = num('monthly_balance');
   const gap = num('essential_gap');
   const blocked = new Set(pkg.bloqueos.map((b) => b.id));
+  // Sin pagos de deuda declarados, el texto no debe hablar de «cuotas».
+  const hasDebt = Boolean(val(answers, 'Q10') && val(answers, 'Q10').presence === 'YES');
+  const andDues = hasDebt ? ' y cuotas' : '';
 
   let title;
   let interpretation;
@@ -198,7 +201,7 @@ function template(pkg, answers) {
     title = 'Para orientarte con precisión faltan algunos números';
     interpretation = 'Con tus respuestas todavía no podemos calcular cuánto te queda al mes. Te proponemos un primer paso que no depende de ese dato y te pedimos lo mínimo que falta para completar la lectura.';
   } else if (bal.lt(0)) {
-    title = 'Hoy tus gastos y cuotas superan lo que recibes';
+    title = `Hoy tus gastos${andDues} superan lo que recibes`;
     interpretation = `Con tus promedios declarados, el mes cierra en ${fmt(cur, M.monthly_balance.value)}. Antes de pensar en crecer conviene saber de dónde sale esa diferencia y qué ingreso adicional realista podría cubrirla.`;
   } else if (paid) {
     title = 'Ya cobras por algo que sabes hacer: conviene medirlo antes de crecer';
@@ -211,11 +214,11 @@ function template(pkg, answers) {
 
   const insights = [];
   if (gap !== null && bal !== null && !gap.eq(bal)) {
-    insights.push({ title: 'Lo básico y tus cuotas frente a tu ingreso', meaning: `Sin contar los otros gastos, tu ingreso deja ${fmt(cur, M.essential_gap.value)} después de lo básico y las cuotas.`, implication: gap.lt(0) ? 'Lo esencial ya no alcanza: cualquier imprevisto obliga a usar reservas o deuda.' : 'La diferencia con lo que realmente te queda está en los otros gastos: ahí hay espacio para decidir.', evidence_refs: ['Q06', 'Q08', 'Q10'], metric_refs: ['essential_gap'] });
+    insights.push({ title: hasDebt ? 'Lo básico y tus cuotas frente a tu ingreso' : 'Lo básico frente a tu ingreso', meaning: `Sin contar los otros gastos, tu ingreso deja ${fmt(cur, M.essential_gap.value)} después de lo básico${hasDebt ? ' y las cuotas' : ''}.`, implication: gap.lt(0) ? 'Lo esencial ya no alcanza: cualquier imprevisto obliga a usar reservas o deuda.' : 'La diferencia con lo que realmente te queda está en los otros gastos: ahí hay espacio para decidir.', evidence_refs: ['Q06', 'Q08', 'Q10'], metric_refs: ['essential_gap'] });
   }
   if (has('committed_reserve_months')) {
     const r = num('committed_reserve_months');
-    insights.push({ title: 'Tu reserva frente a tus compromisos', meaning: `Tu reserva cubre aproximadamente ${String(M.committed_reserve_months.value).replace('.', ',')} meses de gastos básicos y cuotas.`, implication: r.lt(1) ? 'Es una reserva pequeña: un mes difícil la agotaría.' : 'Te da cierto margen para probar cambios sin poner en riesgo lo básico.', evidence_refs: ['Q14', 'Q08', 'Q10'], metric_refs: ['committed_reserve_months'] });
+    insights.push({ title: 'Tu reserva frente a tus compromisos', meaning: `Tu reserva cubre aproximadamente ${String(M.committed_reserve_months.value).replace('.', ',')} meses de gastos básicos${andDues}.`, implication: r.lt(1) ? 'Es una reserva pequeña: un mes difícil la agotaría.' : 'Te da cierto margen para probar cambios sin poner en riesgo lo básico.', evidence_refs: ['Q14', 'Q08', 'Q10'], metric_refs: ['committed_reserve_months'] });
   }
   if (has('income_goal_gap')) {
     insights.push({ title: 'La distancia a tu objetivo', meaning: `Para llegar al ingreso que te propusiste faltan aproximadamente ${fmt(cur, M.income_goal_gap.value)} al mes.`, implication: 'Antes de fijar cuántas ventas o clientes necesitas hay que saber cuánto te deja cada uno y cuánto tiempo te toma.', evidence_refs: ['Q05', 'Q06'], metric_refs: ['income_goal_gap'] });
@@ -251,7 +254,7 @@ function template(pkg, answers) {
   const budget = q('Q24');
   let decision = null;
   if (budget && budget.amount && new D(budget.amount).gt(0) && opportunity) decision = { decision: 'Gastar tu presupuesto de prueba en publicidad o materiales de inmediato.', reason: 'Primero conviene comprobar que hay una necesidad real y cuánto dejaría cada trabajo.', evidence_refs: ['Q24', 'Q22'] };
-  else if (blocked.has('NEW_CREDIT')) decision = { decision: 'Pedir un crédito nuevo para cubrir el mes.', reason: 'Con pagos en dificultad, una deuda nueva suele empeorar el problema que intenta resolver.', evidence_refs: ['Q12', 'Q10'] };
+  else if (blocked.has('NEW_CREDIT')) decision = { decision: 'Pedir un crédito nuevo para cubrir el mes.', reason: hasDebt ? 'Con pagos en dificultad, una deuda nueva suele empeorar el problema que intenta resolver.' : 'Si el mes ya no alcanza, una deuda nueva solo traslada el problema y le suma intereses.', evidence_refs: hasDebt ? ['Q12', 'Q10'] : ['Q06', 'Q08'] };
 
   const missing = [];
   const askIf = (s, field, question, why) => {
@@ -259,7 +262,7 @@ function template(pkg, answers) {
   };
   askIf('Q06', 'net_income_month', '¿Cuánto recibes en un mes normal, después de los costos de tu actividad?', 'Sin este dato no podemos calcular tu margen.');
   askIf('Q08', 'essential_expense_month', '¿Cuánto necesitas al mes para lo básico?', 'Permite saber cuánto margen real tienes.');
-  askIf('Q13', 'debt_cost', '¿Qué tasa de interés tiene tu deuda más preocupante?', 'Sin la tasa no se puede comparar qué deuda conviene atacar primero.');
+  if (hasDebt) askIf('Q13', 'debt_cost', '¿Qué tasa de interés tiene tu deuda más preocupante?', 'Sin la tasa no se puede comparar qué deuda conviene atacar primero.');
   askIf('Q18', 'skill_evidence', '¿Qué tarea concreta has resuelto bien y con qué resultado?', 'Es la base para proponerte una oportunidad que encaje contigo.');
   askIf('Q14', 'emergency_cash', '¿Cuánto dinero tienes disponible para una emergencia?', 'Permite saber cuánto tiempo podrías sostenerte ante un imprevisto.');
 
