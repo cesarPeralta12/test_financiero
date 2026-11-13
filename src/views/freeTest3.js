@@ -112,7 +112,7 @@ function input(q, form = {}, errors = {}) {
     case 'paid_experience':
       body = html`${radios('paid_before', [{ code: 'YES', label: 'Sí' }, { code: 'NO', label: 'Nunca' }], form.paid_before, { cls: 'pills', pill: true })}
         <div class="qf-if" data-show-if="paid_before=YES">${field('¿Qué hiciste?', textInput('activity', form.activity, { max: 300, placeholder: 'Ej.: limpieza de aires acondicionados' }))}
-        ${field('¿Cuántas veces?', radios('frequency', cat.OPTIONS.FREQUENCY, form.frequency, { cls: 'pills', pill: true }))}</div>`;
+        ${field('¿Cuántas veces?', radios('frequency', cfg.frequency || cat.OPTIONS.FREQUENCY, form.frequency, { cls: 'pills', pill: true }))}</div>`;
       break;
     default:
       body = html`<p class="muted">Pregunta no disponible.</p>`;

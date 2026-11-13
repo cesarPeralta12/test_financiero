@@ -23,7 +23,7 @@ function reader(answers, currency) {
     if (x.status !== 'answered') return { value: null, reason: `${s}_UNKNOWN` };
     return point(x.value, s);
   };
-  /** Cuota del mes: cero SOLO si Q10 y Q11 declaran, de forma coherente, que no hay deudas. */
+  /** Cuota del mes: cero si Q10 dice «No tengo deudas» y Q11 no lo contradice (Q11 se salta en ese caso). */
   const debtDue = () => {
     const q10 = a('Q10');
     const q11 = a('Q11');
@@ -31,9 +31,8 @@ function reader(answers, currency) {
     const p10 = q10.value.presence;
     const p11 = q11 && q11.status === 'answered' ? q11.value.presence : null;
     if (p10 === 'NO') {
-      if (p11 === 'NO') return { value: new D(0), reason: null, explicitZero: true };
       if (p11 === 'YES') return { value: null, reason: 'DEBT_CONTRADICTION' };
-      return { value: null, reason: 'Q11_UNKNOWN' };
+      return { value: new D(0), reason: null, explicitZero: true };
     }
     if (p10 !== 'YES') return { value: null, reason: 'Q10_UNSURE' };
     return point(q10.value.monthly_due, 'Q10');

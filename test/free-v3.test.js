@@ -141,12 +141,15 @@ test('sin deudas confirmadas en Q10 y Q11, Q12 y Q13 no se preguntan; con dudas 
   const s = engine.loadSession(id);
   assert.ok(!engine.applicableOrder(answers, s).includes('Q12'));
   assert.equal(metric(diag.result, 'monthly_balance').value, '1100.00', 'cuota cero solo por ausencia explícita y coherente');
-  // Si una de las dos queda en duda, Q12/Q13 sí aplican y la cuota no es cero.
+  // «No tengo deudas» en Q10 salta Q11, Q12 y Q13; con «No lo sé» en Q10 se siguen preguntando.
+  const none = start();
+  for (const q of ['Q01', 'Q02', 'Q03', 'Q04', 'Q05', 'Q06', 'Q07', 'Q08', 'Q09']) put(none.id, q, TECH[q]);
+  put(none.id, 'Q10', { presence: 'NO' });
+  assert.equal(engine.getState(none.id).next_question.slot_id, 'Q14');
   const unsure = start();
   for (const q of ['Q01', 'Q02', 'Q03', 'Q04', 'Q05', 'Q06', 'Q07', 'Q08', 'Q09']) put(unsure.id, q, TECH[q]);
-  put(unsure.id, 'Q10', { presence: 'NO' });
-  put(unsure.id, 'Q11', { presence: 'UNSURE' });
-  assert.equal(engine.getState(unsure.id).next_question.slot_id, 'Q12');
+  put(unsure.id, 'Q10', 'DK');
+  assert.equal(engine.getState(unsure.id).next_question.slot_id, 'Q11');
 });
 
 test('cambiar la actividad (Q04) adapta Q22 y retira solo esa respuesta', () => {
@@ -409,6 +412,11 @@ test('V3: el texto de la IA se pule (sin «.00» ni jerga interna) y conserva re
   });
   assert.equal(out.a, 'Tus respuestas indican Bs 300 aproximados. Por ahora conviene evitar acciones con gasto. Meta Bs 3.000 y 12.000.');
   assert.deepEqual(out.evidence_refs, ['Q05.amount']);
+});
+
+test('V3: Q20 y Q24 sin opciones duplicadas de «No lo sé»', () => {
+  assert.deepEqual(cat.SLOT_BY_ID.Q24.variants[0].available_now.map((x) => x.code), ['YES', 'LATER']);
+  assert.deepEqual(cat.SLOT_BY_ID.Q20.variants[0].frequency.map((x) => x.code), ['ONCE', 'REPEATED']);
 });
 
 test('V3: Q10 y Q13 simplificadas (sin «No estoy seguro», «Otro período» ni nominal/efectiva)', async () => {

@@ -63,6 +63,9 @@ const RESOURCES = o('EQUIPMENT = Equipo o herramientas; VEHICLE = Vehículo; SPA
 const FREQUENCY = o('ONCE = Una vez; REPEATED = Varias veces; UNKNOWN = No lo recuerdo');
 const CONSTRAINTS = o('KEEP_JOB = Conservar mi empleo; CARE = Cuidar a familiares; HEALTH = Mi salud; SCHEDULE = Mis horarios; MOBILITY = Movilidad o distancia; MONEY = No arriesgar dinero; OTHER = Otra condición');
 const AVAILABLE_NOW = o('YES = Lo tengo disponible ahora; LATER = Solo después de cubrir mis pagos del mes; UNKNOWN = No estoy seguro');
+// «No estoy seguro» / «No lo recuerdo» duplicaban «No lo sé»; si no se elige, se guarda UNKNOWN.
+const AVAILABLE_NOW_SHOWN = AVAILABLE_NOW.filter((x) => x.code !== 'UNKNOWN');
+const FREQUENCY_SHOWN = FREQUENCY.filter((x) => x.code !== 'UNKNOWN');
 const PATHS = o('IMPROVE_JOB = Mejorar en mi empleo actual; CHANGE_JOB = Cambiar de empleo; SELL_SERVICE = Vender un servicio; SELL_PRODUCT = Vender un producto; IMPROVE_BUSINESS = Mejorar mi negocio; HELP_CHOOSE = Que me ayuden a elegir');
 
 // ───────── Slots ─────────
@@ -96,7 +99,7 @@ slot(16, 'productive_resources', one('V3_Q16', 'resources', '¿Qué bienes, herr
 slot(17, 'available_hours_week', one('V3_Q17', 'hours', '¿Cuántas horas reales podrías dedicar cada semana a mejorar tus ingresos?', 'Respetando tu trabajo y tus obligaciones. Cero es una respuesta válida.'));
 slot(18, 'skill_evidence', one('V3_Q18', 'skill_examples', '¿Qué sabes hacer bien? Cuéntanos una tarea que hayas resuelto y qué resultado obtuviste.', 'Hasta dos habilidades y un ejemplo breve. Es la respuesta que más nos ayuda a personalizar tu diagnóstico.'));
 slot(19, 'sector_experience', one('V3_Q19', 'text', '¿Qué tipo de clientes, empresas o sectores conoces por experiencia?', 'Sector y tu relación con él: trabajaste ahí, vendiste, atendiste clientes o gestionaste un negocio.', { max: 500, placeholder: 'Ej.: restaurantes pequeños, atendí clientes durante tres años' }));
-slot(20, 'paid_experience', one('V3_Q20', 'paid_experience', '¿Alguien ya te ha pagado por alguna de esas habilidades fuera de tu actividad principal?', 'Qué hiciste y si fue una vez o varias. También puedes responder que nunca.'));
+slot(20, 'paid_experience', one('V3_Q20', 'paid_experience', '¿Alguien ya te ha pagado por alguna de esas habilidades fuera de tu actividad principal?', 'Qué hiciste y si fue una vez o varias. También puedes responder que nunca.', { frequency: FREQUENCY_SHOWN }));
 slot(21, 'market_access', one('V3_Q21', 'text', '¿A qué personas o negocios podrías acercarte para comprobar una oportunidad?', 'Describe el tipo de contacto o acceso. No escribas nombres ni teléfonos.', { max: 500, placeholder: 'Ej.: antiguos clientes y dos conocidos con restaurante' }));
 slot(22, 'income_bottleneck', Object.entries(BOTTLENECK).map(([route, options]) => ({
   id: `V3_Q22_${route}`,
@@ -109,7 +112,7 @@ slot(22, 'income_bottleneck', Object.entries(BOTTLENECK).map(([route, options]) 
   detail_max: 500,
 })));
 slot(23, 'constraints', one('V3_Q23', 'multi_text', '¿Qué condición debe respetar cualquier propuesta que te hagamos?', 'Hasta tres. Si quieres, explica la más importante; no hace falta dar detalles médicos.', { options: CONSTRAINTS, max_selected: 3, detail_label: 'La más importante, en tus palabras (opcional)', detail_max: 500 }));
-slot(24, 'safe_test_budget', one('V3_Q24', 'money', '¿Cuánto podrías destinar a probar una oportunidad sin afectar necesidades básicas ni obligaciones?', 'Monto disponible o 0. No cuentes tu ahorro de emergencia.', { period: 'STOCK', available_now: AVAILABLE_NOW }));
+slot(24, 'safe_test_budget', one('V3_Q24', 'money', '¿Cuánto podrías destinar a probar una oportunidad sin afectar necesidades básicas ni obligaciones?', 'Monto disponible o 0. No cuentes tu ahorro de emergencia.', { period: 'STOCK', available_now: AVAILABLE_NOW_SHOWN }));
 slot(25, 'preferred_path', one('V3_Q25', 'enum', '¿Qué camino estarías dispuesto a explorar primero?', 'Es una preferencia: no te compromete a nada.', { options: PATHS }));
 
 if (SLOTS.length !== 25) throw new Error('FREE_25_V3_ES debe tener 25 slots.');
@@ -124,11 +127,13 @@ function routeOf(get) {
 }
 
 const presence = (a) => (a && a.status === 'answered' && a.value ? a.value.presence : null);
-/** Q12 y Q13 no aplican solo cuando Q10 y Q11 confirman, de forma coherente, que no hay deudas. */
+/** Sin deudas: Q10 dice «No tengo deudas» y Q11 no lo contradice (Q11 se salta en ese caso). */
 function noDebtConfirmed(ctx) {
-  return presence(ctx.get('Q10')) === 'NO' && presence(ctx.get('Q11')) === 'NO';
+  return presence(ctx.get('Q10')) === 'NO' && presence(ctx.get('Q11')) !== 'YES';
 }
 function applicable(slotId, ctx) {
+  // Quien ya dijo «No tengo deudas» en Q10 no debe responderlo otra vez en Q11.
+  if (slotId === 'Q11') return presence(ctx.get('Q10')) !== 'NO';
   if (slotId === 'Q12' || slotId === 'Q13') return !noDebtConfirmed(ctx);
   return true;
 }
