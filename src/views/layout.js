@@ -82,13 +82,13 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
         <meta name="theme-color" content="#0b1020" />
         <link rel="preload" href="/fonts/hanken-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
         <link rel="preload" href="/fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
-        <link rel="stylesheet" href="/css/app.css?v=7" />
-        <link rel="stylesheet" href="/css/motion.css?v=7" />
-        <link rel="stylesheet" href="/css/game.css?v=7" />
-        <script src="/js/early.js?v=7"></script>
+        <link rel="stylesheet" href="/css/app.css?v=8" />
+        <link rel="stylesheet" href="/css/motion.css?v=8" />
+        <link rel="stylesheet" href="/css/game.css?v=8" />
+        <script src="/js/early.js?v=8"></script>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <script src="/js/app.js?v=7" defer></script>
-        <script src="/js/game.js?v=7" defer></script>
+        <script src="/js/app.js?v=8" defer></script>
+        <script src="/js/game.js?v=8" defer></script>
       </head>
       <body
         data-flash="${ctx.flash || ''}"

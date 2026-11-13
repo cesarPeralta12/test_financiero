@@ -8,6 +8,7 @@ const db = require('../../db');
 const { token, sha256 } = require('../../lib/security');
 const catalog = require('./catalog');
 const catalog3 = require('./catalog3');
+const catalog4 = require('./catalog4');
 const { FreeError, validate, validCurrency, checkAgeAgainstRange } = require('./values');
 const annotations = require('./annotations');
 const resultSvc = require('./result');
@@ -42,8 +43,10 @@ const V2 = {
   revalidates: v2Revalidates,
   results: () => resultSvc,
 };
-const V3 = { ...catalog3, hasAnnotations: false, results: () => require('./result3') };
-const CATALOGS = { [V2.VERSION_ID]: V2, [V3.VERSION_ID]: V3 };
+// `modern`: la moneda la declara Q01 y la variante lleva su configuración (V3 y V4).
+const V3 = { ...catalog3, hasAnnotations: false, modern: true, results: () => require('./result3') };
+const V4 = { ...catalog4, hasAnnotations: false, modern: true, results: () => require('./result4') };
+const CATALOGS = { [V2.VERSION_ID]: V2, [V3.VERSION_ID]: V3, [V4.VERSION_ID]: V4 };
 for (const C of Object.values(CATALOGS)) {
   C.ORDER = C.SLOTS.map((s) => s.slot_id);
   C.TOTAL = C.SLOTS.length;
@@ -133,7 +136,7 @@ function publicQuestion(slotId, ctx, session) {
     q.amount_limits = { min: '0.01', max: '999999999.99', decimals: 2 };
   }
   if (variant.type === 'age_or_choice') q.age_limits = { min: 18, max: 100 };
-  if (ctx.cat === V3) {
+  if (ctx.cat.modern) {
     // Campos de la variante V3 (opciones auxiliares, límites y periodo), sin funciones.
     q.config = Object.fromEntries(Object.entries(variant).filter(([k, v]) => !['id', 'slot_id', 'when', 'type', 'text', 'help', 'options'].includes(k) && typeof v !== 'function'));
     q.currency = session ? session.currency || null : null;
@@ -168,7 +171,12 @@ function nextPending(answers, session) {
 function progress(answers, session) {
   const C = cat(session);
   const next = nextPending(answers, session);
-  const skipped = C.TOTAL - applicableOrder(answers, session).length;
+  const order = applicableOrder(answers, session);
+  if (C.modern) {
+    // Avance real: solo cuentan las preguntas que aplican a esta persona.
+    return { completed_count: order.filter((s) => answers[s]).length, total: order.length, order, next_ordinal: next ? C.SLOT_BY_ID[next].ordinal : null };
+  }
+  const skipped = C.TOTAL - order.length;
   return { completed_count: Object.keys(answers).length + skipped, total: C.TOTAL, next_ordinal: next ? C.SLOT_BY_ID[next].ordinal : null };
 }
 
@@ -187,7 +195,7 @@ function createSession({ userId = null, anonId = null, currency = null, locale =
   if (!C) throw new FreeError(422, 'UNSUPPORTED_VERSION', `Versión de catálogo no disponible: ${versionId}.`);
   if (locale !== C.LOCALE) throw new FreeError(422, 'UNSUPPORTED_LOCALE', `Idioma no disponible: ${locale}.`);
   // En V3 la moneda la declara el usuario en Q01: no se hereda de la cuenta.
-  if (C === V3) currency = null;
+  if (C.modern) currency = null;
   if (currency !== null && currency !== undefined && !validCurrency(currency)) throw new FreeError(422, 'INVALID_CURRENCY', 'La moneda debe ser un código ISO 4217 válido, por ejemplo USD.');
   const id = `ft_${crypto.randomBytes(16).toString('hex')}`;
   const raw = token(32);
@@ -389,10 +397,10 @@ function saveAnswer(sessionId, slotId, input) {
       throw new FreeError(409, 'STALE_VARIANT', 'La pregunta cambió por tus respuestas anteriores. Recarga para ver la pregunta vigente.', { current: stateOf(session) });
     }
 
-    const parsed = C.validate(variant, input.value, session);
+    const parsed = C.validate(variant, input.value, session, ctx);
     let newCurrency = session.currency;
     let currencyChanged = false;
-    if (C === V3 && slotId === C.CURRENCY_SLOT && parsed.status === 'answered') {
+    if (C.modern && slotId === C.CURRENCY_SLOT && parsed.status === 'answered') {
       // La moneda declarada en Q01 rige todos los montos; si cambia, se piden de nuevo.
       newCurrency = parsed.value.currency;
       currencyChanged = Boolean(session.currency) && session.currency !== newCurrency;

@@ -14,6 +14,7 @@ require('./lib/mailer');
 require('./domain/plan');
 require('./domain/free/narrative');
 require('./domain/free/result3');
+require('./domain/free/result4');
 require('./domain/gateways/sandbox');
 
 function purgeAnonymous(days = config.anonymousRetentionDays) {

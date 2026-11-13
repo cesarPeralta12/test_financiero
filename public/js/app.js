@@ -90,13 +90,17 @@
   const v3 = document.querySelector('.v3-input');
   if (v3) {
     const form = v3.closest('form');
+    // «campo=A,B»: verdadero si alguna opción marcada (radio o casilla habilitada) es A o B.
+    const matches = function (spec) {
+      const parts = spec.split('=');
+      const wanted = parts[1].split(',');
+      return Array.prototype.some.call(form.querySelectorAll('input[name="' + parts[0] + '"]:checked:not(:disabled)'), function (x) {
+        return wanted.indexOf(x.value) >= 0;
+      });
+    };
     const syncIf = function () {
-      form.querySelectorAll('[data-show-if]').forEach(function (box) {
-        const parts = box.getAttribute('data-show-if').split('=');
-        // Sirve para radios y casillas: basta con que la opción indicada esté marcada.
-        const show = Array.prototype.some.call(form.querySelectorAll('input[name="' + parts[0] + '"]:checked'), function (x) {
-          return x.value === parts[1];
-        });
+      form.querySelectorAll('[data-show-if], [data-hide-if]').forEach(function (box) {
+        const show = box.hasAttribute('data-show-if') ? matches(box.getAttribute('data-show-if')) : !matches(box.getAttribute('data-hide-if'));
         box.hidden = !show;
         box.querySelectorAll('input, select, textarea').forEach(function (el) {
           el.disabled = !show;
@@ -121,10 +125,26 @@
         });
       }
       if (el.type === 'checkbox' && el.checked && el.closest('.v3-input')) {
-        const all = el.closest('.options').querySelectorAll('input[type=checkbox]');
+        const group = el.closest('.options');
+        const all = group.querySelectorAll('input[type=checkbox]');
         all.forEach(function (o) {
           if (o !== el && (el.hasAttribute('data-exclusive') || o.hasAttribute('data-exclusive'))) o.checked = false;
         });
+        // Límite de opciones («hasta dos»): no deja marcar una más.
+        const max = Number(group.getAttribute('data-max') || 0);
+        if (max && group.querySelectorAll('input[type=checkbox]:checked').length > max) el.checked = false;
+      }
+      // Moneda sugerida según el país (se puede cambiar).
+      if (el.name === 'country') {
+        const box = form.querySelector('[data-currency-suggest]');
+        const cur = form.querySelector('select[name=currency]');
+        if (box && cur) {
+          const map = JSON.parse(box.getAttribute('data-currency-suggest') || '{}');
+          if (map[el.value] && (!cur.value || cur.getAttribute('data-suggested') === cur.value)) {
+            cur.value = map[el.value];
+            cur.setAttribute('data-suggested', cur.value);
+          }
+        }
       }
       syncIf();
     });

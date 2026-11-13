@@ -83,13 +83,21 @@ function ageBlock(q, form, errors, confirmNeeded) {
 /** Pantalla de una pregunta. o: { q, session, form, errors, note, confirmNeeded, prevHref } */
 function questionPage(ctx, o) {
   const { q, form = {}, errors = {} } = o;
-  const total = 25;
-  const pct = Math.round(((q.ordinal - 1) / total) * 100);
-  const isV3 = q.catalog_version === 'FREE_25_V3_ES';
+  const isV4 = q.catalog_version === 'FREE_24_V4_ES';
+  // V4: avance real (solo preguntas que aplican); el número de pregunta no salta.
+  const prog = o.progress;
+  const total = isV4 && prog ? prog.total : isV4 ? 24 : 25;
+  // Posición de esta pregunta entre las que aplican (también al volver a una ya respondida).
+  const idx = isV4 && prog && prog.order ? prog.order.indexOf(q.slot_id) : -1;
+  const pos = idx >= 0 ? idx + 1 : isV4 && prog ? Math.min(prog.completed_count + 1, total) : q.ordinal;
+  const isLast = isV4 ? q.ordinal === 24 : q.ordinal === total;
+  const pct = Math.round(((pos - 1) / total) * 100);
+  const isV3 = q.catalog_version === 'FREE_25_V3_ES' || isV4;
   const isGroup = !isV3 && ['single', 'multi'].includes(q.type);
   const Tag = isGroup ? 'fieldset' : 'div';
   let input;
-  if (isV3) input = v3.input(q, form, errors);
+  if (isV4) input = require('./freeTest4').input(q, form, errors);
+  else if (isV3) input = v3.input(q, form, errors);
   else if (isGroup) input = optionBlock(q, form, errors);
   else if (q.type === 'money_or_choice') input = moneyBlock(q, form, errors);
   else input = ageBlock(q, form, errors, o.confirmNeeded);
@@ -102,22 +110,24 @@ function questionPage(ctx, o) {
         ${q.ordinal > 1
           ? html`<button class="qf-back" type="submit" name="action" value="prev" formnovalidate aria-label="Pregunta anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
           : html`<a class="qf-back" href="/" aria-label="Salir del test"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></a>`}
-        <div class="qf-progress" role="progressbar" aria-label="Avance del test" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${q.ordinal - 1}" aria-valuetext="Pregunta ${q.ordinal} de ${total}">
-          <span class="qf-chapter">Pregunta ${q.ordinal} de ${total}</span>
+        <div class="qf-progress" role="progressbar" aria-label="Avance del test" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${pos - 1}" aria-valuetext="Pregunta ${pos} de ${total}">
+          <span class="qf-chapter">Pregunta ${pos} de ${total}</span>
           <div class="qf-track"><span class="qf-fill" style="width:${pct}%"></span></div>
         </div>
       </div>
       ${c.errorSummary(errors)}
       ${raw(`<${Tag} class="q-body">`)}
+      ${isV4 && q.config && q.config.intro ? html`<p class="qf-intro">${q.config.intro}</p>` : ''}
       <div class="qf-card">
         ${isGroup ? html`<legend class="q-title">${q.text}</legend>` : html`<h1 class="q-title" id="q-title">${q.text}</h1>`}
       </div>
       ${o.note ? html`<p class="qf-note" role="note">${o.note.text}</p>` : ''}
-      ${q.help ? html`<details class="qf-why"><summary>¿Por qué preguntamos?</summary><p class="q-help" id="q-help">${q.help}</p></details>` : ''}
+      ${isV4 && q.help ? html`<p class="q-sub">${q.help}</p>` : ''}
+      ${q.help && !isV4 ? html`<details class="qf-why"><summary>¿Por qué preguntamos?</summary><p class="q-help" id="q-help">${q.help}</p></details>` : ''}
       ${input}
       ${raw(`</${Tag}>`)}
       <div class="qf-actions">
-        <button class="btn btn-primary btn-block" type="submit" name="action" value="next">${q.ordinal === total ? 'Revisar respuestas' : 'Siguiente'}</button>
+        <button class="btn btn-primary btn-block" type="submit" name="action" value="next">${isLast ? (isV4 ? 'Revisar mis respuestas' : 'Revisar respuestas') : 'Siguiente'}</button>
       </div>
     </form>`;
 }
@@ -125,7 +135,7 @@ function questionPage(ctx, o) {
 function reviewPage(ctx, { items, canFinish, errors, completed }) {
   return html`<div class="q-head">
       ${c.ticks(items.map((i) => (i.answered ? 'done' : '')))}
-      <div class="progress-meta"><span>Revisión</span><span>${items.filter((i) => i.answered).length} de 25 respondidas</span></div>
+      <div class="progress-meta"><span>Revisión</span><span>${items.filter((i) => i.answered && !i.skipped).length} de ${items.filter((i) => !i.skipped).length} respondidas</span></div>
     </div>
     <h1>Revisa tus respuestas</h1>
     <p class="muted">Puedes cambiar cualquier respuesta antes de ver tu resultado. Si cambias una, las preguntas que dependen de ella se te pedirán de nuevo.</p>
@@ -141,7 +151,7 @@ function reviewPage(ctx, { items, canFinish, errors, completed }) {
     <form method="post" action="/test/finalizar">
       ${c.csrfField(ctx)}
       <div class="actions">
-        <button class="btn btn-primary" type="submit" ${canFinish ? '' : raw('aria-disabled="true"')}>${completed ? 'Actualizar mi resultado' : 'Ver mi resultado'}</button>
+        <button class="btn btn-primary" type="submit" ${canFinish ? '' : raw('aria-disabled="true"')}>${completed ? 'Actualizar mi resultado' : items.length === 24 ? 'Ver mi resultado gratuito' : 'Ver mi resultado'}</button>
       </div>
     </form>`;
 }

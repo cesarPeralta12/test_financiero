@@ -485,4 +485,7 @@ module.exports = {
   answerText,
   fmtMoney,
   fmtNum,
+  // Reutilizados por el catálogo V4.
+  moneyValueFor: moneyValue,
+  clean,
 };

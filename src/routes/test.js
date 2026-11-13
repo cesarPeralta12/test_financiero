@@ -104,7 +104,8 @@ function toValue(variant, body, session) {
 
 function formFromAnswer(q, a) {
   if (!a) return {};
-  if (q.catalog_version === 'FREE_25_V3_ES') return engine.CATALOGS.FREE_25_V3_ES.toForm(engine.CATALOGS.FREE_25_V3_ES.VARIANT_BY_ID[q.variant_id], a);
+  const MC = engine.CATALOGS[q.catalog_version];
+  if (MC && MC.modern) return MC.toForm(MC.VARIANT_BY_ID[q.variant_id], a);
   if (a.status !== 'answered') {
     if (q.type === 'single' || q.type === 'multi') return { value: q.type === 'multi' ? [a.status === 'unknown' ? 'DK' : 'PNA'] : a.status === 'unknown' ? 'DK' : 'PNA' };
     return { choice: a.status === 'unknown' ? 'DK' : 'PNA' };
@@ -119,7 +120,7 @@ function renderQuestion(req, res, session, question, { form, errors = {}, status
   return res.status(status).page({
     title: `Test gratuito: pregunta ${question.ordinal}`,
     focus: true,
-    body: ft.questionPage(res.locals.ctx, { q: question, session, form: form ?? formFromAnswer(question, answer), errors, note, confirmNeeded }),
+    body: ft.questionPage(res.locals.ctx, { q: question, session, progress: engine.progress(engine.activeAnswers(session.id), session), form: form ?? formFromAnswer(question, answer), errors, note, confirmNeeded }),
   });
 }
 
@@ -129,7 +130,7 @@ function reviewItems(session) {
   const ctx = engine.buildCtx(answers, session);
   const applicable = new Set(engine.applicableOrder(answers, session));
   return C.SLOTS.map((s) => {
-    if (!applicable.has(s.slot_id)) return { ordinal: s.ordinal, text: C.renderVariant(s.variants[0], ctx).text, answered: true, skipped: true, display: SKIP_REASON[s.slot_id] || 'No aplica según tus respuestas anteriores' };
+    if (!applicable.has(s.slot_id)) return { ordinal: s.ordinal, text: C.renderVariant(s.variants[0], ctx).text, answered: true, skipped: true, display: (C.SKIP_REASON || SKIP_REASON)[s.slot_id] || 'No aplica según tus respuestas anteriores' };
     let text = `Pregunta ${s.ordinal}`;
     try {
       text = engine.publicQuestion(s.slot_id, ctx, session).text;
@@ -301,10 +302,11 @@ router.get('/resultado', (req, res) => {
   const offer = content('oferta_evaluacion');
   const owned = req.user ? entitlements.active(req.user.id) : {};
   const products = db.all("SELECT * FROM products WHERE active = 1 AND code IN ('evaluacion', 'paquete') ORDER BY sort");
-  if (s.version_id === 'FREE_25_V3_ES') {
+  if (s.version_id === 'FREE_25_V3_ES' || s.version_id === 'FREE_24_V4_ES') {
+    const view = s.version_id === 'FREE_24_V4_ES' ? require('../views/freeTest4') : ft3;
     return res.page({
       title: 'Tu diagnóstico',
-      body: html`${ft3.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products, owned, completedAt: s.completed_at })}
+      body: html`${view.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products, owned, completedAt: s.completed_at })}
         <div class="actions actions--center section">
           ${open
             ? html`<a class="btn btn-quiet" href="/test">Continuar el test que empezaste</a>`

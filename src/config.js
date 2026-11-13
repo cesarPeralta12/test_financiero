@@ -101,7 +101,7 @@ const config = {
   // muestra solo la lectura V1; el cálculo V2 se guarda igual para auditoría.
   freeResultV2: bool(env.FREE_RESULT_V2, true),
   // Catálogo de las sesiones nuevas del test gratuito. Las sesiones existentes siguen con el suyo.
-  freeCatalogVersion: ['FREE_25_V2_ES', 'FREE_25_V3_ES'].includes(env.FREE_CATALOG_VERSION) ? env.FREE_CATALOG_VERSION : 'FREE_25_V3_ES',
+  freeCatalogVersion: ['FREE_25_V2_ES', 'FREE_25_V3_ES', 'FREE_24_V4_ES'].includes(env.FREE_CATALOG_VERSION) ? env.FREE_CATALOG_VERSION : 'FREE_24_V4_ES',
 
   mail: {
     from: env.MAIL_FROM || 'Día Uno <no-responder@diauno.local>',
