@@ -364,7 +364,34 @@ function screen(pkg, answers, diagnosis) {
   };
   // 02 · Hallazgo principal: siempre el del servidor, compatible con las cifras (flujo → seguridad → crecimiento).
   const head = template(pkg, answers).conclusion;
-  return { headline: { title: head.title, text: head.interpretation, evidence_refs: head.evidence_refs }, strength, brake, improvement, figures };
+  return { headline: { title: head.title, text: head.interpretation, evidence_refs: head.evidence_refs }, strength, brake, improvement, figures, trace: trace(pkg, answers, diagnosis, { bal, reserve, improvement }) };
+}
+
+// ───────── Contrato de respuesta: confianza, fuente y datos faltantes (especificación V2, §10.2) ─────────
+// Cada bloque dice con qué seguridad se afirma (alta: montos exactos; media: aproximados,
+// rangos o hipótesis por validar; baja: falta un dato), de qué campos sale y qué faltó.
+const FIELD = { Q06: 'income_monthly', Q07: 'income_variability', Q08: 'monthly_essentials', Q09: 'monthly_other', Q10: 'debt_monthly_due', Q11: 'debt_types', Q12: 'payment_status', Q13: 'emergency_funds', Q16: 'available_hours', Q17: 'skills', Q18: 'experience', Q19: 'skill_use', Q20: 'audience', Q21: 'bottleneck', Q22: 'constraints' };
+function trace(pkg, answers, diagnosis, { bal, reserve, improvement }) {
+  const ctx = { get: (s) => answers[s] || null };
+  const applies = (s) => catalog.applicable(s, ctx);
+  const missingOf = (slots) => slots.filter((s) => applies(s) && !(answers[s] && answers[s].status === 'answered')).map((s) => FIELD[s] || s);
+  const approx = (slots) => slots.some((s) => {
+    const v = val(answers, s);
+    const m = v && (v.amount !== undefined ? v : v.monthly_due || null);
+    return m && (m.amount === null || m.precision !== 'exact');
+  });
+  const conf = (slots, known) => (!known || missingOf(slots).length ? 'baja' : approx(slots) ? 'media' : 'alta');
+  const flow = ['Q06', 'Q08', 'Q09', 'Q10'];
+  const fields = (slots) => slots.filter(applies).map((s) => FIELD[s] || s);
+  const rows = [
+    { block: 'hallazgo', confidence: conf(flow, bal !== null || Boolean(pkg._metrics.balance_range)), sources: fields(flow), missing: missingOf(flow) },
+    { block: 'saldo_mensual', confidence: conf(flow, bal !== null), sources: fields(flow), missing: missingOf(flow) },
+    { block: 'meses_de_reserva', confidence: conf(['Q13', 'Q08', 'Q10'], reserve !== null), sources: fields(['Q13', 'Q08', 'Q10']), missing: missingOf(['Q13', 'Q08', 'Q10']) },
+    { block: 'fortaleza_y_freno', confidence: 'alta', sources: fields(['Q07', 'Q09', 'Q10', 'Q11', 'Q12', 'Q13', 'Q21']), missing: missingOf(['Q07', 'Q12', 'Q21']) },
+    { block: 'oportunidad', confidence: improvement && improvement.validate ? 'media' : 'alta', sources: fields(improvement && improvement.validate ? ['Q16', 'Q17', 'Q18', 'Q19', 'Q20', 'Q22'] : ['Q06', 'Q07', 'Q08', 'Q09']), missing: improvement && improvement.validate ? missingOf(['Q16', 'Q17', 'Q20']) : [] },
+    { block: 'primer_paso', confidence: 'alta', sources: [...new Set((diagnosis.first_action.evidence_refs || []).map((r) => String(r).slice(0, 3)).filter(applies).map((s) => FIELD[s] || s))], missing: [] },
+  ];
+  return rows;
 }
 
 // ───────── Generación y persistencia ─────────

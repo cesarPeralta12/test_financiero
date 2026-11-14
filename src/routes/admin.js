@@ -382,11 +382,12 @@ router.get('/ia', (req, res) => {
     </tbody></table>
     <h2 class="section">Diagnósticos gratuitos recientes</h2>
     <p class="small muted">Quién redactó cada diagnóstico (IA o respaldo) y, si cayó al respaldo, el motivo técnico. Sin respuestas ni textos de la persona.</p>
-    <table class="data stack-sm"><thead><tr><th>Fecha</th><th>Versión</th><th>Redactado por</th><th>Motivo del respaldo</th><th class="r">Segundos</th></tr></thead><tbody>
+    <table class="data stack-sm"><thead><tr><th>Fecha</th><th>Versión</th><th>Redactado por</th><th>Motivo del respaldo</th><th>Confianza del hallazgo</th><th class="r">Segundos</th></tr></thead><tbody>
       ${db.all('SELECT created_at, rules_version, narrative_source, result_json FROM ft_results ORDER BY id DESC LIMIT 20').map((r) => {
         const t = (db.parse(r.result_json, {}) || {}).traceability || {};
         const u = t.ai_usage || {};
-        return html`<tr><td data-label="Fecha">${String(r.created_at).slice(0, 16).replace('T', ' ')}</td><td data-label="Versión">${r.rules_version}</td><td data-label="Redactado por">${r.narrative_source === 'ai' ? 'IA' : 'Respaldo'}</td><td data-label="Motivo">${t.ai_fallback_reason || (r.narrative_source === 'ai' ? '—' : 'IA desactivada o pendiente')}</td><td data-label="Segundos" class="r">${u.latency_ms ? Math.round(u.latency_ms / 1000) : '—'}</td></tr>`;
+        const tr = (((db.parse(r.result_json, {}) || {}).screen || {}).trace || []).find((x) => x.block === 'hallazgo');
+        return html`<tr><td data-label="Fecha">${String(r.created_at).slice(0, 16).replace('T', ' ')}</td><td data-label="Versión">${r.rules_version}</td><td data-label="Redactado por">${r.narrative_source === 'ai' ? 'IA' : 'Respaldo'}</td><td data-label="Motivo">${t.ai_fallback_reason || (r.narrative_source === 'ai' ? '—' : 'IA desactivada o pendiente')}</td><td data-label="Confianza">${tr ? `${tr.confidence}${tr.missing.length ? ` (faltó: ${tr.missing.join(', ')})` : ''}` : '—'}</td><td data-label="Segundos" class="r">${u.latency_ms ? Math.round(u.latency_ms / 1000) : '—'}</td></tr>`;
       })}
     </tbody></table>
     <h2 class="section">Por día</h2>

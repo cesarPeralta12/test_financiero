@@ -181,7 +181,20 @@ function howCalculated(r, answers) {
       <li><strong>Meses de reserva:</strong> dinero guardado para emergencias ÷ (gastos básicos + cuotas).</li>
       <li>Si un dato falta o marcaste «No lo sé», no lo reemplazamos por cero y no calculamos lo que depende de él.</li>
     </ul>
+    ${missingList(r, answers)}
   </details>`;
+}
+
+/** Datos que faltaron para las cifras, nombrados por su pregunta (sin números de pregunta). */
+function missingList(r, answers) {
+  const rows = (r.screen && r.screen.trace) || [];
+  const slots = ['Q06', 'Q08', 'Q09', 'Q10', 'Q13'].filter((s) => answers[s] && answers[s].status !== 'answered');
+  if (!rows.length || !slots.length) return '';
+  const q = (s) => {
+    const v = cat.VARIANT_BY_ID[answers[s].variant_id];
+    return v ? v.text : s;
+  };
+  return html`<p class="small"><strong>Datos que faltaron:</strong></p><ul class="small muted">${slots.map((s) => html`<li>${q(s)}</li>`)}</ul>`;
 }
 
 // 08 · Cinco beneficios antes que funcionalidades.
@@ -222,15 +235,15 @@ function offerBlock(r, { products = [], owned = {}, user = null }) {
       ? html`<div class="actions"><a class="btn btn-primary btn-lg" href="/evaluacion">Continuar con mi Plan Maestro</a></div>`
       : html`<div class="offer-cta">
           ${price ? html`<p class="dx-price"><strong>${price}</strong> <span class="muted">· Pago único · Evaluación profunda + plan personalizado</span></p>` : ''}
-          <a class="btn btn-primary btn-lg" href="/comprar/paquete">Quiero mi Plan Maestro</a>
-          <a class="btn btn-quiet" href="#incluye">Ver qué incluye mi Plan Maestro</a>
+          <a class="btn btn-primary btn-lg" href="/resultado/plan-maestro">Quiero mi Plan Maestro</a>
+          <a class="btn btn-quiet" href="/resultado?ver=incluye#incluye">Ver qué incluye mi Plan Maestro</a>
           <p class="small muted">Revisarás y confirmarás tus datos antes de construir el plan. Los resultados son estimaciones; no se garantizan ingresos.${!user ? ' Te pediremos crear una cuenta para guardar tu plan.' : ''}</p>
           ${sandbox ? html`<p class="small note note--warn">Versión de prueba: el pago es simulado y no se cobra dinero real.</p>` : ''}
         </div>`}
   </section>`;
 }
 
-function resultPage(ctx, { result: r, answers, user, products, owned, completedAt }) {
+function resultPage(ctx, { result: r, answers, user, products, owned, completedAt, openDetail = false }) {
   const sc = r.screen || {};
   const f = r.first_action;
   const imp = sc.improvement || (r.opportunity ? { title: r.opportunity.title, text: r.opportunity.hypothesis, test: r.opportunity.test, validate: true, evidence_refs: r.opportunity.evidence_refs } : null);
@@ -274,7 +287,7 @@ function resultPage(ctx, { result: r, answers, user, products, owned, completedA
       ${howCalculated(r, answers)}
       ${r.minor
         ? ''
-        : html`<details class="evidence" id="incluye"><summary>Ver todo lo que incluye el Plan Maestro</summary>
+        : html`<details class="evidence" id="incluye" ${openDetail ? raw('open') : ''}><summary>Ver todo lo que incluye el Plan Maestro</summary>
         <div class="table-wrap"><table class="offer-table">
           <thead><tr><th scope="col">Resultado gratuito</th><th scope="col">Plan Maestro</th></tr></thead>
           <tbody>${FREE_VS_FULL.map(([a, b]) => html`<tr><td>${a}</td><td>${b}</td></tr>`)}</tbody>

@@ -53,6 +53,9 @@ test('pago aprobado: la confirmación firmada del servidor activa el acceso una 
   assert.equal(res.body.estado, 'procesado');
   assert.equal(h.db.one('SELECT status FROM orders WHERE id = ?', order.id).status, 'pagada');
   assert.equal(entitlements.has(user.id, 'evaluacion_profunda'), true);
+  // La pasarela de pruebas se cuenta como compra de prueba, nunca como compra real.
+  assert.equal(h.db.value("SELECT COUNT(*) FROM analytics_events WHERE name = 'compra_prueba' AND user_id = ?", user.id), 1);
+  assert.equal(h.db.value("SELECT COUNT(*) FROM analytics_events WHERE name = 'compra_real' AND user_id = ?", user.id), 0);
   // Evento duplicado: no crea otra compra ni duplica permisos.
   const dup = await h.deliver(d.payload);
   assert.equal(dup.status, 200);

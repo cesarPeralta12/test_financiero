@@ -134,6 +134,9 @@ function processEvent(gatewayName, ev) {
     if (order.user_id) {
       entitlements.grantFromOrder({ ...order, status: 'pagada' });
       track('pago_confirmado', { userId: order.user_id, dedupe: `pago_confirmado:${order.id}` });
+      // La pasarela de pruebas no mueve dinero: se cuenta aparte de las compras reales.
+      const kind = order.gateway === 'sandbox' ? 'compra_prueba' : 'compra_real';
+      track(kind, { userId: order.user_id, dedupe: `${kind}:${order.id}` });
       notify(order.user_id, { kind: 'pago', title: `Pago confirmado: ${order.product_name}`, body: 'Ya tienes acceso.', link: '/inicio', dedupe: `pago:${order.id}` });
     }
     outcome = 'procesado';

@@ -299,6 +299,12 @@ router.get('/resultado', (req, res) => {
           : html`<div class="note note--risk" role="alert">No pudimos generar tu diagnóstico. Tus respuestas siguen guardadas: no necesitas repetir el test.</div><form method="post" action="/test/reintentar">${c.csrfField(res.locals.ctx)}<button class="btn btn-primary" type="submit">Reintentar</button></form>`}`,
     });
   }
+  // Analítica comercial: solo eventos sin datos, y solo con el consentimiento registrado.
+  const o2 = owner(req);
+  const canTrack = consent.has(o2);
+  const ids = { anonId: req.session.anon_id, userId: req.user && req.user.id };
+  if (canTrack) track('resultado_visto', { ...ids, dedupe: `resultado_visto:${s.id}:${s.completed_revision || s.revision}` });
+  if (canTrack && req.query.ver === 'incluye') track('detalle_plan', { ...ids, dedupe: `detalle_plan:${s.id}:${s.completed_revision || s.revision}` });
   const offer = content('oferta_evaluacion');
   const owned = req.user ? entitlements.active(req.user.id) : {};
   const products = db.all("SELECT * FROM products WHERE active = 1 AND code IN ('evaluacion', 'paquete') ORDER BY sort");
@@ -306,7 +312,7 @@ router.get('/resultado', (req, res) => {
     const view = s.version_id === 'FREE_24_V4_ES' ? require('../views/freeTest4') : ft3;
     return res.page({
       title: 'Tu diagnóstico',
-      body: html`${view.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products, owned, completedAt: s.completed_at })}
+      body: html`${view.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products, owned, completedAt: s.completed_at, openDetail: req.query.ver === 'incluye' })}
         <div class="actions actions--center section">
           ${open
             ? html`<a class="btn btn-quiet" href="/test">Continuar el test que empezaste</a>`
@@ -323,6 +329,14 @@ router.get('/resultado', (req, res) => {
           : html`<form class="inline-form" method="post" action="/test/repetir">${c.csrfField(res.locals.ctx)}<button class="btn btn-quiet" type="submit">Repetir el test</button></form>`}
       </div>`,
   });
+});
+
+// Botón «Quiero mi Plan Maestro» del resultado: cuenta el clic (con consentimiento) y lleva a la compra.
+router.get('/resultado/plan-maestro', (req, res) => {
+  const o = owner(req);
+  const s = engine.findLatestResultSession(o);
+  if (s && consent.has(o)) track('clic_checkout', { anonId: req.session.anon_id, userId: req.user && req.user.id, dedupe: `clic_checkout:${s.id}:${s.completed_revision || s.revision}` });
+  res.redirect(303, '/comprar/paquete');
 });
 
 module.exports = router;

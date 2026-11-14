@@ -243,6 +243,21 @@ test('V4: flujo por formularios y resultado en nueve módulos con una sola ofert
     assert.match(fin.text, /USD 69/);
     assert.doesNotMatch(fin.text, /XP|reward-card|tasa de inter/i);
     assert.match(fin.text, /Pregunta a dos amigos o familiares/);
+    // Fase 4: analítica comercial sin datos financieros y solo con consentimiento.
+    const db = require('../src/db');
+    const count = (n) => db.value('SELECT COUNT(*) FROM analytics_events WHERE name = ?', n);
+    const before = { r: count('resultado_visto'), d: count('detalle_plan'), c: count('clic_checkout') };
+    await c.get('/resultado');
+    await c.get('/resultado');
+    assert.equal(count('resultado_visto'), before.r, 'la vista ya se contó al finalizar y no se duplica');
+    const det = await c.get('/resultado?ver=incluye');
+    assert.match(det.text, /id="incluye" open/);
+    assert.equal(count('detalle_plan'), before.d + 1);
+    const go = await c.get('/resultado/plan-maestro', { follow: false });
+    assert.equal(go.status, 303);
+    assert.equal(count('clic_checkout'), before.c + 1);
+    const cols = db.all('PRAGMA table_info(analytics_events)').map((x) => x.name);
+    assert.ok(!cols.some((x) => /amount|monto|answer|respuesta/.test(x)), 'el evento no guarda montos ni respuestas');
   } finally {
     config.freeCatalogVersion = prev;
   }

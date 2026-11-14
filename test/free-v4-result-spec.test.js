@@ -105,6 +105,19 @@ test('Spec 6: «No lo sé» en la reserva → nunca 0 ni meses calculados', () =
   assert.match(html, /No hay datos suficientes/);
 });
 
+test('Contrato: cada bloque trae confianza, fuente y datos faltantes', () => {
+  const ok = finish(CASE);
+  const h0 = ok.r.screen.trace.find((x) => x.block === 'hallazgo');
+  assert.equal(h0.confidence, 'media');
+  assert.deepEqual(h0.missing, []);
+  assert.ok(h0.sources.includes('income_monthly'));
+  const dk = finish({ ...CASE, Q13: { special: 'DK' } });
+  const res = dk.r.screen.trace.find((x) => x.block === 'meses_de_reserva');
+  assert.equal(res.confidence, 'baja');
+  assert.deepEqual(res.missing, ['emergency_funds']);
+  assert.match(page(dk), /Datos que faltaron/);
+});
+
 test('Spec 7: con rangos se muestra el intervalo, sin elegir un extremo', () => {
   const x = finish({ ...CASE, Q08: { min: '1800', max: '2200' } });
   assert.equal(x.r.metrics.find((m) => m.id === 'monthly_balance').value, null);
