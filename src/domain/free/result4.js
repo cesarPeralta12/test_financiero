@@ -270,9 +270,11 @@ function template(pkg, answers) {
     };
   }
 
+  const rangeMax = pkg._metrics.balance_range ? new D(pkg._metrics.balance_range.max) : null;
+  const tight = (bal !== null && bal.lte(0)) || (bal === null && rangeMax !== null && rangeMax.lt(0));
   let first;
   if (pay === 'UNABLE' || pay === 'LATE') first = { kind: 'CONTACT', instruction: 'Haz una lista de cada pago atrasado (a quién, cuánto y desde cuándo) y llama esta semana al acreedor más urgente para preguntar qué opciones de pago ofrece.', why_now: 'Los atrasos suelen sumar cargos cada semana.', done_when: 'Tienes la lista y hablaste con al menos un acreedor.', resource_fit: 'Solo requiere tu teléfono; sin gasto.', risk: 'No aceptes un préstamo nuevo para pagar otro sin comparar condiciones.', evidence_refs: ['Q10', 'Q12'] };
-  else if (bal !== null && bal.lte(0)) first = { kind: 'RECORD', instruction: 'Durante siete días anota cada gasto y marca cuáles no son esenciales.', why_now: bal.isZero() ? 'Sin margen, encontrar un gasto que ajustar es lo que te permitirá ahorrar o pagar algo extra.' : 'Necesitas ver de dónde sale la diferencia antes de decidir qué cambiar.', done_when: bal.isZero() ? 'Tienes siete días anotados y elegiste un gasto para ajustar.' : 'Tienes siete días anotados y sabes qué gastos explican la diferencia.', resource_fit: 'Basta una libreta o el teléfono; sin gasto.', risk: 'No recortes salud ni alimentación sin revisar antes otras opciones.', evidence_refs: ['Q06', 'Q08', 'Q09'] };
+  else if (tight) first = { kind: 'RECORD', instruction: 'Durante siete días anota cada gasto y marca cuáles no son esenciales.', why_now: bal !== null && bal.isZero() ? 'Sin margen, encontrar un gasto que ajustar es lo que te permitirá ahorrar o pagar algo extra.' : 'Necesitas ver de dónde sale la diferencia antes de decidir qué cambiar.', done_when: bal !== null && bal.isZero() ? 'Tienes siete días anotados y elegiste un gasto para ajustar.' : 'Tienes siete días anotados y sabes qué gastos explican la diferencia.', resource_fit: 'Basta una libreta o el teléfono; sin gasto.', risk: 'No recortes salud ni alimentación sin revisar antes otras opciones.', evidence_refs: ['Q06', 'Q08', 'Q09'] };
   else if (opportunity) first = { kind: 'CONTACT', instruction: opportunity.test, why_now: 'Saber si hay una necesidad real evita invertir tiempo en algo que nadie pide.', done_when: 'Hablaste con dos personas y anotaste qué necesitan.', resource_fit: 'Cabe en tu tiempo disponible; sin gasto.', risk: 'No prometas plazos ni precios antes de comprobar que puedes cumplir.', evidence_refs: ['Q17', 'Q20'] };
   else first = { kind: 'RECORD', instruction: 'Durante siete días anota los gastos que no son esenciales y revisa si alguno puede reducirse sin afectar tus necesidades.', why_now: 'Es la forma más rápida de proteger tu margen mientras decides cómo avanzar.', done_when: 'Tienes siete días anotados y elegiste un gasto para ajustar.', resource_fit: 'Basta una libreta o el teléfono; sin gasto.', risk: 'Ninguno: solo ordena información que ya tienes.', evidence_refs: ['Q08', 'Q09'] };
 
@@ -381,7 +383,23 @@ function stamp(extra = {}) {
   });
 }
 
-function envelope(session, pkg, diagnosis, source, answers) {
+/**
+ * Si el mes no alcanza (saldo ≤ 0, rango negativo) o hay pagos atrasados, el primer paso
+ * es siempre el del servidor: revisar gastos o hablar con el acreedor (especificación V2, §4).
+ * Así no queda una oportunidad de «recuperar margen» junto a un paso de ventas.
+ */
+function fixFirstStep(pkg, answers, diagnosis) {
+  const base = template(pkg, answers).first_action;
+  const pay = codes(answers, 'Q12')[0];
+  const M = pkg._metrics.metrics.find((m) => m.id === 'monthly_balance');
+  const range = pkg._metrics.balance_range;
+  const tight = (M && M.value !== null && new D(M.value).lte(0)) || (M && M.value === null && range && new D(range.max).lt(0));
+  if (pay === 'LATE' || pay === 'UNABLE' || tight) return { ...diagnosis, first_action: base };
+  return diagnosis;
+}
+
+function envelope(session, pkg, diagnosis0, source, answers) {
+  const diagnosis = source === 'ai' ? fixFirstStep(pkg, answers, diagnosis0) : diagnosis0;
   const goal = val(answers, 'Q05');
   return {
     ...diagnosis,
@@ -493,4 +511,4 @@ async function handle({ resultId }, job) {
 
 queue.register('free_v4_diagnosis', handle);
 
-module.exports = { RULES_VERSION, PROMPT_VERSION, VERSIONS, SCHEMA, API_SCHEMA, OFFER, setClient, aiEnabled, buildPackage, validateOutput, template, generate, handle, buildPrompt, contradictions, blocks, isMinor };
+module.exports = { fixFirstStep, RULES_VERSION, PROMPT_VERSION, VERSIONS, SCHEMA, API_SCHEMA, OFFER, setClient, aiEnabled, buildPackage, validateOutput, template, generate, handle, buildPrompt, contradictions, blocks, isMinor };

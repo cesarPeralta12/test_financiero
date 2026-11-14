@@ -162,3 +162,17 @@ test('Spec 11 y 12: cálculo visible, módulos en orden y oferta USD 69 con pago
   const minor = finish({ ...CASE, Q02: { codes: ['LT18'] } });
   assert.doesNotMatch(page(minor), /Quiero mi Plan Maestro|USD 69/);
 });
+
+test('Primer paso: con saldo 0 la IA no puede proponer ventas; se usa el del servidor', () => {
+  const x = finish(CASE);
+  const pkg = result4.buildPackage(engine.loadSession(x.id), x.answers);
+  const ai = JSON.parse(JSON.stringify(result4.template(pkg, x.answers)));
+  ai.first_action = { ...ai.first_action, kind: 'CONTACT', instruction: 'Redacta una propuesta de ventas en tres líneas.' };
+  const fixed = result4.fixFirstStep(pkg, x.answers, ai);
+  assert.match(fixed.first_action.instruction, /anota cada gasto/);
+  const pos = finish({ ...CASE, Q06: { amount: '4000' } });
+  const pkg2 = result4.buildPackage(engine.loadSession(pos.id), pos.answers);
+  const ai2 = JSON.parse(JSON.stringify(result4.template(pkg2, pos.answers)));
+  ai2.first_action = { ...ai2.first_action, instruction: 'Redacta una propuesta de ventas en tres líneas.' };
+  assert.match(result4.fixFirstStep(pkg2, pos.answers, ai2).first_action.instruction, /propuesta de ventas/);
+});
