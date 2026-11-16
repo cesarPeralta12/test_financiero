@@ -1,0 +1,986 @@
+{
+  "version": "MSG_V1_ES",
+  "idioma": "es",
+  "nota": "Biblioteca de respuestas del Coach. Todo el texto sale de aquí y las cifras las calcula el backend: ninguna variante la redacta la IA. Cada intención declara sus variables y sus botones. El backend elige la variante por severidad, tono y condiciones (campo cuando) y rota las ya usadas recientemente para no repetirse.",
+  "gramatica": {
+    "variable": "{nombre}",
+    "formatos": {
+      "coma": "Antepone «, » si el valor no está vacío: Hola{nombre:coma} da «Hola, Ana» o «Hola».",
+      "moneda": "Importe con la moneda de la cuenta, p. ej. 1.250,50 o USD 1,250.50 según la configuración regional.",
+      "pct": "Porcentaje entero (un decimal si es menor que 10), p. ej. 31 % o 7,5 %.",
+      "pct_signed": "Con signo: +18 % o -12 %.",
+      "abs": "Valor absoluto (para decir «bajó 18 %» sin el signo). Se encadena: {delta_pct:abs:pct}.",
+      "entero": "Número entero con separador de miles.",
+      "fecha": "Fecha corta en español, p. ej. 14 de nov.",
+      "mes": "Nombre del mes en español.",
+      "plural": "{n:plural=movimiento|movimientos}: elige singular si n = 1."
+    },
+    "condiciones": "Campo cuando: lista de condiciones unidas por Y. Cada una es { var, op, valor } con op en =, !=, <, <=, >, >=, en, no_en, vacio, no_vacio. No hay código evaluable.",
+    "rotacion": "Se evita repetir una variante usada en las últimas 5 respuestas de la misma intención por cuenta. Si solo queda una, se usa."
+  },
+  "tonos": {
+    "cercano": "Tutea, cálido, frases cortas.",
+    "neutral": "Informativo, sin emociones.",
+    "motivador": "Reconoce el avance. Nunca promete resultados.",
+    "directo": "Una frase, solo la cifra y la acción."
+  },
+  "severidades": {
+    "info": "Dato neutro.",
+    "logro": "Algo positivo comprobable.",
+    "atencion": "Merece revisarse, sin urgencia.",
+    "alerta": "Requiere decisión pronto. Sin culpa ni dramatismo."
+  },
+  "botones": {
+    "registrar_gasto": { "etiqueta": "Registrar gasto", "accion": "abrir_registro", "params": { "tipo": "gasto" } },
+    "registrar_ingreso": { "etiqueta": "Registrar ingreso", "accion": "abrir_registro", "params": { "tipo": "ingreso" } },
+    "repetir_ultimo": { "etiqueta": "Repetir el último", "accion": "repetir_ultimo" },
+    "ver_detalle": { "etiqueta": "Ver detalle", "accion": "abrir_detalle" },
+    "ver_ranking": { "etiqueta": "Ver ranking", "accion": "abrir_ranking" },
+    "ver_movimientos": { "etiqueta": "Ver movimientos", "accion": "ir", "destino": "/calculadora/movimientos" },
+    "ver_deudas": { "etiqueta": "Ver deudas", "accion": "ir", "destino": "/calculadora/deudas" },
+    "ver_metas": { "etiqueta": "Ver metas", "accion": "ir", "destino": "/calculadora/metas" },
+    "ver_presupuesto": { "etiqueta": "Ver presupuesto", "accion": "ir", "destino": "/calculadora/presupuesto" },
+    "ver_plan": { "etiqueta": "Ver mi plan", "accion": "ir", "destino": "/plan" },
+    "ver_tareas": { "etiqueta": "Ver mis tareas", "accion": "ir", "destino": "/tablero" },
+    "ver_grafico": { "etiqueta": "Ver gráfico", "accion": "abrir_grafico" },
+    "ver_insights": { "etiqueta": "Más observaciones", "accion": "abrir_insights" },
+    "mes_anterior": { "etiqueta": "Comparar con el mes anterior", "accion": "consulta", "intencion": "comparar_mes_anterior" },
+    "ver_menu": { "etiqueta": "¿Qué puedes hacer?", "accion": "consulta", "intencion": "ayuda_menu" },
+    "crear_tarea": { "etiqueta": "Crear tarea", "accion": "proponer_tarea" },
+    "completar_tarea": { "etiqueta": "Marcar como hecha", "accion": "proponer_completar_tarea" },
+    "simular_recorte": { "etiqueta": "Simular recorte", "accion": "simular", "params": { "tipo": "recorte" } },
+    "simular_pago_extra": { "etiqueta": "Simular pago extra", "accion": "simular", "params": { "tipo": "pago_extra" } },
+    "cambiar_estrategia": { "etiqueta": "Cambiar estrategia", "accion": "cambiar_estrategia" },
+    "preguntar_ia": { "etiqueta": "Preguntarle a la IA", "accion": "pedir_ia" },
+    "confirmar": { "etiqueta": "Confirmar", "accion": "confirmar" },
+    "cancelar": { "etiqueta": "Cancelar", "accion": "cancelar" },
+    "deshacer": { "etiqueta": "Deshacer", "accion": "deshacer" },
+    "editar": { "etiqueta": "Editar", "accion": "editar" },
+    "corregir_categoria": { "etiqueta": "Cambiar categoría", "accion": "corregir", "campo": "categoria" },
+    "corregir_importe": { "etiqueta": "Cambiar importe", "accion": "corregir", "campo": "importe" },
+    "corregir_fecha": { "etiqueta": "Cambiar fecha", "accion": "corregir", "campo": "fecha" },
+    "aceptar_recurrente": { "etiqueta": "Sí, cada mes", "accion": "crear_recurrente" },
+    "no_recurrente": { "etiqueta": "No, solo esta vez", "accion": "descartar_recurrente" },
+    "entendido": { "etiqueta": "Entendido", "accion": "cerrar" },
+    "silenciar": { "etiqueta": "Silenciar sonidos", "accion": "preferencia", "params": { "sonido": false } },
+    "activar_sonido": { "etiqueta": "Activar sonidos", "accion": "preferencia", "params": { "sonido": true } },
+    "guardar_plantilla": { "etiqueta": "Guardar como atajo", "accion": "crear_plantilla" },
+    "ver_acompanamiento": { "etiqueta": "Ver el acompañamiento", "accion": "ir", "destino": "/comprar/acompanamiento" },
+    "reintentar": { "etiqueta": "Reintentar", "accion": "reintentar" }
+  },
+  "grupos": {
+    "conversacion": "Saludos, ayuda, aclaraciones y errores.",
+    "registro": "Registrar, editar, deshacer y recurrentes.",
+    "resumen": "Estado del mes, saldo, totales y proyección.",
+    "ranking": "Mayor, menor, top, por categoría y hábitos.",
+    "comparacion": "Cambios frente a otros meses.",
+    "accion": "Recortar, deudas, metas y presupuesto.",
+    "plan": "Tareas y plan maestro.",
+    "educativo": "Explicaciones de conceptos con las cifras de la persona.",
+    "calidad_datos": "Pocos datos, sin ingresos, sin registro.",
+    "logro": "Logros, rachas y subidas de nivel.",
+    "configuracion": "Sonido, moneda y privacidad.",
+    "ia": "Cuándo y cómo se ofrece la IA opcional."
+  },
+  "intenciones": [
+    {
+      "id": "saludo", "grupo": "conversacion", "origen": "plantilla", "descripcion": "Primer mensaje del día o al abrir el Coach.",
+      "vars": { "nombre": "texto?" },
+      "botones": ["registrar_gasto", "registrar_ingreso", "ver_menu"],
+      "variantes": [
+        { "id": "saludo.1", "tono": "cercano", "texto": "Hola{nombre:coma}. ¿Anotamos algo de hoy o revisamos cómo vas?" },
+        { "id": "saludo.2", "tono": "neutral", "texto": "Buenas. Puedo registrar un movimiento o mostrarte el resumen del mes." },
+        { "id": "saludo.3", "tono": "motivador", "texto": "¡Hola{nombre:coma}! Cada registro te acerca a ver tu dinero con claridad. ¿Empezamos?" },
+        { "id": "saludo.4", "tono": "directo", "texto": "Hola. ¿Registrar o ver el resumen?" }
+      ]
+    },
+    {
+      "id": "despedida", "grupo": "conversacion", "origen": "plantilla", "descripcion": "Cierre de la conversación.",
+      "vars": { "nombre": "texto?" }, "botones": [],
+      "variantes": [
+        { "id": "despedida.1", "tono": "cercano", "texto": "Hasta luego{nombre:coma}. Aquí estaré cuando quieras anotar o revisar algo." },
+        { "id": "despedida.2", "tono": "neutral", "texto": "Listo. Tus movimientos quedan guardados." },
+        { "id": "despedida.3", "tono": "directo", "texto": "Hasta pronto." }
+      ]
+    },
+    {
+      "id": "gracias", "grupo": "conversacion", "origen": "plantilla", "descripcion": "La persona agradece.",
+      "vars": {}, "botones": ["ver_menu"],
+      "variantes": [
+        { "id": "gracias.1", "tono": "cercano", "texto": "¡Con gusto! Si quieres, seguimos con otra cosa." },
+        { "id": "gracias.2", "tono": "neutral", "texto": "De nada." },
+        { "id": "gracias.3", "tono": "motivador", "texto": "A ti por llevar tus cuentas al día. Eso sí cuenta." }
+      ]
+    },
+    {
+      "id": "ayuda_menu", "grupo": "conversacion", "origen": "plantilla", "descripcion": "Qué puede hacer el Coach.",
+      "vars": {}, "botones": ["registrar_gasto", "registrar_ingreso", "ver_insights", "preguntar_ia"],
+      "variantes": [
+        { "id": "ayuda_menu.1", "tono": "cercano", "texto": "Puedo anotar tus gastos e ingresos, decirte en qué gastas más, qué cambió frente al mes pasado, qué podrías recortar y qué deuda conviene pagar primero. Escribe algo como «250 super» o elige un botón." },
+        { "id": "ayuda_menu.2", "tono": "neutral", "texto": "Opciones: registrar movimientos, resumen del mes, ranking de gastos, comparación con el mes anterior, proyección de cierre, deudas, metas y presupuesto." },
+        { "id": "ayuda_menu.3", "tono": "directo", "texto": "Registrar, resumen, ranking, comparar, recortar, deudas, metas. Elige una." }
+      ]
+    },
+    {
+      "id": "identidad_ia", "grupo": "conversacion", "origen": "plantilla", "descripcion": "¿Eres una IA o una persona?",
+      "vars": {}, "botones": ["ver_menu"],
+      "variantes": [
+        { "id": "identidad_ia.1", "tono": "cercano", "texto": "Soy un asistente automático de Día Uno, no una persona ni un asesor financiero certificado. La mayoría de mis respuestas salen de reglas con tus propios datos; la inteligencia artificial solo entra si tú lo pides." },
+        { "id": "identidad_ia.2", "tono": "neutral", "texto": "Soy un asistente de software. Calculo con tus movimientos y no sustituyo a un profesional." }
+      ]
+    },
+    {
+      "id": "no_entendi", "grupo": "conversacion", "origen": "plantilla", "descripcion": "El parser no supera el umbral de confianza.",
+      "vars": { "sugerencia": "texto?" }, "botones": ["registrar_gasto", "registrar_ingreso", "ver_insights", "preguntar_ia"],
+      "variantes": [
+        { "id": "no_entendi.1", "tono": "cercano", "texto": "No estoy seguro de haberte entendido. ¿Quieres anotar algo, ver el resumen o preguntarle a la IA?" },
+        { "id": "no_entendi.2", "tono": "neutral", "texto": "No reconocí la solicitud. Elige una opción o reformula." },
+        { "id": "no_entendi.3", "tono": "cercano", "cuando": [{ "var": "sugerencia", "op": "no_vacio" }], "texto": "¿Quisiste decir «{sugerencia}»? Si no, elige una opción." }
+      ]
+    },
+    {
+      "id": "aclarar_categoria", "grupo": "conversacion", "origen": "plantilla", "descripcion": "Hay un importe pero la categoría es dudosa.",
+      "vars": { "monto": "moneda" }, "botones": ["corregir_categoria", "cancelar"],
+      "variantes": [
+        { "id": "aclarar_categoria.1", "tono": "cercano", "texto": "Anoto {monto:moneda}, pero no sé en qué categoría va. ¿Cuál es?" },
+        { "id": "aclarar_categoria.2", "tono": "directo", "texto": "{monto:moneda}: ¿qué categoría?" }
+      ]
+    },
+    {
+      "id": "aclarar_tipo", "grupo": "conversacion", "origen": "plantilla", "descripcion": "No queda claro si es ingreso o gasto.",
+      "vars": { "monto": "moneda" }, "botones": ["registrar_gasto", "registrar_ingreso", "cancelar"],
+      "variantes": [
+        { "id": "aclarar_tipo.1", "tono": "cercano", "texto": "{monto:moneda}: ¿es un gasto o un ingreso?" },
+        { "id": "aclarar_tipo.2", "tono": "neutral", "texto": "Indica si los {monto:moneda} son un gasto o un ingreso." }
+      ]
+    },
+    {
+      "id": "aclarar_importe", "grupo": "conversacion", "origen": "plantilla", "descripcion": "Falta el importe o es ambiguo.",
+      "vars": { "categoria": "texto?" }, "botones": ["cancelar"],
+      "variantes": [
+        { "id": "aclarar_importe.1", "tono": "cercano", "texto": "¿Cuánto fue? Escríbelo como 250 o 1.250,50." },
+        { "id": "aclarar_importe.2", "tono": "neutral", "cuando": [{ "var": "categoria", "op": "no_vacio" }], "texto": "Falta el importe de {categoria}. Escribe solo el número." }
+      ]
+    },
+    {
+      "id": "aclarar_fecha", "grupo": "conversacion", "origen": "plantilla", "descripcion": "Fecha ambigua o futura.",
+      "vars": { "fecha": "fecha?" }, "botones": ["corregir_fecha", "cancelar"],
+      "variantes": [
+        { "id": "aclarar_fecha.1", "tono": "cercano", "texto": "No tengo claro el día. ¿Fue hoy, ayer u otra fecha?" },
+        { "id": "aclarar_fecha.2", "tono": "neutral", "cuando": [{ "var": "fecha", "op": "no_vacio" }], "texto": "La fecha {fecha:fecha} es futura. ¿La mantengo o la cambias?" }
+      ]
+    },
+    {
+      "id": "fuera_de_alcance", "grupo": "conversacion", "origen": "plantilla", "descripcion": "Pregunta que no es de finanzas personales con los datos de la cuenta.",
+      "vars": {}, "botones": ["ver_menu", "preguntar_ia"],
+      "variantes": [
+        { "id": "fuera_de_alcance.1", "tono": "cercano", "texto": "Eso se sale de lo que puedo hacer con tus cuentas. Puedo ayudarte con tus movimientos, deudas, metas y presupuesto." },
+        { "id": "fuera_de_alcance.2", "tono": "neutral", "texto": "Fuera de alcance. Temas disponibles: movimientos, deudas, metas y presupuesto." }
+      ]
+    },
+    {
+      "id": "consejo_especifico_no", "grupo": "conversacion", "origen": "plantilla", "descripcion": "Piden recomendar productos de inversión, crédito o asesoría legal o fiscal.",
+      "vars": {}, "botones": ["ver_menu"],
+      "variantes": [
+        { "id": "consejo_especifico_no.1", "tono": "cercano", "texto": "No doy recomendaciones de productos de inversión, crédito ni asesoría legal o fiscal. Sí puedo mostrarte cuánto margen tienes y qué pasaría con tus deudas y metas con distintas decisiones." },
+        { "id": "consejo_especifico_no.2", "tono": "neutral", "texto": "Esa consulta requiere un asesor certificado. Con tus datos puedo simular escenarios y mostrar tu margen." }
+      ]
+    },
+    {
+      "id": "privacidad_info", "grupo": "conversacion", "origen": "plantilla", "descripcion": "Qué datos usa el Coach.",
+      "vars": {}, "botones": ["ver_menu"],
+      "variantes": [
+        { "id": "privacidad_info.1", "tono": "cercano", "texto": "Las respuestas salen de tus movimientos, deudas y metas dentro de tu cuenta. Si usas la IA opcional, solo envío las cifras del tema que preguntas, nunca tu correo, nombre ni notas completas." },
+        { "id": "privacidad_info.2", "tono": "neutral", "texto": "Los cálculos se hacen en el servidor con tus datos. La IA opcional recibe solo un resumen mínimo del tema consultado." }
+      ]
+    },
+    {
+      "id": "error_generico", "grupo": "conversacion", "origen": "plantilla", "descripcion": "Fallo interno al responder.",
+      "vars": {}, "botones": ["reintentar"],
+      "variantes": [
+        { "id": "error_generico.1", "tono": "cercano", "severidad": "atencion", "texto": "Algo falló de mi lado y no pude completar eso. Tus datos guardados están a salvo. Inténtalo de nuevo." },
+        { "id": "error_generico.2", "tono": "neutral", "severidad": "atencion", "texto": "Error interno. No se perdió ningún dato guardado. Reintenta." }
+      ]
+    },
+    {
+      "id": "sin_permiso", "grupo": "conversacion", "origen": "plantilla", "descripcion": "La cuenta no tiene acceso a esta función.",
+      "vars": {}, "botones": ["ver_acompanamiento"],
+      "variantes": [
+        { "id": "sin_permiso.1", "tono": "cercano", "texto": "Esta función es parte del acompañamiento. Puedes ver qué incluye y decidir cuándo activarlo." },
+        { "id": "sin_permiso.2", "tono": "neutral", "texto": "Tu cuenta no tiene este acceso. Más información en el acompañamiento." }
+      ]
+    },
+
+    {
+      "id": "registrar_gasto_ok", "grupo": "registro", "origen": "regla", "descripcion": "Gasto guardado.",
+      "vars": { "monto": "moneda", "categoria": "texto", "fecha": "fecha", "gasto_mes": "moneda", "pct_categoria": "pct?" },
+      "botones": ["deshacer", "editar", "repetir_ultimo"], "grafico": "barras_categorias",
+      "variantes": [
+        { "id": "registrar_gasto_ok.1", "tono": "cercano", "texto": "Anotado: {monto:moneda} en {categoria}. Llevas {gasto_mes:moneda} gastados este mes." },
+        { "id": "registrar_gasto_ok.2", "tono": "neutral", "texto": "Gasto registrado: {monto:moneda}, {categoria}, {fecha:fecha}." },
+        { "id": "registrar_gasto_ok.3", "tono": "directo", "texto": "Listo. -{monto:moneda} en {categoria}." },
+        { "id": "registrar_gasto_ok.4", "tono": "cercano", "cuando": [{ "var": "pct_categoria", "op": "no_vacio" }], "texto": "Guardado. Con esto, {categoria} suma el {pct_categoria:pct} de tus gastos del mes." }
+      ]
+    },
+    {
+      "id": "registrar_ingreso_ok", "grupo": "registro", "origen": "regla", "descripcion": "Ingreso guardado.",
+      "vars": { "monto": "moneda", "categoria": "texto", "fecha": "fecha", "ingreso_mes": "moneda", "saldo": "moneda" },
+      "botones": ["deshacer", "editar", "ver_ranking"],
+      "variantes": [
+        { "id": "registrar_ingreso_ok.1", "tono": "cercano", "texto": "Anotado: ingreso de {monto:moneda} ({categoria}). Este mes llevas {ingreso_mes:moneda} de ingresos." },
+        { "id": "registrar_ingreso_ok.2", "tono": "neutral", "texto": "Ingreso registrado: {monto:moneda}, {categoria}, {fecha:fecha}. Saldo del mes: {saldo:moneda}." },
+        { "id": "registrar_ingreso_ok.3", "tono": "motivador", "texto": "¡Registrado! Tener tus ingresos anotados te deja ver cuánto realmente te queda." },
+        { "id": "registrar_ingreso_ok.4", "tono": "directo", "texto": "Listo. +{monto:moneda}." }
+      ]
+    },
+    {
+      "id": "registrar_pago_deuda_ok", "grupo": "registro", "origen": "regla", "descripcion": "Pago de deuda guardado.",
+      "vars": { "monto": "moneda", "deuda": "texto?" },
+      "botones": ["deshacer", "ver_deudas"],
+      "variantes": [
+        { "id": "registrar_pago_deuda_ok.1", "tono": "cercano", "texto": "Pago de {monto:moneda} registrado. Cada pago te acerca a terminar con esa deuda." },
+        { "id": "registrar_pago_deuda_ok.2", "tono": "neutral", "cuando": [{ "var": "deuda", "op": "no_vacio" }], "texto": "Pago de {monto:moneda} a «{deuda}» registrado." },
+        { "id": "registrar_pago_deuda_ok.3", "tono": "directo", "texto": "Pago anotado: {monto:moneda}." }
+      ]
+    },
+    {
+      "id": "registrar_ahorro_ok", "grupo": "registro", "origen": "regla", "descripcion": "Aporte a ahorro guardado.",
+      "vars": { "monto": "moneda", "meta": "texto?", "avance_pct": "pct?" },
+      "botones": ["deshacer", "ver_metas"],
+      "variantes": [
+        { "id": "registrar_ahorro_ok.1", "tono": "motivador", "texto": "¡Bien! Apartaste {monto:moneda}. Ahorrar, aunque sea poco, se nota con el tiempo." },
+        { "id": "registrar_ahorro_ok.2", "tono": "neutral", "cuando": [{ "var": "meta", "op": "no_vacio" }, { "var": "avance_pct", "op": "no_vacio" }], "texto": "Aporte de {monto:moneda} a «{meta}». Avance: {avance_pct:pct}." },
+        { "id": "registrar_ahorro_ok.3", "tono": "directo", "texto": "Ahorro anotado: {monto:moneda}." }
+      ]
+    },
+    {
+      "id": "registrar_retiro_ok", "grupo": "registro", "origen": "regla", "descripcion": "Retiro de ahorro guardado.",
+      "vars": { "monto": "moneda" },
+      "botones": ["deshacer", "ver_metas"],
+      "variantes": [
+        { "id": "registrar_retiro_ok.1", "tono": "neutral", "texto": "Retiro de ahorro de {monto:moneda} registrado. Es para esto que sirve un ahorro; si fue una emergencia, conviene reponerlo cuando puedas." },
+        { "id": "registrar_retiro_ok.2", "tono": "directo", "texto": "Retiro anotado: {monto:moneda}." }
+      ]
+    },
+    {
+      "id": "registro_vista_previa", "grupo": "registro", "origen": "regla", "descripcion": "Vista previa antes de guardar texto libre.",
+      "vars": { "tipo": "texto", "monto": "moneda", "categoria": "texto", "fecha": "fecha" },
+      "botones": ["confirmar", "corregir_categoria", "corregir_importe", "corregir_fecha", "cancelar"],
+      "variantes": [
+        { "id": "registro_vista_previa.1", "tono": "cercano", "texto": "Entendí: {tipo} de {monto:moneda} en {categoria}, {fecha:fecha}. ¿Lo guardo?" },
+        { "id": "registro_vista_previa.2", "tono": "neutral", "texto": "Vista previa: {tipo}, {monto:moneda}, {categoria}, {fecha:fecha}." },
+        { "id": "registro_vista_previa.3", "tono": "directo", "texto": "{tipo}: {monto:moneda} · {categoria} · {fecha:fecha}. ¿Guardar?" }
+      ]
+    },
+    {
+      "id": "registro_duplicado_posible", "grupo": "registro", "origen": "regla", "descripcion": "Mismo importe, categoría y nota hace pocos minutos.",
+      "vars": { "monto": "moneda", "categoria": "texto", "minutos": "entero" },
+      "botones": ["confirmar", "cancelar"],
+      "variantes": [
+        { "id": "registro_duplicado_posible.1", "tono": "cercano", "severidad": "atencion", "texto": "Hace {minutos:entero} {minutos:plural=minuto|minutos} anotaste {monto:moneda} en {categoria}. ¿Es otro movimiento o es el mismo?" },
+        { "id": "registro_duplicado_posible.2", "tono": "neutral", "severidad": "atencion", "texto": "Posible duplicado: {monto:moneda} en {categoria}. ¿Guardar de todos modos?" }
+      ]
+    },
+    {
+      "id": "registro_importe_alto", "grupo": "registro", "origen": "regla", "descripcion": "Gasto mucho mayor que lo habitual.",
+      "vars": { "monto": "moneda", "veces": "entero" },
+      "botones": ["confirmar", "corregir_importe", "cancelar"],
+      "variantes": [
+        { "id": "registro_importe_alto.1", "tono": "cercano", "severidad": "atencion", "texto": "{monto:moneda} es unas {veces:entero} veces más que tu gasto típico. ¿Es correcto o falta un punto?" },
+        { "id": "registro_importe_alto.2", "tono": "neutral", "severidad": "atencion", "texto": "Importe inusualmente alto ({monto:moneda}). Confirma antes de guardar." }
+      ]
+    },
+    {
+      "id": "registro_fecha_futura", "grupo": "registro", "origen": "regla", "descripcion": "Fecha futura.",
+      "vars": { "fecha": "fecha" }, "botones": ["corregir_fecha", "confirmar"],
+      "variantes": [
+        { "id": "registro_fecha_futura.1", "tono": "cercano", "texto": "Esa fecha ({fecha:fecha}) aún no llega. ¿La cambio a hoy?" },
+        { "id": "registro_fecha_futura.2", "tono": "neutral", "texto": "Fecha futura: {fecha:fecha}. Corrígela o confirma." }
+      ]
+    },
+    {
+      "id": "registro_editado", "grupo": "registro", "origen": "regla", "descripcion": "Movimiento editado.",
+      "vars": { "campo": "texto" }, "botones": ["deshacer"],
+      "variantes": [
+        { "id": "registro_editado.1", "tono": "cercano", "texto": "Listo, actualicé {campo}. Los totales ya están al día." },
+        { "id": "registro_editado.2", "tono": "directo", "texto": "Actualizado: {campo}." }
+      ]
+    },
+    {
+      "id": "registro_eliminado", "grupo": "registro", "origen": "regla", "descripcion": "Movimiento eliminado.",
+      "vars": { "monto": "moneda" }, "botones": ["deshacer"],
+      "variantes": [
+        { "id": "registro_eliminado.1", "tono": "cercano", "texto": "Borré el movimiento de {monto:moneda}. Si fue sin querer, aún puedes deshacerlo." },
+        { "id": "registro_eliminado.2", "tono": "directo", "texto": "Eliminado: {monto:moneda}." }
+      ]
+    },
+    {
+      "id": "deshacer_ok", "grupo": "registro", "origen": "regla", "descripcion": "Se deshizo el último registro.",
+      "vars": {}, "botones": ["registrar_gasto"],
+      "variantes": [
+        { "id": "deshacer_ok.1", "tono": "cercano", "texto": "Hecho, deshice el último registro." },
+        { "id": "deshacer_ok.2", "tono": "directo", "texto": "Deshecho." }
+      ]
+    },
+    {
+      "id": "cancelado", "grupo": "registro", "origen": "regla", "descripcion": "La persona canceló.",
+      "vars": {}, "botones": ["registrar_gasto", "registrar_ingreso"],
+      "variantes": [
+        { "id": "cancelado.1", "tono": "cercano", "texto": "Sin problema, no guardé nada." },
+        { "id": "cancelado.2", "tono": "directo", "texto": "Cancelado." }
+      ]
+    },
+    {
+      "id": "recurrente_propuesto", "grupo": "registro", "origen": "regla", "descripcion": "Se detectó un gasto o ingreso que se repite cada mes.",
+      "vars": { "nota": "texto", "monto": "moneda", "veces": "entero" },
+      "botones": ["aceptar_recurrente", "no_recurrente"],
+      "variantes": [
+        { "id": "recurrente_propuesto.1", "tono": "cercano", "texto": "«{nota}» ({monto:moneda}) aparece ya {veces:entero} meses seguidos. ¿Lo programo como recurrente para sugerírtelo cada mes?" },
+        { "id": "recurrente_propuesto.2", "tono": "neutral", "texto": "Patrón recurrente detectado: {nota}, {monto:moneda}. ¿Crear recordatorio mensual?" }
+      ]
+    },
+    {
+      "id": "recurrente_sugerido_mes", "grupo": "registro", "origen": "regla", "descripcion": "Llegó el día de un recurrente.",
+      "vars": { "nota": "texto", "monto": "moneda" },
+      "botones": ["confirmar", "corregir_importe", "cancelar"],
+      "variantes": [
+        { "id": "recurrente_sugerido_mes.1", "tono": "cercano", "texto": "Este mes toca «{nota}» ({monto:moneda}). ¿Lo anoto?" },
+        { "id": "recurrente_sugerido_mes.2", "tono": "directo", "texto": "Recurrente: {nota}, {monto:moneda}. ¿Registrar?" }
+      ]
+    },
+    {
+      "id": "plantilla_sugerida", "grupo": "registro", "origen": "regla", "descripcion": "Un gasto repetido se ofrece como plantilla rápida.",
+      "vars": { "nota": "texto", "monto": "moneda", "veces": "entero" },
+      "botones": ["confirmar", "cancelar"],
+      "variantes": [
+        { "id": "plantilla_sugerida.1", "tono": "cercano", "texto": "Ya anotaste «{nota}» ({monto:moneda}) {veces:entero} veces. ¿La dejo como atajo para registrarla en un toque?" },
+        { "id": "plantilla_sugerida.2", "tono": "neutral", "texto": "¿Guardar «{nota}» ({monto:moneda}) como plantilla?" }
+      ]
+    },
+    {
+      "id": "primer_registro", "grupo": "registro", "origen": "regla", "descripcion": "Primer movimiento de la cuenta.",
+      "vars": {}, "botones": ["registrar_gasto", "registrar_ingreso", "ver_insights"],
+      "variantes": [
+        { "id": "primer_registro.1", "tono": "motivador", "severidad": "logro", "texto": "¡Primer movimiento anotado! Con unos cuantos más empiezo a mostrarte en qué gastas más y cómo cierras el mes." },
+        { "id": "primer_registro.2", "tono": "neutral", "severidad": "logro", "texto": "Primer registro guardado. Con 5 movimientos se activan los resúmenes." }
+      ]
+    },
+
+    {
+      "id": "resumen_mes", "grupo": "resumen", "origen": "regla", "descripcion": "Estado del mes: ingresos, gastos, saldo.",
+      "vars": { "mes": "mes", "total_ingreso": "moneda", "total_gasto": "moneda", "saldo": "moneda", "n": "entero" },
+      "botones": ["ver_ranking", "mes_anterior", "ver_movimientos"], "grafico": "barra_ingreso_gasto",
+      "variantes": [
+        { "id": "resumen_mes.1", "tono": "cercano", "cuando": [{ "var": "saldo", "op": ">=", "valor": 0 }], "severidad": "info", "texto": "En {mes:mes} entraron {total_ingreso:moneda} y salieron {total_gasto:moneda}. Te quedan {saldo:moneda}." },
+        { "id": "resumen_mes.2", "tono": "cercano", "cuando": [{ "var": "saldo", "op": "<", "valor": 0 }], "severidad": "atencion", "texto": "En {mes:mes} entraron {total_ingreso:moneda} y salieron {total_gasto:moneda}: el mes va {saldo:abs:moneda} por debajo de cero. Veamos qué se puede ajustar." },
+        { "id": "resumen_mes.3", "tono": "neutral", "texto": "Resumen de {mes:mes}: ingresos {total_ingreso:moneda}, gastos {total_gasto:moneda}, saldo {saldo:moneda} ({n:entero} {n:plural=movimiento|movimientos})." },
+        { "id": "resumen_mes.4", "tono": "directo", "texto": "Ingresos {total_ingreso:moneda} · Gastos {total_gasto:moneda} · Saldo {saldo:moneda}." }
+      ]
+    },
+    {
+      "id": "saldo_mes", "grupo": "resumen", "origen": "regla", "descripcion": "Cuánto queda este mes.",
+      "vars": { "saldo": "moneda", "dias_restantes": "entero", "por_dia": "moneda?" },
+      "botones": ["ver_ranking", "ver_grafico"],
+      "variantes": [
+        { "id": "saldo_mes.1", "tono": "cercano", "cuando": [{ "var": "saldo", "op": ">", "valor": 0 }], "texto": "Hasta hoy te quedan {saldo:moneda}. Faltan {dias_restantes:entero} {dias_restantes:plural=día|días}." },
+        { "id": "saldo_mes.4", "tono": "cercano", "cuando": [{ "var": "por_dia", "op": "no_vacio" }, { "var": "saldo", "op": ">", "valor": 0 }], "texto": "Te quedan {saldo:moneda} y faltan {dias_restantes:entero} {dias_restantes:plural=día|días}: eso da unos {por_dia:moneda} por día si quieres repartirlo parejo." },
+        { "id": "saldo_mes.2", "tono": "cercano", "cuando": [{ "var": "saldo", "op": "<=", "valor": 0 }], "severidad": "alerta", "texto": "Con lo registrado, este mes ya no queda saldo: estás en {saldo:moneda}. Podemos ver dónde recortar." },
+        { "id": "saldo_mes.3", "tono": "directo", "texto": "Saldo del mes: {saldo:moneda}." }
+      ]
+    },
+    {
+      "id": "gasto_total", "grupo": "resumen", "origen": "regla", "descripcion": "Total gastado.",
+      "vars": { "total_gasto": "moneda", "mes": "mes", "pct_ingreso": "pct?" },
+      "botones": ["ver_ranking", "mes_anterior"],
+      "variantes": [
+        { "id": "gasto_total.1", "tono": "cercano", "texto": "Este mes llevas {total_gasto:moneda} en gastos." },
+        { "id": "gasto_total.2", "tono": "neutral", "cuando": [{ "var": "pct_ingreso", "op": "no_vacio" }], "texto": "Gastos de {mes:mes}: {total_gasto:moneda}, el {pct_ingreso:pct} de tus ingresos." },
+        { "id": "gasto_total.3", "tono": "directo", "texto": "Gastos: {total_gasto:moneda}." }
+      ]
+    },
+    {
+      "id": "ingreso_total", "grupo": "resumen", "origen": "regla", "descripcion": "Total ingresado.",
+      "vars": { "total_ingreso": "moneda", "mes": "mes" }, "botones": ["registrar_ingreso", "mes_anterior"],
+      "variantes": [
+        { "id": "ingreso_total.1", "tono": "cercano", "texto": "En {mes:mes} llevas {total_ingreso:moneda} de ingresos." },
+        { "id": "ingreso_total.2", "tono": "directo", "texto": "Ingresos: {total_ingreso:moneda}." }
+      ]
+    },
+    {
+      "id": "tasa_ahorro_mes", "grupo": "resumen", "origen": "regla", "descripcion": "Qué parte de los ingresos se ahorró.",
+      "vars": { "tasa_ahorro": "pct", "monto_ahorro": "moneda" }, "botones": ["ver_metas", "ver_grafico"],
+      "variantes": [
+        { "id": "tasa_ahorro_mes.1", "tono": "motivador", "cuando": [{ "var": "tasa_ahorro", "op": ">", "valor": 0 }], "severidad": "logro", "texto": "Este mes apartaste {monto_ahorro:moneda}, el {tasa_ahorro:pct} de tus ingresos." },
+        { "id": "tasa_ahorro_mes.2", "tono": "neutral", "cuando": [{ "var": "tasa_ahorro", "op": "<=", "valor": 0 }], "texto": "Este mes no registras aportes a ahorro. Si quieres, vemos cuánto podrías apartar sin apretar tus gastos." }
+      ]
+    },
+    {
+      "id": "proyeccion_cierre", "grupo": "resumen", "origen": "regla", "descripcion": "Proyección simple del cierre del mes.",
+      "vars": { "proyeccion_gasto": "moneda", "total_ingreso": "moneda", "pct_ingreso": "pct", "dias_mes": "entero" },
+      "botones": ["ver_grafico", "ver_insights"], "grafico": "tendencia_vs_ritmo",
+      "variantes": [
+        { "id": "proyeccion_cierre.1", "tono": "cercano", "cuando": [{ "var": "pct_ingreso", "op": "<", "valor": 90 }], "severidad": "info", "texto": "A este ritmo cerrarías el mes con unos {proyeccion_gasto:moneda} de gasto, el {pct_ingreso:pct} de tus ingresos. Es una proyección simple, no una promesa." },
+        { "id": "proyeccion_cierre.2", "tono": "cercano", "cuando": [{ "var": "pct_ingreso", "op": ">=", "valor": 90 }, { "var": "pct_ingreso", "op": "<", "valor": 100 }], "severidad": "atencion", "texto": "Si sigues así, cerrarías en unos {proyeccion_gasto:moneda} de gasto, casi todo lo que ingresa ({pct_ingreso:pct}). Aún estás a tiempo de ajustar." },
+        { "id": "proyeccion_cierre.3", "tono": "directo", "cuando": [{ "var": "pct_ingreso", "op": ">=", "valor": 100 }], "severidad": "alerta", "texto": "Proyección: {proyeccion_gasto:moneda} de gasto, más que tus ingresos ({total_ingreso:moneda}). Es una estimación por ritmo diario; quedan {dias_mes:entero} días de mes en total." }
+      ]
+    },
+    {
+      "id": "gasto_hoy", "grupo": "resumen", "origen": "regla", "descripcion": "Gasto del día.",
+      "vars": { "total_hoy": "moneda", "n": "entero" }, "botones": ["registrar_gasto", "ver_movimientos"],
+      "variantes": [
+        { "id": "gasto_hoy.1", "tono": "cercano", "cuando": [{ "var": "n", "op": ">", "valor": 0 }], "texto": "Hoy llevas {total_hoy:moneda} en {n:entero} {n:plural=gasto|gastos}." },
+        { "id": "gasto_hoy.2", "tono": "cercano", "cuando": [{ "var": "n", "op": "=", "valor": 0 }], "texto": "Hoy no has anotado gastos. ¿Se te quedó alguno?" }
+      ]
+    },
+    {
+      "id": "gasto_semana", "grupo": "resumen", "origen": "regla", "descripcion": "Gasto de la semana.",
+      "vars": { "total_semana": "moneda", "delta_pct": "pct_signed?" }, "botones": ["ver_grafico", "ver_ranking"],
+      "variantes": [
+        { "id": "gasto_semana.1", "tono": "cercano", "texto": "Esta semana llevas {total_semana:moneda} en gastos." },
+        { "id": "gasto_semana.2", "tono": "neutral", "cuando": [{ "var": "delta_pct", "op": "no_vacio" }], "texto": "Gasto semanal: {total_semana:moneda} ({delta_pct:pct_signed} frente a la semana anterior)." }
+      ]
+    },
+    {
+      "id": "ultimo_movimiento", "grupo": "resumen", "origen": "regla", "descripcion": "Último movimiento registrado.",
+      "vars": { "tipo": "texto", "monto": "moneda", "categoria": "texto", "fecha": "fecha" }, "botones": ["editar", "deshacer"],
+      "variantes": [
+        { "id": "ultimo_movimiento.1", "tono": "cercano", "texto": "Lo último que anotaste: {tipo} de {monto:moneda} en {categoria} ({fecha:fecha})." },
+        { "id": "ultimo_movimiento.2", "tono": "directo", "texto": "Último: {tipo} {monto:moneda} · {categoria} · {fecha:fecha}." }
+      ]
+    },
+    {
+      "id": "buscar_movimiento", "grupo": "resumen", "origen": "regla", "descripcion": "Resultado de una búsqueda por nota o categoría.",
+      "vars": { "consulta": "texto", "n": "entero", "total": "moneda" }, "botones": ["ver_movimientos"],
+      "variantes": [
+        { "id": "buscar_movimiento.1", "tono": "cercano", "cuando": [{ "var": "n", "op": ">", "valor": 0 }], "texto": "Encontré {n:entero} {n:plural=movimiento|movimientos} con «{consulta}», por un total de {total:moneda}." },
+        { "id": "buscar_movimiento.2", "tono": "neutral", "cuando": [{ "var": "n", "op": "=", "valor": 0 }], "texto": "No hay movimientos con «{consulta}» en el período." }
+      ]
+    },
+
+    {
+      "id": "mayor_gasto", "grupo": "ranking", "origen": "regla", "descripcion": "Categoría con más gasto del mes.",
+      "vars": { "categoria": "texto", "monto": "moneda", "pct": "pct", "mes": "mes" },
+      "botones": ["ver_ranking", "simular_recorte", "mes_anterior"], "grafico": "barras_categorias",
+      "variantes": [
+        { "id": "mayor_gasto.1", "tono": "cercano", "texto": "Tu mayor gasto en {mes:mes} es {categoria}: {monto:moneda}, el {pct:pct} de lo que gastas." },
+        { "id": "mayor_gasto.2", "tono": "neutral", "texto": "Categoría principal: {categoria} ({monto:moneda}, {pct:pct} del total)." },
+        { "id": "mayor_gasto.3", "tono": "directo", "texto": "{categoria}: {monto:moneda} ({pct:pct})." },
+        { "id": "mayor_gasto.4", "tono": "cercano", "cuando": [{ "var": "pct", "op": ">=", "valor": 40 }], "severidad": "atencion", "texto": "{categoria} se lleva el {pct:pct} de tus gastos ({monto:moneda}). Es mucho en una sola categoría; vale la pena mirarla de cerca." }
+      ]
+    },
+    {
+      "id": "menor_gasto", "grupo": "ranking", "origen": "regla", "descripcion": "Categoría con menos gasto del mes.",
+      "vars": { "categoria": "texto", "monto": "moneda", "pct": "pct" }, "botones": ["ver_ranking"],
+      "variantes": [
+        { "id": "menor_gasto.1", "tono": "cercano", "texto": "Lo que menos gastas es {categoria}: {monto:moneda}, solo el {pct:pct}." },
+        { "id": "menor_gasto.2", "tono": "neutral", "texto": "Categoría de menor gasto: {categoria} ({monto:moneda})." },
+        { "id": "menor_gasto.3", "tono": "directo", "texto": "Menor: {categoria}, {monto:moneda}." }
+      ]
+    },
+    {
+      "id": "mayor_movimiento", "grupo": "ranking", "origen": "regla", "descripcion": "Movimiento individual más alto.",
+      "vars": { "monto": "moneda", "categoria": "texto", "nota": "texto?", "fecha": "fecha" }, "botones": ["editar", "ver_detalle"],
+      "variantes": [
+        { "id": "mayor_movimiento.1", "tono": "cercano", "texto": "Tu gasto más grande del mes fue de {monto:moneda} en {categoria} el {fecha:fecha}." },
+        { "id": "mayor_movimiento.2", "tono": "neutral", "cuando": [{ "var": "nota", "op": "no_vacio" }], "texto": "Mayor gasto individual: {monto:moneda} ({nota}), {categoria}, {fecha:fecha}." }
+      ]
+    },
+    {
+      "id": "menor_movimiento", "grupo": "ranking", "origen": "regla", "descripcion": "Movimiento individual más pequeño.",
+      "vars": { "monto": "moneda", "categoria": "texto", "fecha": "fecha" }, "botones": ["ver_detalle"],
+      "variantes": [
+        { "id": "menor_movimiento.1", "tono": "cercano", "texto": "Tu gasto más pequeño fue de {monto:moneda} en {categoria} ({fecha:fecha})." },
+        { "id": "menor_movimiento.2", "tono": "directo", "texto": "Mínimo: {monto:moneda}, {categoria}." }
+      ]
+    },
+    {
+      "id": "top3_concentracion", "grupo": "ranking", "origen": "regla", "descripcion": "Las 3 categorías principales y su peso.",
+      "vars": { "cat1": "texto", "cat2": "texto", "cat3": "texto", "pct_top3": "pct" }, "botones": ["ver_ranking", "ver_grafico"], "grafico": "barras_categorias",
+      "variantes": [
+        { "id": "top3_concentracion.1", "tono": "cercano", "texto": "{cat1}, {cat2} y {cat3} suman el {pct_top3:pct} de tus gastos." },
+        { "id": "top3_concentracion.2", "tono": "neutral", "cuando": [{ "var": "pct_top3", "op": ">=", "valor": 75 }], "severidad": "atencion", "texto": "Tres categorías ({cat1}, {cat2}, {cat3}) concentran el {pct_top3:pct} del gasto. Un cambio en ellas mueve casi todo el resultado." }
+      ]
+    },
+    {
+      "id": "gasto_categoria", "grupo": "ranking", "origen": "regla", "descripcion": "Total de una categoría.",
+      "vars": { "categoria": "texto", "monto": "moneda", "pct": "pct", "n": "entero", "delta_pct": "pct_signed?" },
+      "botones": ["ver_ranking", "mes_anterior", "simular_recorte"],
+      "variantes": [
+        { "id": "gasto_categoria.1", "tono": "cercano", "texto": "En {categoria} llevas {monto:moneda} este mes ({n:entero} {n:plural=movimiento|movimientos}), el {pct:pct} de tus gastos." },
+        { "id": "gasto_categoria.2", "tono": "neutral", "cuando": [{ "var": "delta_pct", "op": "no_vacio" }], "texto": "{categoria}: {monto:moneda} ({pct:pct} del total), {delta_pct:pct_signed} frente al mes anterior." },
+        { "id": "gasto_categoria.3", "tono": "directo", "texto": "{categoria}: {monto:moneda}." },
+        { "id": "gasto_categoria.4", "tono": "cercano", "cuando": [{ "var": "monto", "op": "=", "valor": 0 }], "texto": "En {categoria} aún no registras gastos este mes." }
+      ]
+    },
+    {
+      "id": "dia_mas_caro", "grupo": "ranking", "origen": "regla", "descripcion": "Día de la semana en que más se gasta.",
+      "vars": { "dia_semana": "texto", "promedio": "moneda", "pct_sobre_prom": "pct" }, "botones": ["ver_grafico", "ver_insights"], "grafico": "mapa_semana",
+      "variantes": [
+        { "id": "dia_mas_caro.1", "tono": "cercano", "texto": "Tu día más caro suele ser el {dia_semana}: en promedio {promedio:moneda}, un {pct_sobre_prom:pct} más que otros días." },
+        { "id": "dia_mas_caro.2", "tono": "neutral", "texto": "Mayor gasto promedio por día: {dia_semana} ({promedio:moneda})." }
+      ]
+    },
+    {
+      "id": "gastos_hormiga", "grupo": "ranking", "origen": "regla", "descripcion": "Gastos pequeños y repetidos.",
+      "vars": { "monto_total": "moneda", "n": "entero", "pct_gasto": "pct", "principal": "texto", "monto_anual": "moneda?" },
+      "botones": ["ver_detalle", "simular_recorte", "crear_tarea"], "grafico": "barras_categorias",
+      "variantes": [
+        { "id": "gastos_hormiga.1", "tono": "cercano", "severidad": "atencion", "texto": "Los gastos chicos y repetidos ({principal} y otros) suman {monto_total:moneda} este mes en {n:entero} movimientos: el {pct_gasto:pct} de lo que gastas. Uno solo pesa poco; juntos se notan." },
+        { "id": "gastos_hormiga.2", "tono": "neutral", "severidad": "atencion", "texto": "Gastos hormiga: {n:entero} movimientos pequeños, {monto_total:moneda} ({pct_gasto:pct} del gasto)." },
+        { "id": "gastos_hormiga.3", "tono": "cercano", "cuando": [{ "var": "monto_anual", "op": "no_vacio" }], "texto": "Si el mes que viene se repite igual, {principal} y compañía sumarían unos {monto_anual:moneda} en un año. Es una proyección simple, no una meta." }
+      ]
+    },
+    {
+      "id": "suscripciones", "grupo": "ranking", "origen": "regla", "descripcion": "Pagos recurrentes detectados.",
+      "vars": { "n": "entero", "monto_total": "moneda", "pct_gasto": "pct" }, "botones": ["ver_detalle", "crear_tarea"],
+      "variantes": [
+        { "id": "suscripciones.1", "tono": "cercano", "texto": "Detecto {n:entero} {n:plural=pago|pagos} que se repiten cada mes y suman {monto_total:moneda} ({pct_gasto:pct} de tus gastos). Revisa si todos los sigues usando." },
+        { "id": "suscripciones.2", "tono": "neutral", "texto": "Recurrentes: {n:entero}, total mensual {monto_total:moneda}." }
+      ]
+    },
+    {
+      "id": "gasto_repetido", "grupo": "ranking", "origen": "regla", "descripcion": "Misma nota repetida varias veces.",
+      "vars": { "nota": "texto", "n": "entero", "monto_total": "moneda" }, "botones": ["guardar_plantilla", "ver_detalle"],
+      "variantes": [
+        { "id": "gasto_repetido.1", "tono": "cercano", "texto": "«{nota}» aparece {n:entero} veces este mes y suma {monto_total:moneda}." },
+        { "id": "gasto_repetido.2", "tono": "directo", "texto": "{nota}: {n:entero} veces, {monto_total:moneda}." }
+      ]
+    },
+    {
+      "id": "gasto_fin_de_semana", "grupo": "ranking", "origen": "regla", "descripcion": "Los fines de semana gastas más que entre semana.",
+      "vars": { "prom_finde": "moneda", "prom_semana": "moneda", "pct": "pct" }, "botones": ["ver_grafico"],
+      "variantes": [
+        { "id": "gasto_fin_de_semana.1", "tono": "cercano", "texto": "Los fines de semana gastas en promedio {prom_finde:moneda} al día, un {pct:pct} más que entre semana ({prom_semana:moneda})." },
+        { "id": "gasto_fin_de_semana.2", "tono": "neutral", "texto": "Promedio diario: fin de semana {prom_finde:moneda}, entre semana {prom_semana:moneda}." }
+      ]
+    },
+
+    {
+      "id": "comparar_mes_anterior", "grupo": "comparacion", "origen": "regla", "descripcion": "Gasto total frente al mes anterior.",
+      "vars": { "total_actual": "moneda", "total_anterior": "moneda", "delta_pct": "pct_signed", "mes": "mes", "mes_anterior": "mes" },
+      "botones": ["ver_ranking", "ver_grafico"], "grafico": "comparativa_meses",
+      "variantes": [
+        { "id": "comparar_mes_anterior.1", "tono": "cercano", "cuando": [{ "var": "delta_pct", "op": "<", "valor": 0 }], "severidad": "logro", "texto": "¡Vas mejor! Hasta hoy gastaste {total_actual:moneda}, {delta_pct:abs:pct} menos que en {mes_anterior:mes} a esta misma altura ({total_anterior:moneda})." },
+        { "id": "comparar_mes_anterior.2", "tono": "cercano", "cuando": [{ "var": "delta_pct", "op": ">", "valor": 0 }], "severidad": "atencion", "texto": "Hasta hoy gastaste {total_actual:moneda}, un {delta_pct:abs:pct} más que en {mes_anterior:mes} a esta misma altura ({total_anterior:moneda})." },
+        { "id": "comparar_mes_anterior.3", "tono": "neutral", "texto": "Gasto {mes:mes}: {total_actual:moneda}. {mes_anterior:mes}: {total_anterior:moneda}. Cambio: {delta_pct:pct_signed}." },
+        { "id": "comparar_mes_anterior.4", "tono": "cercano", "cuando": [{ "var": "delta_pct", "op": "=", "valor": 0 }], "texto": "Vas prácticamente igual que en {mes_anterior:mes} a esta altura." }
+      ]
+    },
+    {
+      "id": "categoria_subio", "grupo": "comparacion", "origen": "regla", "descripcion": "Categoría que más subió.",
+      "vars": { "categoria": "texto", "delta_pct": "pct_signed", "delta_monto": "moneda", "mes_anterior": "mes" },
+      "botones": ["ver_detalle", "simular_recorte"], "grafico": "comparativa_meses",
+      "variantes": [
+        { "id": "categoria_subio.1", "tono": "cercano", "severidad": "atencion", "texto": "{categoria} subió {delta_pct:abs:pct} frente a {mes_anterior:mes}: {delta_monto:moneda} más. Es el cambio más grande del mes." },
+        { "id": "categoria_subio.2", "tono": "neutral", "severidad": "atencion", "texto": "Mayor aumento: {categoria} ({delta_pct:pct_signed}, {delta_monto:moneda})." },
+        { "id": "categoria_subio.3", "tono": "directo", "severidad": "atencion", "texto": "{categoria}: {delta_pct:pct_signed}." }
+      ]
+    },
+    {
+      "id": "categoria_bajo", "grupo": "comparacion", "origen": "regla", "descripcion": "Categoría que más bajó.",
+      "vars": { "categoria": "texto", "delta_pct": "pct_signed", "delta_monto": "moneda", "mes_anterior": "mes" },
+      "botones": ["ver_detalle", "ver_ranking"], "grafico": "comparativa_meses",
+      "variantes": [
+        { "id": "categoria_bajo.1", "tono": "motivador", "severidad": "logro", "texto": "¡Buena! Tu gasto en {categoria} bajó {delta_pct:abs:pct} frente a {mes_anterior:mes}: {delta_monto:abs:moneda} menos." },
+        { "id": "categoria_bajo.2", "tono": "neutral", "severidad": "logro", "texto": "Mayor reducción: {categoria} ({delta_pct:pct_signed}, {delta_monto:moneda})." },
+        { "id": "categoria_bajo.3", "tono": "directo", "severidad": "logro", "texto": "{categoria}: {delta_pct:pct_signed}." }
+      ]
+    },
+    {
+      "id": "comparar_ingresos", "grupo": "comparacion", "origen": "regla", "descripcion": "Ingresos frente al mes anterior.",
+      "vars": { "total_actual": "moneda", "total_anterior": "moneda", "delta_pct": "pct_signed", "mes_anterior": "mes" }, "botones": ["ver_movimientos"],
+      "variantes": [
+        { "id": "comparar_ingresos.1", "tono": "cercano", "cuando": [{ "var": "delta_pct", "op": ">", "valor": 0 }], "texto": "Tus ingresos van {delta_pct:abs:pct} arriba de {mes_anterior:mes} ({total_actual:moneda} frente a {total_anterior:moneda})." },
+        { "id": "comparar_ingresos.2", "tono": "cercano", "cuando": [{ "var": "delta_pct", "op": "<", "valor": 0 }], "severidad": "atencion", "texto": "Tus ingresos van {delta_pct:abs:pct} abajo de {mes_anterior:mes} ({total_actual:moneda} frente a {total_anterior:moneda}). Puede que aún falten por registrar." },
+        { "id": "comparar_ingresos.3", "tono": "neutral", "texto": "Ingresos: {total_actual:moneda} ({delta_pct:pct_signed} frente a {mes_anterior:mes})." }
+      ]
+    },
+    {
+      "id": "tendencia_meses", "grupo": "comparacion", "origen": "regla", "descripcion": "Evolución de varios meses.",
+      "vars": { "n_meses": "entero", "direccion": "sube|baja|estable", "delta_pct": "pct_signed" }, "botones": ["ver_grafico"], "grafico": "mes_a_mes",
+      "variantes": [
+        { "id": "tendencia_meses.1", "tono": "cercano", "cuando": [{ "var": "direccion", "op": "=", "valor": "baja" }], "severidad": "logro", "texto": "En los últimos {n_meses:entero} meses tu gasto viene bajando ({delta_pct:pct_signed} en total). Sigue así." },
+        { "id": "tendencia_meses.2", "tono": "cercano", "cuando": [{ "var": "direccion", "op": "=", "valor": "sube" }], "severidad": "atencion", "texto": "En los últimos {n_meses:entero} meses tu gasto viene subiendo ({delta_pct:pct_signed} en total). Veamos en qué categorías." },
+        { "id": "tendencia_meses.3", "tono": "neutral", "cuando": [{ "var": "direccion", "op": "=", "valor": "estable" }], "texto": "Tu gasto se mantiene estable en los últimos {n_meses:entero} meses." }
+      ]
+    },
+
+    {
+      "id": "recortar_rapido", "grupo": "accion", "origen": "regla", "descripcion": "Qué categorías discrecionales se podrían recortar y qué efecto tendría.",
+      "vars": { "categoria": "texto", "monto": "moneda", "recorte_pct": "pct", "libera": "moneda", "meses_deuda": "entero?" },
+      "botones": ["simular_recorte", "crear_tarea", "ver_ranking"], "grafico": "barras_categorias",
+      "variantes": [
+        { "id": "recortar_rapido.1", "tono": "cercano", "texto": "Lo más fácil de ajustar sin tocar lo esencial es {categoria} ({monto:moneda} este mes). Si recortaras {recorte_pct:pct}, liberarías {libera:moneda} al mes. Es una hipótesis: no cambia tus datos." },
+        { "id": "recortar_rapido.2", "tono": "neutral", "texto": "Categorías discrecionales: {categoria}, {monto:moneda}. Escenario de {recorte_pct:pct}: {libera:moneda} liberados mensualmente." },
+        { "id": "recortar_rapido.3", "tono": "cercano", "cuando": [{ "var": "meses_deuda", "op": "no_vacio" }], "texto": "Y si esos {libera:moneda} fueran a tus deudas, las terminarías unos {meses_deuda:entero} {meses_deuda:plural=mes|meses} antes. Simulación, no promesa." }
+      ]
+    },
+    {
+      "id": "sin_recorte_obvio", "grupo": "accion", "origen": "regla", "descripcion": "No hay gasto discrecional relevante.",
+      "vars": {}, "botones": ["ver_ranking", "simular_pago_extra"],
+      "variantes": [
+        { "id": "sin_recorte_obvio.1", "tono": "cercano", "texto": "Casi todo tu gasto es de lo esencial, así que no veo un recorte fácil. Quizá convenga mirar el lado de los ingresos o renegociar un servicio." },
+        { "id": "sin_recorte_obvio.2", "tono": "neutral", "texto": "No hay gasto discrecional significativo en el período." }
+      ]
+    },
+    {
+      "id": "deuda_pagar_primero", "grupo": "accion", "origen": "regla", "descripcion": "Qué deuda atacar primero según la estrategia.",
+      "vars": { "deuda": "texto", "saldo_deuda": "moneda", "estrategia": "bola_nieve|avalancha|plan", "razon": "texto" },
+      "botones": ["simular_pago_extra", "ver_deudas", "cambiar_estrategia"],
+      "variantes": [
+        { "id": "deuda_pagar_primero.1", "tono": "cercano", "texto": "Con tu estrategia ({estrategia}), la primera es «{deuda}» (saldo {saldo_deuda:moneda}). {razon}" },
+        { "id": "deuda_pagar_primero.2", "tono": "neutral", "texto": "Orden sugerido: 1) {deuda} ({saldo_deuda:moneda}). Criterio: {razon}" },
+        { "id": "deuda_pagar_primero.3", "tono": "directo", "texto": "Primero: «{deuda}», {saldo_deuda:moneda}." }
+      ]
+    },
+    {
+      "id": "deuda_liquidable", "grupo": "accion", "origen": "regla", "descripcion": "Una deuda cabe completa en el saldo libre del mes.",
+      "vars": { "deuda": "texto", "saldo_deuda": "moneda", "saldo_libre": "moneda", "interes_ahorro": "moneda?", "queda": "moneda" },
+      "botones": ["simular_pago_extra", "crear_tarea", "ver_deudas"],
+      "variantes": [
+        { "id": "deuda_liquidable.1", "tono": "cercano", "severidad": "logro", "texto": "Con tu saldo libre de este mes ({saldo_libre:moneda}) podrías liquidar «{deuda}» ({saldo_deuda:moneda}) y te quedarían {queda:moneda}. Antes revisa que no uses tu reserva de emergencia." },
+        { "id": "deuda_liquidable.2", "tono": "cercano", "cuando": [{ "var": "interes_ahorro", "op": "no_vacio" }], "severidad": "logro", "texto": "Si pagaras «{deuda}» de una, evitarías unos {interes_ahorro:moneda} de intereses según tus datos. Es una estimación." },
+        { "id": "deuda_liquidable.3", "tono": "neutral", "texto": "Deuda liquidable con saldo libre: «{deuda}» ({saldo_deuda:moneda}); saldo libre {saldo_libre:moneda}." }
+      ]
+    },
+    {
+      "id": "deuda_ninguna_liquidable", "grupo": "accion", "origen": "regla", "descripcion": "Ninguna deuda cabe aún en el saldo libre.",
+      "vars": { "deuda": "texto", "saldo_deuda": "moneda", "falta": "moneda", "meses": "entero?" },
+      "botones": ["simular_pago_extra", "simular_recorte", "ver_deudas"],
+      "variantes": [
+        { "id": "deuda_ninguna_liquidable.1", "tono": "cercano", "texto": "Todavía no alcanza para liquidar una deuda completa. La más cercana es «{deuda}» ({saldo_deuda:moneda}); te faltan {falta:moneda} sobre tu saldo libre actual." },
+        { "id": "deuda_ninguna_liquidable.2", "tono": "neutral", "cuando": [{ "var": "meses", "op": "no_vacio" }], "texto": "Con tu saldo libre actual, «{deuda}» se saldaría en unos {meses:entero} {meses:plural=mes|meses} pagando solo lo que sobra." }
+      ]
+    },
+    {
+      "id": "orden_deudas", "grupo": "accion", "origen": "regla", "descripcion": "Lista ordenada de deudas con la estrategia vigente.",
+      "vars": { "estrategia": "bola_nieve|avalancha|plan", "lista": "lista", "n": "entero" },
+      "botones": ["cambiar_estrategia", "simular_pago_extra", "ver_deudas"],
+      "variantes": [
+        { "id": "orden_deudas.1", "tono": "cercano", "texto": "Tienes {n:entero} {n:plural=deuda|deudas}. Orden con la estrategia {estrategia}: {lista}." },
+        { "id": "orden_deudas.2", "tono": "neutral", "texto": "Orden de pago ({estrategia}): {lista}." }
+      ]
+    },
+    {
+      "id": "simular_pago_extra", "grupo": "accion", "origen": "regla", "descripcion": "Resultado del simulador de pago extra.",
+      "vars": { "extra": "moneda", "meses_antes": "entero", "meses_nuevo": "entero", "interes_menos": "moneda", "saldo_libre_nuevo": "moneda" },
+      "botones": ["crear_tarea", "ver_deudas", "simular_pago_extra"],
+      "variantes": [
+        { "id": "simular_pago_extra.1", "tono": "cercano", "texto": "Consulta hipotética, no cambia tus datos: si pagas {extra:moneda} extra al mes, saldrías de tus deudas en {meses_nuevo:entero} {meses_nuevo:plural=mes|meses} en lugar de {meses_antes:entero}, y pagarías {interes_menos:moneda} menos de intereses." },
+        { "id": "simular_pago_extra.2", "tono": "neutral", "texto": "Simulación (hipotética): +{extra:moneda}/mes. Plazo {meses_antes:entero} a {meses_nuevo:entero} meses. Intereses: -{interes_menos:moneda}." },
+        { "id": "simular_pago_extra.3", "tono": "cercano", "cuando": [{ "var": "saldo_libre_nuevo", "op": "<", "valor": 0 }], "severidad": "alerta", "texto": "Ojo: ese pago extra dejaría tu saldo libre en negativo ({saldo_libre_nuevo:moneda}). Mejor pruebas con una cifra menor." }
+      ]
+    },
+    {
+      "id": "meta_avance", "grupo": "accion", "origen": "regla", "descripcion": "Cómo va una meta.",
+      "vars": { "meta": "texto", "ahorrado": "moneda", "objetivo": "moneda", "avance_pct": "pct", "meses": "entero?" },
+      "botones": ["ver_metas", "registrar_gasto"], "grafico": "medidor_meta",
+      "variantes": [
+        { "id": "meta_avance.1", "tono": "motivador", "texto": "«{meta}» va en {avance_pct:pct}: {ahorrado:moneda} de {objetivo:moneda}." },
+        { "id": "meta_avance.2", "tono": "cercano", "cuando": [{ "var": "meses", "op": "no_vacio" }], "texto": "Con el aporte de los últimos meses, «{meta}» se completaría en unos {meses:entero} {meses:plural=mes|meses}. Es una estimación con tu ritmo actual." },
+        { "id": "meta_avance.3", "tono": "directo", "texto": "{meta}: {avance_pct:pct}." }
+      ]
+    },
+    {
+      "id": "meta_en_riesgo", "grupo": "accion", "origen": "regla", "descripcion": "Con el aporte actual la meta no llega al plazo deseado.",
+      "vars": { "meta": "texto", "meses_extra": "entero", "aporte_actual": "moneda", "aporte_sugerido": "moneda" },
+      "botones": ["simular_recorte", "ver_metas", "crear_tarea"],
+      "variantes": [
+        { "id": "meta_en_riesgo.1", "tono": "cercano", "severidad": "atencion", "texto": "A tu ritmo actual ({aporte_actual:moneda} al mes), «{meta}» se retrasaría unos {meses_extra:entero} {meses_extra:plural=mes|meses} frente a tu plazo. Para llegar a tiempo harían falta unos {aporte_sugerido:moneda} al mes." },
+        { "id": "meta_en_riesgo.2", "tono": "neutral", "severidad": "atencion", "texto": "Meta en riesgo: «{meta}». Aporte actual {aporte_actual:moneda}; necesario {aporte_sugerido:moneda}." }
+      ]
+    },
+    {
+      "id": "meta_cumplida", "grupo": "accion", "origen": "regla", "descripcion": "Meta alcanzada.",
+      "vars": { "meta": "texto", "objetivo": "moneda" }, "botones": ["ver_metas"],
+      "variantes": [
+        { "id": "meta_cumplida.1", "tono": "motivador", "severidad": "logro", "texto": "¡Lo lograste! «{meta}» llegó a {objetivo:moneda}. Eso fue constancia tuya." },
+        { "id": "meta_cumplida.2", "tono": "neutral", "severidad": "logro", "texto": "Meta cumplida: «{meta}» ({objetivo:moneda})." }
+      ]
+    },
+    {
+      "id": "presupuesto_estado", "grupo": "accion", "origen": "regla", "descripcion": "Real frente a previsto en una categoría o el total.",
+      "vars": { "categoria": "texto", "real": "moneda", "previsto": "moneda", "pct_usado": "pct" },
+      "botones": ["ver_presupuesto", "ver_grafico"], "grafico": "medidor_presupuesto",
+      "variantes": [
+        { "id": "presupuesto_estado.1", "tono": "cercano", "texto": "En {categoria} llevas {real:moneda} de los {previsto:moneda} que previste ({pct_usado:pct})." },
+        { "id": "presupuesto_estado.2", "tono": "neutral", "texto": "{categoria}: real {real:moneda} / previsto {previsto:moneda} ({pct_usado:pct})." }
+      ]
+    },
+    {
+      "id": "presupuesto_cerca", "grupo": "accion", "origen": "regla", "descripcion": "Cerca de lo previsto.",
+      "vars": { "categoria": "texto", "pct_usado": "pct", "queda": "moneda", "dias_restantes": "entero" },
+      "botones": ["ver_presupuesto", "simular_recorte"],
+      "variantes": [
+        { "id": "presupuesto_cerca.1", "tono": "cercano", "severidad": "atencion", "texto": "Ojo con {categoria}: ya usaste el {pct_usado:pct} de lo previsto y te quedan {queda:moneda} para {dias_restantes:entero} {dias_restantes:plural=día|días}." },
+        { "id": "presupuesto_cerca.2", "tono": "directo", "severidad": "atencion", "texto": "{categoria}: {pct_usado:pct} usado; quedan {queda:moneda}." }
+      ]
+    },
+    {
+      "id": "presupuesto_excedido", "grupo": "accion", "origen": "regla", "descripcion": "Se superó lo previsto.",
+      "vars": { "categoria": "texto", "exceso": "moneda", "pct_usado": "pct" },
+      "botones": ["ver_presupuesto", "simular_recorte"],
+      "variantes": [
+        { "id": "presupuesto_excedido.1", "tono": "cercano", "severidad": "alerta", "texto": "En {categoria} te pasaste {exceso:moneda} de lo previsto ({pct_usado:pct}). No pasa nada: puedes compensar en otra categoría o ajustar el presupuesto." },
+        { "id": "presupuesto_excedido.2", "tono": "neutral", "severidad": "alerta", "texto": "{categoria} excede lo previsto en {exceso:moneda}." }
+      ]
+    },
+    {
+      "id": "gasto_mayor_ingreso", "grupo": "accion", "origen": "regla", "descripcion": "El gasto del mes ya supera los ingresos.",
+      "vars": { "total_gasto": "moneda", "total_ingreso": "moneda", "diferencia": "moneda" },
+      "botones": ["ver_ranking", "simular_recorte"],
+      "variantes": [
+        { "id": "gasto_mayor_ingreso.1", "tono": "cercano", "severidad": "alerta", "texto": "Este mes ya gastaste {diferencia:moneda} más de lo que ingresó ({total_gasto:moneda} frente a {total_ingreso:moneda}). Si falta registrar algún ingreso, anótalo; si no, veamos dónde ajustar." },
+        { "id": "gasto_mayor_ingreso.2", "tono": "neutral", "severidad": "alerta", "texto": "Gastos superan ingresos por {diferencia:moneda}." }
+      ]
+    },
+
+    {
+      "id": "siguiente_paso", "grupo": "plan", "origen": "regla", "descripcion": "Próxima tarea del plan.",
+      "vars": { "tarea": "texto", "motivo": "texto?", "criterio": "texto?" }, "botones": ["completar_tarea", "ver_tareas"],
+      "variantes": [
+        { "id": "siguiente_paso.1", "tono": "cercano", "texto": "Tu siguiente paso: {tarea}. Lo darás por hecho cuando: {criterio}" },
+        { "id": "siguiente_paso.3", "tono": "cercano", "cuando": [{ "var": "motivo", "op": "no_vacio" }], "texto": "Tu siguiente paso: {tarea}. Por qué: {motivo}" },
+        { "id": "siguiente_paso.2", "tono": "directo", "texto": "Siguiente: {tarea}." }
+      ]
+    },
+    {
+      "id": "tarea_completada_propuesta", "grupo": "plan", "origen": "regla", "descripcion": "Propuesta de marcar una tarea como hecha.",
+      "vars": { "tarea": "texto", "criterio": "texto?" }, "botones": ["confirmar", "cancelar"],
+      "variantes": [
+        { "id": "tarea_completada_propuesta.1", "tono": "motivador", "texto": "¡Bien! ¿Te refieres a «{tarea}»? Confírmalo si ya cumpliste el criterio: {criterio}" },
+        { "id": "tarea_completada_propuesta.2", "tono": "neutral", "texto": "¿Marco «{tarea}» como completada?" }
+      ]
+    },
+    {
+      "id": "sin_tareas", "grupo": "plan", "origen": "regla", "descripcion": "No hay tareas pendientes.",
+      "vars": {}, "botones": ["crear_tarea", "ver_plan"],
+      "variantes": [
+        { "id": "sin_tareas.1", "tono": "cercano", "texto": "No tienes tareas pendientes. ¿Creamos una pequeña para esta semana, como anotar tus gastos cada día?" },
+        { "id": "sin_tareas.2", "tono": "neutral", "texto": "Sin tareas pendientes." }
+      ]
+    },
+    {
+      "id": "sin_plan", "grupo": "plan", "origen": "regla", "descripcion": "Aún no hay plan maestro.",
+      "vars": {}, "botones": ["ver_plan"],
+      "variantes": [
+        { "id": "sin_plan.1", "tono": "cercano", "texto": "Todavía no tienes un Plan Maestro. Mientras tanto puedo ayudarte con tus movimientos y resúmenes." },
+        { "id": "sin_plan.2", "tono": "neutral", "texto": "No hay plan vigente. Los resúmenes de movimientos siguen disponibles." }
+      ]
+    },
+    {
+      "id": "plan_desactualizado", "grupo": "plan", "origen": "regla", "descripcion": "Los datos cambiaron desde el último plan.",
+      "vars": {}, "botones": ["ver_plan"],
+      "variantes": [
+        { "id": "plan_desactualizado.1", "tono": "cercano", "severidad": "info", "texto": "Tus datos cambiaron desde que se generó tu plan. Si quieres, actualiza tu evaluación para recalcular antes de pensar en un plan nuevo." },
+        { "id": "plan_desactualizado.2", "tono": "neutral", "severidad": "info", "texto": "El plan es anterior a los últimos cambios en tus datos. Recalcula la evaluación si lo necesitas." }
+      ]
+    },
+
+    {
+      "id": "explicar_saldo", "grupo": "educativo", "origen": "plantilla", "descripcion": "Qué es el saldo del mes.",
+      "vars": { "total_ingreso": "moneda", "total_gasto": "moneda", "pago_deuda": "moneda", "saldo": "moneda" }, "botones": ["ver_movimientos"],
+      "variantes": [
+        { "id": "explicar_saldo.1", "tono": "cercano", "texto": "El saldo es lo que queda de tus ingresos ({total_ingreso:moneda}) después de restar tus gastos ({total_gasto:moneda}) y tus pagos de deuda ({pago_deuda:moneda}): {saldo:moneda}. Los aportes a ahorro se restan aparte." },
+        { "id": "explicar_saldo.2", "tono": "neutral", "texto": "Saldo = ingresos - gastos - pagos de deuda = {saldo:moneda}." }
+      ]
+    },
+    {
+      "id": "explicar_tasa_ahorro", "grupo": "educativo", "origen": "plantilla", "descripcion": "Qué es la tasa de ahorro.",
+      "vars": { "tasa_ahorro": "pct?" }, "botones": ["ver_metas"],
+      "variantes": [
+        { "id": "explicar_tasa_ahorro.1", "tono": "cercano", "texto": "La tasa de ahorro es qué parte de lo que ganas apartas. Si ganas 100 y apartas 10, tu tasa es del 10 %." },
+        { "id": "explicar_tasa_ahorro.3", "tono": "cercano", "cuando": [{ "var": "tasa_ahorro", "op": "no_vacio" }], "texto": "La tasa de ahorro es qué parte de lo que ganas apartas. Este mes la tuya es {tasa_ahorro:pct}." },
+        { "id": "explicar_tasa_ahorro.2", "tono": "neutral", "texto": "Tasa de ahorro = aportes de ahorro / ingresos del período." }
+      ]
+    },
+    {
+      "id": "explicar_reserva", "grupo": "educativo", "origen": "plantilla", "descripcion": "Qué es la reserva de emergencia.",
+      "vars": {}, "botones": ["ver_metas"],
+      "variantes": [
+        { "id": "explicar_reserva.1", "tono": "cercano", "texto": "La reserva de emergencia es dinero separado para imprevistos, como quedarte sin ingresos unos meses. Por eso no la usamos para pagar deudas ni para gastos del día a día." },
+        { "id": "explicar_reserva.2", "tono": "neutral", "texto": "Reserva de emergencia: ahorro accesible destinado a cubrir gastos básicos ante una interrupción de ingresos." }
+      ]
+    },
+    {
+      "id": "explicar_estrategias_deuda", "grupo": "educativo", "origen": "plantilla", "descripcion": "Bola de nieve frente a avalancha.",
+      "vars": {}, "botones": ["cambiar_estrategia", "ver_deudas"],
+      "variantes": [
+        { "id": "explicar_estrategias_deuda.1", "tono": "cercano", "texto": "Bola de nieve: pagas primero la deuda más pequeña; terminarla da motivación. Avalancha: pagas primero la de mayor tasa; normalmente cuesta menos en intereses. Ninguna es mejor para todos: elige la que más fácil puedas sostener." },
+        { "id": "explicar_estrategias_deuda.2", "tono": "neutral", "texto": "Bola de nieve = menor saldo primero. Avalancha = mayor tasa primero. La avalancha suele minimizar intereses; la bola de nieve ayuda a la constancia." }
+      ]
+    },
+    {
+      "id": "explicar_hormiga", "grupo": "educativo", "origen": "plantilla", "descripcion": "Qué son los gastos hormiga.",
+      "vars": {}, "botones": ["ver_insights"],
+      "variantes": [
+        { "id": "explicar_hormiga.1", "tono": "cercano", "texto": "Los gastos hormiga son compras pequeñas y frecuentes, como un café o un snack, que casi no se notan una por una pero suman. No hace falta eliminarlos: basta con saber cuánto suman." },
+        { "id": "explicar_hormiga.2", "tono": "neutral", "texto": "Gasto hormiga: desembolso pequeño y repetido. Se mide sumando sus importes mensuales." }
+      ]
+    },
+    {
+      "id": "explicar_proyeccion", "grupo": "educativo", "origen": "plantilla", "descripcion": "Cómo se calcula la proyección del mes.",
+      "vars": {}, "botones": ["ver_grafico"],
+      "variantes": [
+        { "id": "explicar_proyeccion.1", "tono": "cercano", "texto": "Tomo lo que has gastado hasta hoy, lo divido entre los días transcurridos y lo multiplico por los días del mes. Es una proyección simple: no sabe de pagos grandes que vengan ni de ingresos nuevos." },
+        { "id": "explicar_proyeccion.2", "tono": "neutral", "texto": "Proyección = gasto acumulado / días transcurridos × días del mes." }
+      ]
+    },
+    {
+      "id": "explicar_50_30_20", "grupo": "educativo", "origen": "plantilla", "descripcion": "La regla 50/30/20 como referencia opcional.",
+      "vars": {}, "botones": ["ver_ranking"],
+      "variantes": [
+        { "id": "explicar_50_30_20.1", "tono": "cercano", "texto": "La regla 50/30/20 sugiere dedicar cerca del 50 % de tus ingresos a necesidades, 30 % a deseos y 20 % a ahorro o deudas. Es solo una referencia popular, no una norma: con ingresos variables o costos altos puede no encajar." },
+        { "id": "explicar_50_30_20.2", "tono": "neutral", "texto": "50/30/20: necesidades / deseos / ahorro y deuda. Referencia orientativa, no recomendación personalizada." }
+      ]
+    },
+    {
+      "id": "explicar_simulacion", "grupo": "educativo", "origen": "plantilla", "descripcion": "Qué es una consulta hipotética.",
+      "vars": {}, "botones": ["simular_pago_extra", "simular_recorte"],
+      "variantes": [
+        { "id": "explicar_simulacion.1", "tono": "cercano", "texto": "Una consulta hipotética prueba qué pasaría si cambiaras algo, por ejemplo pagar más a una deuda. No modifica ninguno de tus datos reales." },
+        { "id": "explicar_simulacion.2", "tono": "neutral", "texto": "Simulación: cálculo con supuestos. No modifica datos." }
+      ]
+    },
+
+    {
+      "id": "pocos_datos", "grupo": "calidad_datos", "origen": "regla", "descripcion": "Menos movimientos que el mínimo.",
+      "vars": { "n": "entero", "minimo": "entero" }, "botones": ["registrar_gasto", "registrar_ingreso"],
+      "variantes": [
+        { "id": "pocos_datos.1", "tono": "cercano", "texto": "Aún tengo pocos movimientos ({n:entero}) para decirte algo útil. Con {minimo:entero} puedo mostrarte rankings y comparaciones." },
+        { "id": "pocos_datos.2", "tono": "neutral", "texto": "Datos insuficientes: {n:entero} de {minimo:entero} movimientos." }
+      ]
+    },
+    {
+      "id": "sin_ingresos_registrados", "grupo": "calidad_datos", "origen": "regla", "descripcion": "Hay gastos pero ningún ingreso este mes.",
+      "vars": {}, "botones": ["registrar_ingreso"],
+      "variantes": [
+        { "id": "sin_ingresos_registrados.1", "tono": "cercano", "texto": "Veo gastos pero ningún ingreso este mes. Anota tus ingresos para que el saldo y los porcentajes tengan sentido." },
+        { "id": "sin_ingresos_registrados.2", "tono": "neutral", "texto": "Sin ingresos registrados: los porcentajes sobre ingresos no están disponibles." }
+      ]
+    },
+    {
+      "id": "sin_registro_hace_dias", "grupo": "calidad_datos", "origen": "regla", "descripcion": "Recordatorio amable.",
+      "vars": { "dias": "entero" }, "botones": ["registrar_gasto", "entendido"],
+      "variantes": [
+        { "id": "sin_registro_hace_dias.1", "tono": "cercano", "texto": "Llevas {dias:entero} días sin anotar nada. ¿Se te pasó algún gasto o ingreso? Sin presión: cuando puedas." },
+        { "id": "sin_registro_hace_dias.2", "tono": "neutral", "texto": "Sin movimientos desde hace {dias:entero} días." }
+      ]
+    },
+    {
+      "id": "muchos_en_otros", "grupo": "calidad_datos", "origen": "regla", "descripcion": "Demasiado gasto en la categoría «otros».",
+      "vars": { "pct": "pct" }, "botones": ["ver_detalle", "corregir_categoria"],
+      "variantes": [
+        { "id": "muchos_en_otros.1", "tono": "cercano", "severidad": "atencion", "texto": "El {pct:pct} de tus gastos está en «Otros». Si los clasificas mejor, tus rankings serán más útiles." },
+        { "id": "muchos_en_otros.2", "tono": "neutral", "severidad": "atencion", "texto": "{pct:pct} del gasto sin categoría específica." }
+      ]
+    },
+    {
+      "id": "sin_mes_anterior", "grupo": "calidad_datos", "origen": "regla", "descripcion": "No hay datos suficientes del mes anterior.",
+      "vars": { "mes_anterior": "mes" }, "botones": ["registrar_gasto"],
+      "variantes": [
+        { "id": "sin_mes_anterior.1", "tono": "cercano", "texto": "No tengo suficientes movimientos de {mes_anterior:mes} para comparar. El mes que viene ya podré hacerlo." },
+        { "id": "sin_mes_anterior.2", "tono": "neutral", "texto": "Comparación no disponible: {mes_anterior:mes} sin datos suficientes." }
+      ]
+    },
+
+    {
+      "id": "racha_registro", "grupo": "logro", "origen": "regla", "descripcion": "Días seguidos registrando.",
+      "vars": { "racha": "entero" }, "botones": ["ver_insights"],
+      "variantes": [
+        { "id": "racha_registro.1", "tono": "motivador", "severidad": "logro", "texto": "¡{racha:entero} {racha:plural=día|días} seguidos anotando tus movimientos! La constancia es lo que da claridad." },
+        { "id": "racha_registro.2", "tono": "neutral", "severidad": "logro", "texto": "Racha de registro: {racha:entero} {racha:plural=día|días}." }
+      ]
+    },
+    {
+      "id": "logro_desbloqueado", "grupo": "logro", "origen": "regla", "descripcion": "Nuevo logro.",
+      "vars": { "logro": "texto" }, "botones": ["entendido"],
+      "variantes": [
+        { "id": "logro_desbloqueado.1", "tono": "motivador", "severidad": "logro", "texto": "Logro desbloqueado: «{logro}». Esto no mide cuánto dinero tienes, sino lo que haces por ordenarlo." },
+        { "id": "logro_desbloqueado.2", "tono": "directo", "severidad": "logro", "texto": "Nuevo logro: {logro}." }
+      ]
+    },
+    {
+      "id": "subida_nivel", "grupo": "logro", "origen": "regla", "descripcion": "Subió de nivel.",
+      "vars": { "nivel": "entero", "nombre_nivel": "texto" }, "botones": ["entendido"],
+      "variantes": [
+        { "id": "subida_nivel.1", "tono": "motivador", "severidad": "logro", "texto": "¡Subiste al nivel {nivel:entero}: {nombre_nivel}!" },
+        { "id": "subida_nivel.2", "tono": "directo", "severidad": "logro", "texto": "Nivel {nivel:entero}." }
+      ]
+    },
+    {
+      "id": "deuda_saldada", "grupo": "logro", "origen": "regla", "descripcion": "Una deuda llegó a cero.",
+      "vars": { "deuda": "texto" }, "botones": ["ver_deudas", "ver_plan"],
+      "variantes": [
+        { "id": "deuda_saldada.1", "tono": "motivador", "severidad": "logro", "texto": "¡Terminaste de pagar «{deuda}»! Eso libera cada mes lo que le dedicabas." },
+        { "id": "deuda_saldada.2", "tono": "neutral", "severidad": "logro", "texto": "Deuda saldada: «{deuda}»." }
+      ]
+    },
+    {
+      "id": "mes_completo", "grupo": "logro", "origen": "regla", "descripcion": "Registró movimientos casi todos los días del mes.",
+      "vars": { "mes": "mes", "dias": "entero" }, "botones": ["mes_anterior", "ver_insights"],
+      "variantes": [
+        { "id": "mes_completo.1", "tono": "motivador", "severidad": "logro", "texto": "Cerraste {mes:mes} con {dias:entero} días registrados. Con un mes tan completo, mis comparaciones son más confiables." },
+        { "id": "mes_completo.2", "tono": "neutral", "severidad": "logro", "texto": "{mes:mes} con {dias:entero} días de registro." }
+      ]
+    },
+
+    {
+      "id": "sonido_activado", "grupo": "configuracion", "origen": "plantilla", "descripcion": "Se activaron los sonidos.",
+      "vars": {}, "botones": ["silenciar"],
+      "variantes": [
+        { "id": "sonido_activado.1", "tono": "cercano", "texto": "Sonidos activados. Suenan solo cuando haces algo, siempre bajitos." },
+        { "id": "sonido_activado.2", "tono": "directo", "texto": "Sonido: activado." }
+      ]
+    },
+    {
+      "id": "sonido_desactivado", "grupo": "configuracion", "origen": "plantilla", "descripcion": "Se silenciaron los sonidos.",
+      "vars": {}, "botones": ["activar_sonido"],
+      "variantes": [
+        { "id": "sonido_desactivado.1", "tono": "cercano", "texto": "Listo, silencio total. Puedes volver a activarlos cuando quieras." },
+        { "id": "sonido_desactivado.2", "tono": "directo", "texto": "Sonido: desactivado." }
+      ]
+    },
+    {
+      "id": "moneda_info", "grupo": "configuracion", "origen": "plantilla", "descripcion": "Moneda de la cuenta.",
+      "vars": { "moneda": "texto" }, "botones": [],
+      "variantes": [
+        { "id": "moneda_info.1", "tono": "cercano", "texto": "Tu cuenta trabaja en {moneda}. No convierto monedas: si pagaste en otra, anota el importe ya convertido." },
+        { "id": "moneda_info.2", "tono": "neutral", "texto": "Moneda de la cuenta: {moneda}. Sin conversiones automáticas." }
+      ]
+    },
+
+    {
+      "id": "ia_ofrecer", "grupo": "ia", "origen": "plantilla", "descripcion": "Ninguna regla resolvió: se ofrece la IA opcional.",
+      "vars": { "usadas": "entero", "limite": "entero" }, "botones": ["preguntar_ia", "ver_menu"],
+      "variantes": [
+        { "id": "ia_ofrecer.1", "tono": "cercano", "texto": "Esto se sale de lo que sé resolver con reglas. Si quieres, puedo consultarle a la IA (has usado {usadas:entero} de {limite:entero} este mes)." },
+        { "id": "ia_ofrecer.2", "tono": "neutral", "texto": "Sin respuesta por reglas. Opción: consulta con IA ({usadas:entero}/{limite:entero} usadas)." }
+      ]
+    },
+    {
+      "id": "ia_limite_alcanzado", "grupo": "ia", "origen": "plantilla", "descripcion": "Se alcanzó el límite mensual de llamadas a la IA.",
+      "vars": { "limite": "entero" }, "botones": ["ver_menu"],
+      "variantes": [
+        { "id": "ia_limite_alcanzado.1", "tono": "cercano", "severidad": "atencion", "texto": "Usaste tus {limite:entero} consultas de IA de este mes. Todo lo demás (registros, resúmenes, rankings, deudas y metas) sigue funcionando sin límite." },
+        { "id": "ia_limite_alcanzado.2", "tono": "neutral", "severidad": "atencion", "texto": "Límite mensual de IA alcanzado ({limite:entero}). Las funciones por reglas no tienen límite." }
+      ]
+    },
+    {
+      "id": "ia_no_disponible", "grupo": "ia", "origen": "plantilla", "descripcion": "El proveedor de IA no respondió.",
+      "vars": {}, "botones": ["reintentar", "ver_menu"],
+      "variantes": [
+        { "id": "ia_no_disponible.1", "tono": "cercano", "severidad": "atencion", "texto": "La IA no respondió ahora mismo. Tu mensaje quedó guardado y todo lo demás sigue funcionando; puedes reintentar en unos minutos." },
+        { "id": "ia_no_disponible.2", "tono": "neutral", "severidad": "atencion", "texto": "Proveedor de IA no disponible. Funciones por reglas activas." }
+      ]
+    },
+    {
+      "id": "ia_respuesta_prefijo", "grupo": "ia", "origen": "plantilla", "descripcion": "Aviso fijo antes de una respuesta redactada por IA.",
+      "vars": {}, "botones": [],
+      "variantes": [
+        { "id": "ia_respuesta_prefijo.1", "tono": "neutral", "texto": "Respuesta con ayuda de IA, usando solo las cifras calculadas por Día Uno:" },
+        { "id": "ia_respuesta_prefijo.2", "tono": "cercano", "texto": "Esto lo redactó la IA con tus cifras ya calculadas; revisa que tenga sentido para ti:" }
+      ]
+    }
+  ]
+}

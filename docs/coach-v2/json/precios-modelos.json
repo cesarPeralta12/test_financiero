@@ -1,0 +1,15 @@
+{
+  "version": "2026-11-16",
+  "unidad": "USD por millón de tokens",
+  "nota": "Precios de Anthropic copiados de https://platform.claude.com/docs/en/about-claude/pricing el 2026-11-16. Los de OpenAI NO se pudieron verificar desde esta sesión (el dominio no estaba permitido): se dejan en null a propósito. Revisar antes de decidir.",
+  "anthropic": {
+    "haiku-5.5": { "entrada": 0.10, "escritura_cache_5m": 0.125, "escritura_cache_1h": 0.20, "lectura_cache": 0.01, "salida": 0.50, "minimo_cacheable_tokens": 512, "nota": "Con prompts de más de 100.000 tokens cuesta 0.50 / 2.50." },
+    "sonnet-5.5": { "entrada": 2.00, "escritura_cache_5m": 2.50, "escritura_cache_1h": 4.00, "lectura_cache": 0.10, "salida": 10.00, "minimo_cacheable_tokens": 512 },
+    "opus-5.5": { "entrada": 4.00, "escritura_cache_5m": 5.00, "escritura_cache_1h": 8.00, "lectura_cache": 0.20, "salida": 20.00, "minimo_cacheable_tokens": 512 },
+    "batch_descuento": 0.5
+  },
+  "openai": {
+    "nota": "Sin verificar. Fuentes secundarias hablan de un descuento de hasta 90 % en entrada en caché en la familia GPT-6, pero no se confirmó en la página oficial.",
+    "modelos": {}
+  }
+}

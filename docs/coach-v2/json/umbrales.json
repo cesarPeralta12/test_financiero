@@ -1,0 +1,312 @@
+{
+  "version": "UMBRALES_V1",
+  "estado_global": "pendiente_validar",
+  "nota": "Todos los umbrales son reglas de producto, no una escala financiera validada. Deben aprobarlos el responsable de producto y el de contenido financiero antes de publicarse. Se cargan desde este archivo (o desde la tabla settings) para cambiarlos sin tocar código.",
+  "datos_minimos": {
+    "min_movimientos_para_insights": {
+      "valor": 5,
+      "unidad": "movimientos",
+      "descripcion": "Con menos movimientos en el mes el Coach dice que aún tiene pocos datos y no calcula rankings ni porcentajes."
+    },
+    "min_dias_con_datos_para_proyeccion": {
+      "valor": 5,
+      "unidad": "días transcurridos del mes",
+      "descripcion": "Antes del día 5 no se proyecta el cierre del mes."
+    },
+    "min_movimientos_para_comparar_mes": {
+      "valor": 5,
+      "unidad": "movimientos en cada mes",
+      "descripcion": "Para comparar con el mes anterior ambos meses deben tener al menos este número."
+    },
+    "min_meses_para_tendencia": {
+      "valor": 3,
+      "unidad": "meses",
+      "descripcion": "La tendencia de varios meses necesita al menos tres."
+    },
+    "min_repeticiones_para_recurrente": {
+      "valor": 3,
+      "unidad": "veces",
+      "descripcion": "Un gasto con la misma nota y un importe parecido en meses distintos se propone como recurrente."
+    }
+  },
+  "ranking": {
+    "concentracion_alta_top1_pct": {
+      "valor": 40,
+      "unidad": "% del gasto del mes",
+      "descripcion": "Si una categoría supera este porcentaje se avisa de concentración."
+    },
+    "concentracion_alta_top3_pct": {
+      "valor": 75,
+      "unidad": "% del gasto del mes",
+      "descripcion": "Si las tres principales suman más, se avisa."
+    },
+    "categorias_maximas_en_ranking_corto": {
+      "valor": 5,
+      "unidad": "categorías",
+      "descripcion": "Cuántas categorías muestra el ranking breve; el resto aparece en «Ver todo»."
+    }
+  },
+  "comparacion": {
+    "cambio_relevante_pct": {
+      "valor": 15,
+      "unidad": "% frente al mes anterior",
+      "descripcion": "Un cambio menor a este porcentaje no se destaca."
+    },
+    "cambio_relevante_minimo_pct_ingreso": {
+      "valor": 1,
+      "unidad": "% del ingreso del mes",
+      "descripcion": "Además del porcentaje, el cambio absoluto debe valer al menos este % del ingreso para no destacar variaciones triviales."
+    },
+    "cambio_minimo_absoluto_sin_ingreso": {
+      "valor": 10,
+      "unidad": "unidades de la moneda",
+      "descripcion": "Si no hay ingresos registrados, se exige este cambio absoluto mínimo."
+    }
+  },
+  "ritmo_y_proyeccion": {
+    "proyeccion_margen_aviso_pct": {
+      "valor": 90,
+      "unidad": "% del ingreso",
+      "descripcion": "Si el gasto proyectado supera este % del ingreso se avisa con tono de atención."
+    },
+    "proyeccion_margen_alerta_pct": {
+      "valor": 100,
+      "unidad": "% del ingreso",
+      "descripcion": "Si lo supera, tono de alerta."
+    },
+    "proyeccion_metodo": {
+      "valor": "lineal_por_dia",
+      "descripcion": "Gasto acumulado dividido entre los días transcurridos y multiplicado por los días del mes. Siempre se etiqueta como proyección simple."
+    }
+  },
+  "habitos": {
+    "hormiga_tope_pct_ingreso": {
+      "valor": 1.5,
+      "unidad": "% del ingreso mensual",
+      "descripcion": "Un gasto individual de este tamaño o menor puede ser «hormiga»."
+    },
+    "hormiga_tope_sin_ingreso_pct_gasto": {
+      "valor": 3,
+      "unidad": "% del gasto mensual",
+      "descripcion": "Si no hay ingresos registrados, el tope se mide contra el gasto del mes."
+    },
+    "hormiga_frecuencia_minima": {
+      "valor": 6,
+      "unidad": "veces en el mes",
+      "descripcion": "Hace falta repetirse al menos así para considerarlo un hábito."
+    },
+    "hormiga_aviso_pct_gasto": {
+      "valor": 8,
+      "unidad": "% del gasto del mes",
+      "descripcion": "Los hormiga juntos deben pasar este porcentaje para mencionarlos."
+    },
+    "gasto_repetido_minimo": {
+      "valor": 3,
+      "unidad": "veces en el mes",
+      "descripcion": "Misma nota normalizada."
+    },
+    "fin_de_semana_diferencia_pct": {
+      "valor": 30,
+      "unidad": "% sobre el promedio diario",
+      "descripcion": "El día promedio de fin de semana debe superar así al de entre semana para destacarlo."
+    }
+  },
+  "recorte": {
+    "recorte_ilustrativo_pct": {
+      "valor": [
+        10,
+        20
+      ],
+      "unidad": "%",
+      "descripcion": "Se simulan estos dos recortes sobre las categorías discrecionales. Son hipótesis, no recomendaciones."
+    },
+    "categorias_discrecionales": {
+      "valor": [
+        "ocio",
+        "otros"
+      ],
+      "descripcion": "Categorías base del sistema. El diccionario añade subcategorías discrecionales dentro de otras (por ejemplo restaurante, delivery, café)."
+    },
+    "nunca_recortar": {
+      "valor": [
+        "vivienda",
+        "salud",
+        "educacion",
+        "servicios"
+      ],
+      "descripcion": "Nunca se sugiere recortar estas categorías."
+    },
+    "recorte_maximo_sobre_categoria_pct": {
+      "valor": 30,
+      "descripcion": "Ningún escenario propone recortar más que esto una sola categoría."
+    }
+  },
+  "deudas": {
+    "estrategia_por_defecto": {
+      "valor": "plan",
+      "descripcion": "Se usa el orden que ya definió el plan maestro. Si no hay plan: bola de nieve (menor saldo primero) por motivación, o avalancha (mayor tasa primero) si la diferencia de intereses supera el umbral siguiente."
+    },
+    "avalancha_diferencia_interes_pct": {
+      "valor": 10,
+      "unidad": "% de intereses totales",
+      "descripcion": "Si la avalancha ahorra al menos esto frente a la bola de nieve, se menciona."
+    },
+    "liquidar_con_saldo_libre_max_pct": {
+      "valor": 100,
+      "unidad": "% del saldo libre del mes",
+      "descripcion": "Una deuda se considera «liquidable de una» si su saldo cabe en el saldo libre del mes."
+    },
+    "nunca_usar_reserva": {
+      "valor": true,
+      "descripcion": "Nunca se sugiere usar la reserva de emergencia para pagar deudas."
+    },
+    "pago_extra_ilustrativo_pct_saldo_libre": {
+      "valor": [
+        25,
+        50,
+        100
+      ],
+      "unidad": "% del saldo libre",
+      "descripcion": "Escenarios de pago extra que se pueden simular con el simulador existente."
+    }
+  },
+  "presupuesto": {
+    "aviso_cerca_pct": {
+      "valor": 80,
+      "unidad": "% de lo previsto en la categoría",
+      "descripcion": "Aviso amable de que se acerca al tope."
+    },
+    "alerta_excedido_pct": {
+      "valor": 100,
+      "unidad": "% de lo previsto",
+      "descripcion": "Aviso de que se superó lo previsto."
+    }
+  },
+  "metas": {
+    "meta_en_riesgo_meses_extra": {
+      "valor": 3,
+      "unidad": "meses",
+      "descripcion": "Si con el aporte actual se tarda al menos esto más que el plazo deseado, se marca en riesgo."
+    },
+    "aporte_sugerido_redondeo": {
+      "valor": 5,
+      "unidad": "unidades",
+      "descripcion": "Los aportes sugeridos se redondean hacia arriba a este múltiplo."
+    }
+  },
+  "registro_y_recordatorios": {
+    "dias_sin_registro_aviso": {
+      "valor": 3,
+      "unidad": "días",
+      "descripcion": "Recordatorio amable si no hubo movimientos en este tiempo."
+    },
+    "recordatorio_maximo_por_semana": {
+      "valor": 2,
+      "descripcion": "Para no saturar."
+    },
+    "importe_alto_confirmar_veces_mediana": {
+      "valor": 5,
+      "unidad": "veces la mediana de gastos del usuario",
+      "descripcion": "Antes de guardar un gasto así de grande se pide confirmación («¿Es correcto?»)."
+    },
+    "duplicado_ventana_minutos": {
+      "valor": 10,
+      "unidad": "minutos",
+      "descripcion": "Mismo importe, categoría y nota dentro de esta ventana: se pregunta si es un duplicado."
+    },
+    "deshacer_segundos": {
+      "valor": 6,
+      "unidad": "segundos",
+      "descripcion": "Tiempo del aviso con «Deshacer»."
+    },
+    "xp_registro_tope_diario": {
+      "valor": 3,
+      "unidad": "movimientos con XP por día",
+      "descripcion": "Para evitar registros falsos solo por XP. El XP nunca depende del importe."
+    }
+  },
+  "ia": {
+    "meta_resuelto_sin_ia_pct": {
+      "valor": 95,
+      "descripcion": "Objetivo de producto."
+    },
+    "meta_tokens_entrada_por_llamada": {
+      "valor": 2000,
+      "descripcion": "Presupuesto de contexto por llamada de IA."
+    },
+    "historial_mensajes_a_ia": {
+      "valor": 4,
+      "descripcion": "Últimos mensajes que se envían."
+    },
+    "salida_maxima_tokens": {
+      "clasificar": 60,
+      "extraer": 120,
+      "redactar": 220,
+      "consejo": 400
+    },
+    "confianza_minima_parser": {
+      "valor": 0.7,
+      "descripcion": "Por debajo se pregunta con botones antes de ofrecer la IA."
+    },
+    "confianza_minima_ia_clasificar": {
+      "valor": 0.75,
+      "descripcion": "Si la IA clasifica por debajo, se muestran botones de aclaración."
+    },
+    "cache_respuesta_ia_horas": {
+      "valor": 24,
+      "descripcion": "Misma pregunta normalizada y mismos datos de entrada devuelve la respuesta guardada."
+    },
+    "limite_mensual_ia_por_cuenta": {
+      "valor": 60,
+      "descripcion": "Se mantiene el ajuste actual ai_coach_monthly_limit, que ahora cuenta solo llamadas reales a IA."
+    }
+  },
+  "formato": {
+    "porcentaje_decimales": {
+      "valor": 0,
+      "descripcion": "Los porcentajes se muestran enteros salvo que sean menores que 10 % (un decimal) para no perder significado."
+    },
+    "redondeo": {
+      "valor": "mitad_hacia_arriba",
+      "descripcion": "Los importes se calculan con decimales exactos y se redondean solo al mostrarlos."
+    },
+    "importes_moneda_sin_decimales": {
+      "valor": [
+        "CLP"
+      ],
+      "descripcion": "Monedas que se muestran sin decimales."
+    }
+  },
+  "calidad": {
+    "otros_alto_pct": {
+      "valor": 25,
+      "unidad": "% del gasto del mes",
+      "descripcion": "Si la categoría «otros» supera este porcentaje se sugiere clasificar mejor."
+    },
+    "tendencia_crecimiento_minimo_pct": {
+      "valor": 5,
+      "unidad": "% por mes",
+      "descripcion": "Para decir que el gasto sube o baja, cada uno de los 3 últimos meses debe cambiar al menos esto."
+    },
+    "dia_mas_caro_semanas_ventana": {
+      "valor": 8,
+      "unidad": "semanas",
+      "descripcion": "Ventana para el promedio por día de la semana."
+    },
+    "dia_mas_caro_semanas_minimas": {
+      "valor": 4,
+      "unidad": "semanas con datos",
+      "descripcion": "Mínimo para calcular."
+    },
+    "insights_visibles": {
+      "valor": 3,
+      "unidad": "insights",
+      "descripcion": "Cuántos se muestran a la vez; el resto va a «Más observaciones»."
+    },
+    "descartar_dias": {
+      "valor": 7,
+      "unidad": "días",
+      "descripcion": "Un insight descartado no vuelve a mostrarse en este tiempo (salvo que cambie de severidad)."
+    }
+  }
+}

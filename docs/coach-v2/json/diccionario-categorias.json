@@ -1,0 +1,1348 @@
+{
+  "version": "DICC_V1_ES",
+  "nota": "Todas las palabras están ya normalizadas: minúsculas, sin tildes ni signos. El parser normaliza el texto de la persona antes de buscar aquí. Los códigos de tipo y de categoría son los que ya existen en src/domain/tracker.js (KINDS y CATEGORIES). Las subcategorías son nuevas, opcionales y no cambian ningún cálculo actual: viven en una columna aparte (subcategory) y sirven para detectar gastos hormiga, suscripciones y recortes rápidos.",
+  "normalizacion": {
+    "pasos": [
+      "minusculas",
+      "quitar_tildes",
+      "quitar_signos_salvo_.,$%-/",
+      "colapsar_espacios",
+      "unir_numeros_con_separador_de_miles"
+    ],
+    "equivalencias": {
+      "bs": "bob",
+      "bs.": "bob",
+      "$us": "usd",
+      "us$": "usd",
+      "dolares": "usd",
+      "dolar": "usd",
+      "euros": "eur",
+      "soles": "pen",
+      "pesos": "peso"
+    }
+  },
+  "verbos_de_tipo": {
+    "gasto": [
+      "gaste",
+      "gasto",
+      "pague",
+      "compre",
+      "compra",
+      "pago",
+      "consumi",
+      "invite",
+      "se me fue",
+      "me costo",
+      "me cobraron",
+      "desembolse",
+      "saque para",
+      "puse",
+      "abone"
+    ],
+    "ingreso": [
+      "cobre",
+      "cobro",
+      "recibi",
+      "me pagaron",
+      "me depositaron",
+      "me llego",
+      "gane",
+      "ingreso",
+      "entro",
+      "vendi",
+      "me transfirieron",
+      "me abonaron",
+      "sueldo de",
+      "me dieron"
+    ],
+    "pago_deuda": [
+      "pague la tarjeta",
+      "pague mi tarjeta",
+      "pague el prestamo",
+      "pague mi deuda",
+      "abone a la deuda",
+      "cuota de",
+      "pague la cuota",
+      "pago extra a",
+      "amortice",
+      "liquide"
+    ],
+    "ahorro": [
+      "ahorre",
+      "aparte",
+      "guarde",
+      "meti a mi ahorro",
+      "deposite en mi ahorro",
+      "separe para",
+      "aporte a mi meta",
+      "aporte a la meta",
+      "puse en mi fondo"
+    ],
+    "retiro_ahorro": [
+      "saque de mi ahorro",
+      "retire de mi ahorro",
+      "use mi ahorro",
+      "tome de mi fondo",
+      "retire de la reserva"
+    ],
+    "consulta": [
+      "cuanto",
+      "cuanta",
+      "cual",
+      "que",
+      "en que",
+      "como voy",
+      "como cierro",
+      "dime",
+      "muestrame",
+      "ensenname",
+      "explicame",
+      "puedo",
+      "me alcanza",
+      "donde"
+    ]
+  },
+  "categorias": {
+    "gasto": {
+      "alimentacion": {
+        "sinonimos": [
+          "comida",
+          "super",
+          "supermercado",
+          "mercado",
+          "despensa",
+          "verduras",
+          "fruta",
+          "carne",
+          "pan",
+          "panaderia",
+          "abarrotes",
+          "tienda",
+          "almuerzo",
+          "cena",
+          "desayuno",
+          "restaurante",
+          "comer",
+          "saltena",
+          "saltenas",
+          "pollo",
+          "pizza",
+          "hamburguesa",
+          "tacos",
+          "cafe",
+          "cafeteria",
+          "snack",
+          "antojo",
+          "delivery",
+          "domicilio",
+          "pedidos ya",
+          "rappi",
+          "uber eats",
+          "gaseosa",
+          "helado",
+          "dulces",
+          "chicle",
+          "chicles",
+          "chocolate"
+        ],
+        "subcategorias": {
+          "super": {
+            "sinonimos": [
+              "super",
+              "supermercado",
+              "mercado",
+              "despensa",
+              "abarrotes",
+              "verduras",
+              "fruta",
+              "carne",
+              "tienda"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          },
+          "restaurante": {
+            "sinonimos": [
+              "restaurante",
+              "almuerzo fuera",
+              "cena fuera",
+              "pizza",
+              "hamburguesa",
+              "tacos",
+              "saltena",
+              "saltenas",
+              "comer afuera",
+              "almuerzo",
+              "cena",
+              "desayuno"
+            ],
+            "discrecional": true,
+            "hormiga": false
+          },
+          "cafe": {
+            "sinonimos": [
+              "cafe",
+              "cafeteria",
+              "capuchino",
+              "te",
+              "cafecito"
+            ],
+            "discrecional": true,
+            "hormiga": true
+          },
+          "snack": {
+            "sinonimos": [
+              "snack",
+              "dulces",
+              "helado",
+              "gaseosa",
+              "antojo",
+              "galletas",
+              "papas",
+              "chicle",
+              "chicles",
+              "chocolate",
+              "chocolates"
+            ],
+            "discrecional": true,
+            "hormiga": true
+          },
+          "delivery": {
+            "sinonimos": [
+              "delivery",
+              "domicilio",
+              "pedidos ya",
+              "rappi",
+              "uber eats"
+            ],
+            "discrecional": true,
+            "hormiga": false
+          }
+        }
+      },
+      "vivienda": {
+        "sinonimos": [
+          "renta",
+          "alquiler",
+          "anticretico",
+          "hipoteca",
+          "mantenimiento",
+          "expensas",
+          "condominio",
+          "predial",
+          "reparacion",
+          "plomero",
+          "electricista",
+          "muebles",
+          "hogar"
+        ],
+        "subcategorias": {
+          "alquiler": {
+            "sinonimos": [
+              "renta",
+              "alquiler",
+              "anticretico"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          },
+          "expensas": {
+            "sinonimos": [
+              "expensas",
+              "condominio",
+              "mantenimiento"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          },
+          "reparaciones": {
+            "sinonimos": [
+              "reparacion",
+              "plomero",
+              "electricista",
+              "arreglo"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          },
+          "muebles": {
+            "sinonimos": [
+              "muebles",
+              "colchon",
+              "electrodomestico"
+            ],
+            "discrecional": true,
+            "hormiga": false
+          }
+        }
+      },
+      "transporte": {
+        "sinonimos": [
+          "gasolina",
+          "combustible",
+          "diesel",
+          "uber",
+          "taxi",
+          "didi",
+          "cabify",
+          "indrive",
+          "trufi",
+          "micro",
+          "minibus",
+          "bus",
+          "camion",
+          "metro",
+          "pasaje",
+          "pasajes",
+          "peaje",
+          "parqueo",
+          "estacionamiento",
+          "mecanico",
+          "llanta",
+          "aceite",
+          "revision vehicular",
+          "moto"
+        ],
+        "subcategorias": {
+          "combustible": {
+            "sinonimos": [
+              "gasolina",
+              "combustible",
+              "diesel"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          },
+          "transporte_publico": {
+            "sinonimos": [
+              "trufi",
+              "micro",
+              "minibus",
+              "bus",
+              "camion",
+              "metro",
+              "pasaje",
+              "pasajes"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          },
+          "taxi_app": {
+            "sinonimos": [
+              "uber",
+              "taxi",
+              "didi",
+              "cabify",
+              "indrive"
+            ],
+            "discrecional": true,
+            "hormiga": false
+          },
+          "parqueo": {
+            "sinonimos": [
+              "parqueo",
+              "estacionamiento",
+              "peaje"
+            ],
+            "discrecional": false,
+            "hormiga": true
+          },
+          "vehiculo": {
+            "sinonimos": [
+              "mecanico",
+              "llanta",
+              "aceite",
+              "revision vehicular"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          }
+        }
+      },
+      "servicios": {
+        "sinonimos": [
+          "luz",
+          "electricidad",
+          "agua",
+          "gas",
+          "internet",
+          "wifi",
+          "telefono",
+          "celular",
+          "plan de datos",
+          "recarga",
+          "saldo",
+          "tv por cable",
+          "basura",
+          "alcantarillado"
+        ],
+        "subcategorias": {
+          "basicos": {
+            "sinonimos": [
+              "luz",
+              "electricidad",
+              "agua",
+              "gas",
+              "basura",
+              "alcantarillado"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          },
+          "telecom": {
+            "sinonimos": [
+              "internet",
+              "wifi",
+              "telefono",
+              "celular",
+              "plan de datos",
+              "tv por cable"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          },
+          "recarga": {
+            "sinonimos": [
+              "recarga",
+              "saldo"
+            ],
+            "discrecional": false,
+            "hormiga": true
+          }
+        }
+      },
+      "salud": {
+        "sinonimos": [
+          "medico",
+          "doctor",
+          "consulta",
+          "farmacia",
+          "medicina",
+          "medicinas",
+          "remedio",
+          "dentista",
+          "examen",
+          "laboratorio",
+          "seguro medico",
+          "hospital",
+          "optica",
+          "lentes",
+          "terapia"
+        ],
+        "subcategorias": {
+          "consultas": {
+            "sinonimos": [
+              "medico",
+              "doctor",
+              "consulta",
+              "dentista",
+              "terapia"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          },
+          "medicinas": {
+            "sinonimos": [
+              "farmacia",
+              "medicina",
+              "medicinas",
+              "remedio"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          },
+          "examenes": {
+            "sinonimos": [
+              "examen",
+              "laboratorio",
+              "optica",
+              "lentes"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          }
+        }
+      },
+      "educacion": {
+        "sinonimos": [
+          "escuela",
+          "colegio",
+          "colegiatura",
+          "universidad",
+          "matricula",
+          "curso",
+          "libros",
+          "utiles",
+          "uniforme",
+          "guarderia",
+          "cuidado",
+          "ninera",
+          "clases",
+          "mensualidad escolar",
+          "pension escolar"
+        ],
+        "subcategorias": {
+          "colegiatura": {
+            "sinonimos": [
+              "escuela",
+              "colegio",
+              "colegiatura",
+              "universidad",
+              "matricula",
+              "mensualidad escolar",
+              "pension escolar"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          },
+          "cursos": {
+            "sinonimos": [
+              "curso",
+              "clases",
+              "libros"
+            ],
+            "discrecional": true,
+            "hormiga": false
+          },
+          "cuidado": {
+            "sinonimos": [
+              "guarderia",
+              "cuidado",
+              "ninera"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          }
+        }
+      },
+      "ocio": {
+        "sinonimos": [
+          "cine",
+          "netflix",
+          "spotify",
+          "disney",
+          "hbo",
+          "prime",
+          "youtube premium",
+          "streaming",
+          "suscripcion",
+          "salida",
+          "fiesta",
+          "bar",
+          "cerveza",
+          "trago",
+          "concierto",
+          "juego",
+          "videojuego",
+          "steam",
+          "playstation",
+          "viaje",
+          "paseo",
+          "hotel",
+          "regalo",
+          "gimnasio",
+          "gym",
+          "club",
+          "hobby",
+          "ropa",
+          "zapatos",
+          "peluqueria",
+          "salon",
+          "barberia",
+          "maquillaje",
+          "mascota",
+          "veterinario",
+          "app",
+          "donacion"
+        ],
+        "subcategorias": {
+          "streaming": {
+            "sinonimos": [
+              "netflix",
+              "spotify",
+              "disney",
+              "hbo",
+              "prime",
+              "youtube premium",
+              "streaming",
+              "suscripcion"
+            ],
+            "discrecional": true,
+            "hormiga": false,
+            "recurrente_probable": true
+          },
+          "salidas": {
+            "sinonimos": [
+              "cine",
+              "salida",
+              "fiesta",
+              "bar",
+              "cerveza",
+              "trago",
+              "concierto"
+            ],
+            "discrecional": true,
+            "hormiga": false
+          },
+          "juegos": {
+            "sinonimos": [
+              "juego",
+              "videojuego",
+              "steam",
+              "playstation",
+              "app"
+            ],
+            "discrecional": true,
+            "hormiga": true
+          },
+          "viajes": {
+            "sinonimos": [
+              "viaje",
+              "paseo",
+              "hotel"
+            ],
+            "discrecional": true,
+            "hormiga": false
+          },
+          "regalos": {
+            "sinonimos": [
+              "regalo",
+              "donacion"
+            ],
+            "discrecional": true,
+            "hormiga": false
+          },
+          "gimnasio": {
+            "sinonimos": [
+              "gimnasio",
+              "gym",
+              "club"
+            ],
+            "discrecional": true,
+            "hormiga": false,
+            "recurrente_probable": true
+          },
+          "ropa": {
+            "sinonimos": [
+              "ropa",
+              "zapatos"
+            ],
+            "discrecional": true,
+            "hormiga": false
+          },
+          "cuidado_personal": {
+            "sinonimos": [
+              "peluqueria",
+              "salon",
+              "barberia",
+              "maquillaje"
+            ],
+            "discrecional": true,
+            "hormiga": false
+          },
+          "mascotas": {
+            "sinonimos": [
+              "mascota",
+              "veterinario"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          }
+        }
+      },
+      "otros": {
+        "sinonimos": [
+          "otro",
+          "otros",
+          "varios",
+          "imprevisto",
+          "multa",
+          "comision",
+          "tramite",
+          "impuesto",
+          "cargo"
+        ],
+        "subcategorias": {
+          "imprevistos": {
+            "sinonimos": [
+              "imprevisto",
+              "multa"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          },
+          "comisiones": {
+            "sinonimos": [
+              "comision",
+              "cargo"
+            ],
+            "discrecional": false,
+            "hormiga": true
+          },
+          "tramites": {
+            "sinonimos": [
+              "tramite",
+              "impuesto"
+            ],
+            "discrecional": false,
+            "hormiga": false
+          }
+        }
+      }
+    },
+    "ingreso": {
+      "sueldo": {
+        "sinonimos": [
+          "sueldo",
+          "salario",
+          "quincena",
+          "nomina",
+          "paga",
+          "mi trabajo",
+          "pago del trabajo",
+          "haberes"
+        ],
+        "subcategorias": {}
+      },
+      "independiente": {
+        "sinonimos": [
+          "freelance",
+          "proyecto",
+          "honorarios",
+          "factura",
+          "cliente",
+          "servicio",
+          "consultoria",
+          "trabajo por cuenta propia",
+          "changa"
+        ],
+        "subcategorias": {}
+      },
+      "negocio": {
+        "sinonimos": [
+          "negocio",
+          "ventas",
+          "tienda",
+          "utilidad",
+          "ganancia del negocio",
+          "retiro del negocio",
+          "emprendimiento"
+        ],
+        "subcategorias": {}
+      },
+      "renta": {
+        "sinonimos": [
+          "renta de",
+          "alquiler cobrado",
+          "inquilino",
+          "arriendo cobrado",
+          "dividendo",
+          "intereses",
+          "rendimiento",
+          "alquiler",
+          "arriendo"
+        ],
+        "subcategorias": {}
+      },
+      "extra": {
+        "sinonimos": [
+          "extra",
+          "bono",
+          "comision cobrada",
+          "propina",
+          "aguinaldo",
+          "premio",
+          "devolucion",
+          "reembolso",
+          "venta de",
+          "regalo recibido",
+          "me regalaron"
+        ],
+        "subcategorias": {}
+      },
+      "otros": {
+        "sinonimos": [
+          "otro ingreso",
+          "varios",
+          "pension",
+          "apoyo",
+          "beca",
+          "remesa",
+          "me mandaron",
+          "me enviaron"
+        ],
+        "subcategorias": {}
+      }
+    },
+    "pago_deuda": {
+      "cuota": {
+        "sinonimos": [
+          "cuota",
+          "mensualidad",
+          "pago minimo",
+          "minimo",
+          "pago de la tarjeta",
+          "pago del prestamo"
+        ],
+        "subcategorias": {}
+      },
+      "extra": {
+        "sinonimos": [
+          "extra",
+          "adelanto",
+          "abono extra",
+          "pague de mas",
+          "amortizacion",
+          "liquide"
+        ],
+        "subcategorias": {}
+      }
+    },
+    "ahorro": {
+      "reserva": {
+        "sinonimos": [
+          "reserva",
+          "emergencia",
+          "fondo de emergencia",
+          "colchon"
+        ],
+        "subcategorias": {}
+      },
+      "meta": {
+        "sinonimos": [
+          "meta",
+          "para mi viaje",
+          "para mi casa",
+          "para el carro",
+          "objetivo"
+        ],
+        "subcategorias": {}
+      },
+      "otros": {
+        "sinonimos": [
+          "ahorro",
+          "alcancia"
+        ],
+        "subcategorias": {}
+      }
+    },
+    "retiro_ahorro": {
+      "emergencia": {
+        "sinonimos": [
+          "emergencia",
+          "urgencia",
+          "imprevisto",
+          "reserva",
+          "fondo"
+        ],
+        "subcategorias": {}
+      },
+      "meta": {
+        "sinonimos": [
+          "meta",
+          "para usarlo en"
+        ],
+        "subcategorias": {}
+      },
+      "otros": {
+        "sinonimos": [
+          "retiro",
+          "saque"
+        ],
+        "subcategorias": {}
+      }
+    }
+  },
+  "numeros": {
+    "palabras": {
+      "cero": 0,
+      "un": 1,
+      "uno": 1,
+      "una": 1,
+      "dos": 2,
+      "tres": 3,
+      "cuatro": 4,
+      "cinco": 5,
+      "seis": 6,
+      "siete": 7,
+      "ocho": 8,
+      "nueve": 9,
+      "diez": 10,
+      "once": 11,
+      "doce": 12,
+      "trece": 13,
+      "catorce": 14,
+      "quince": 15,
+      "dieciseis": 16,
+      "diecisiete": 17,
+      "dieciocho": 18,
+      "diecinueve": 19,
+      "veinte": 20,
+      "veintiuno": 21,
+      "veintidos": 22,
+      "veintitres": 23,
+      "veinticuatro": 24,
+      "veinticinco": 25,
+      "veintiseis": 26,
+      "veintisiete": 27,
+      "veintiocho": 28,
+      "veintinueve": 29,
+      "treinta": 30,
+      "cuarenta": 40,
+      "cincuenta": 50,
+      "sesenta": 60,
+      "setenta": 70,
+      "ochenta": 80,
+      "noventa": 90,
+      "cien": 100,
+      "ciento": 100,
+      "doscientos": 200,
+      "trescientos": 300,
+      "cuatrocientos": 400,
+      "quinientos": 500,
+      "seiscientos": 600,
+      "setecientos": 700,
+      "ochocientos": 800,
+      "novecientos": 900,
+      "mil": 1000,
+      "millon": 1000000,
+      "millones": 1000000,
+      "medio": 0.5,
+      "media": 0.5
+    },
+    "multiplicadores_sufijo": {
+      "k": {
+        "valor": 1000,
+        "regional": false,
+        "descripcion": "250k = 250.000"
+      },
+      "mil": {
+        "valor": 1000,
+        "regional": false
+      },
+      "luca": {
+        "valor": 1000,
+        "regional": true,
+        "paises": [
+          "AR",
+          "CL"
+        ],
+        "descripcion": "«una luca» = 1.000. Marcar como dudoso fuera de esos países y confirmar con botones."
+      },
+      "lucas": {
+        "valor": 1000,
+        "regional": true,
+        "paises": [
+          "AR",
+          "CL"
+        ]
+      },
+      "palo": {
+        "valor": 1000000,
+        "regional": true,
+        "paises": [
+          "AR",
+          "ES"
+        ],
+        "descripcion": "Jerga; solo con confirmación."
+      },
+      "m": {
+        "valor": 1000000,
+        "regional": false,
+        "descripcion": "Solo si va pegado a un número y el resultado es plausible."
+      }
+    },
+    "separadores": {
+      "regla": "Si hay punto y coma, el último separador es el decimal. Si hay un solo separador seguido de exactamente 3 cifras y la parte entera no es 0, es separador de miles. Es la misma regla de parseAmount en src/lib/money.js, que se reutiliza."
+    },
+    "frases_de_importe": [
+      "de",
+      "por",
+      "como",
+      "unos",
+      "unas",
+      "casi",
+      "aprox",
+      "aproximadamente",
+      "mas o menos"
+    ]
+  },
+  "fechas": {
+    "relativas": {
+      "hoy": 0,
+      "ayer": -1,
+      "anteayer": -2,
+      "antier": -2,
+      "antes de ayer": -2,
+      "esta manana": 0,
+      "esta tarde": 0,
+      "esta noche": 0,
+      "anoche": -1
+    },
+    "dias_semana": [
+      "lunes",
+      "martes",
+      "miercoles",
+      "jueves",
+      "viernes",
+      "sabado",
+      "domingo"
+    ],
+    "regla_dia_semana": "«el lunes» = el lunes más reciente que no sea futuro; «el lunes pasado» = el de la semana anterior.",
+    "meses": [
+      "enero",
+      "febrero",
+      "marzo",
+      "abril",
+      "mayo",
+      "junio",
+      "julio",
+      "agosto",
+      "septiembre",
+      "setiembre",
+      "octubre",
+      "noviembre",
+      "diciembre"
+    ],
+    "formatos_absolutos": [
+      "dd/mm",
+      "dd/mm/aa",
+      "dd/mm/aaaa",
+      "dd de mes",
+      "dd de mes de aaaa"
+    ],
+    "futuro": "Una fecha futura de más de un día se rechaza con pregunta de aclaración, salvo recurrentes."
+  },
+  "monedas": {
+    "simbolos": {
+      "$": "base_de_la_cuenta",
+      "usd": "USD",
+      "eur": "EUR",
+      "bob": "BOB",
+      "pen": "PEN",
+      "mxn": "MXN",
+      "cop": "COP",
+      "clp": "CLP",
+      "ars": "ARS",
+      "gtq": "GTQ",
+      "dop": "DOP"
+    },
+    "regla": "Se usa siempre la moneda de la cuenta. Si el texto trae otra moneda distinta, no se convierte: se pide al usuario el importe ya convertido (regla vigente del producto).",
+    "brecha_conocida": "src/lib/money.js hoy solo soporta MXN, COP, USD, EUR, PEN, CLP, ARS, GTQ y DOP. BOB (boliviano) no está: si el mercado incluye Bolivia hay que añadirla antes de lanzar."
+  },
+  "palabras_vacias": [
+    "el",
+    "la",
+    "los",
+    "las",
+    "un",
+    "una",
+    "unos",
+    "unas",
+    "de",
+    "del",
+    "al",
+    "en",
+    "a",
+    "por",
+    "para",
+    "con",
+    "mi",
+    "mis",
+    "tu",
+    "me",
+    "se",
+    "que",
+    "y",
+    "o",
+    "hoy",
+    "ayer",
+    "este",
+    "esta",
+    "esto",
+    "ese",
+    "esa"
+  ],
+  "negaciones": [
+    "no",
+    "nunca",
+    "sin",
+    "tampoco",
+    "ni"
+  ],
+  "palabras_de_correccion": [
+    "corrige",
+    "cambia",
+    "no era",
+    "era",
+    "mejor",
+    "en realidad",
+    "perdon",
+    "me equivoque"
+  ],
+  "marcadores_de_recurrente": [
+    "cada mes",
+    "mensual",
+    "mensualmente",
+    "todos los meses",
+    "cada semana",
+    "semanal",
+    "quincenal",
+    "cada quincena",
+    "anual",
+    "cada año",
+    "suscripcion"
+  ],
+  "sinonimos_de_intencion": {
+    "mayor_gasto": [
+      "mayor gasto",
+      "gasto mas grande",
+      "gasto mas alto",
+      "gasto mayor",
+      "en que gasto mas",
+      "donde gasto mas",
+      "que es lo que mas gasto",
+      "lo que mas gasto",
+      "gasto principal",
+      "mi gasto fuerte",
+      "en que se me va mas",
+      "se me va mas la plata",
+      "en que se va mi dinero"
+    ],
+    "menor_gasto": [
+      "menor gasto",
+      "gasto mas chico",
+      "gasto mas pequeno",
+      "gasto mas bajo",
+      "en que gasto menos",
+      "lo que menos gasto"
+    ],
+    "resumen_mes": [
+      "resumen",
+      "como voy",
+      "como voy este mes",
+      "balance",
+      "como estoy",
+      "estado del mes",
+      "mi mes",
+      "como me fue",
+      "como me va",
+      "como ando"
+    ],
+    "saldo_mes": [
+      "saldo",
+      "cuanto me queda",
+      "cuanto tengo",
+      "cuanto me sobra",
+      "me queda",
+      "disponible"
+    ],
+    "proyeccion_cierre": [
+      "como cierro",
+      "como termino el mes",
+      "me alcanza",
+      "voy a llegar",
+      "proyeccion",
+      "a este ritmo",
+      "no se si me alcanza"
+    ],
+    "recortar_rapido": [
+      "que puedo recortar",
+      "donde recorto",
+      "donde ahorro rapido",
+      "que puedo dejar de gastar",
+      "recortar",
+      "bajar gastos",
+      "gastos innecesarios",
+      "que elimino"
+    ],
+    "deuda_pagar_primero": [
+      "que deuda pago primero",
+      "cual pago primero",
+      "por cual deuda empiezo",
+      "que deuda pagar",
+      "orden de pago"
+    ],
+    "deuda_liquidable": [
+      "puedo liquidar",
+      "puedo pagar una deuda completa",
+      "pagar de una",
+      "liquidar alguna deuda",
+      "terminar de pagar",
+      "pagar una deuda de una"
+    ],
+    "gastos_hormiga": [
+      "gastos hormiga",
+      "gastos chiquitos",
+      "gastos pequenos",
+      "cositas",
+      "gastos que no noto",
+      "gastos invisibles",
+      "cuales son mis gastos chiquitos"
+    ],
+    "suscripciones": [
+      "suscripciones",
+      "pagos recurrentes",
+      "cargos mensuales",
+      "lo que pago cada mes",
+      "que pago cada mes"
+    ],
+    "comparar_mes_anterior": [
+      "comparado con el mes pasado",
+      "vs el mes pasado",
+      "mes anterior",
+      "gaste mas que el mes pasado",
+      "como estoy frente al mes pasado",
+      "cambio frente a"
+    ],
+    "siguiente_paso": [
+      "que sigue",
+      "siguiente paso",
+      "que hago ahora",
+      "que me toca",
+      "que hago",
+      "por donde sigo"
+    ],
+    "tarea_completada": [
+      "ya termine",
+      "listo",
+      "ya lo hice",
+      "hecho",
+      "ya quedo",
+      "complete la tarea"
+    ],
+    "simular_pago_extra": [
+      "que pasa si pago",
+      "si pago mas",
+      "y si pago",
+      "simula",
+      "simulacion"
+    ],
+    "meta_avance": [
+      "como va mi meta",
+      "avance de mi meta",
+      "mi meta",
+      "cuanto llevo ahorrado",
+      "falta para mi meta"
+    ],
+    "ayuda_menu": [
+      "ayuda",
+      "que puedes hacer",
+      "que haces",
+      "opciones",
+      "menu",
+      "como funciona"
+    ],
+    "identidad_ia": [
+      "eres una ia",
+      "eres humano",
+      "eres una persona",
+      "quien eres",
+      "eres un robot",
+      "hablo con una persona",
+      "hablo con un humano",
+      "eres un humano"
+    ],
+    "gasto_categoria": [
+      "cuanto llevo en",
+      "cuanto gaste en",
+      "cuanto he gastado en",
+      "gasto en",
+      "total de"
+    ],
+    "dia_mas_caro": [
+      "dia mas caro",
+      "que dia gasto mas",
+      "dia de la semana",
+      "cuando gasto mas"
+    ],
+    "ultimo_movimiento": [
+      "ultimo movimiento",
+      "lo ultimo que anote",
+      "ultimo gasto",
+      "ultimo registro"
+    ],
+    "deshacer": [
+      "deshacer",
+      "borra eso",
+      "quita eso",
+      "cancelar lo ultimo",
+      "no era eso"
+    ],
+    "mayor_movimiento": [
+      "gasto individual mas alto",
+      "gasto individual",
+      "gasto mas caro",
+      "movimiento mas alto"
+    ],
+    "privacidad_info": [
+      "privacidad",
+      "que datos usas",
+      "mis datos"
+    ],
+    "gasto_total": [
+      "cuanto llevo gastado",
+      "cuanto he gastado este mes",
+      "cuanto gaste este mes",
+      "total gastado",
+      "gastos del mes",
+      "cuanto llevo de gasto"
+    ],
+    "ingreso_total": [
+      "cuanto he ganado",
+      "cuanto he cobrado",
+      "mis ingresos",
+      "total de ingresos",
+      "cuanto me ha entrado"
+    ],
+    "tasa_ahorro_mes": [
+      "cuanto he ahorrado",
+      "cuanto ahorre",
+      "tasa de ahorro del mes",
+      "cuanto he apartado"
+    ]
+  },
+  "fuera_de_alcance": [
+    "chiste",
+    "capital de",
+    "clima",
+    "futbol",
+    "pelicula",
+    "receta",
+    "cancion",
+    "horoscopo",
+    "tiempo hace",
+    "quien gano"
+  ],
+  "asesoria_especifica": [
+    "acciones",
+    "bolsa",
+    "cripto",
+    "criptomoneda",
+    "bitcoin",
+    "invertir en",
+    "credito",
+    "impuestos",
+    "declaro",
+    "declarar",
+    "abogado",
+    "testamento",
+    "hipoteca me conviene"
+  ],
+  "hipoteticos": [
+    "puedo",
+    "podria",
+    "deberia",
+    "conviene",
+    "quiero",
+    "si",
+    "sera que"
+  ],
+  "verbos_de_comida": [
+    "almorce",
+    "cene",
+    "desayune",
+    "meriende",
+    "comi"
+  ]
+}
