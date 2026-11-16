@@ -231,12 +231,18 @@ function offerBlock(r, { products = [], owned = {}, user = null }) {
     <p class="kicker">Plan Maestro</p>
     <h2 id="h-oferta">Construye tu Plan Maestro de Crecimiento Patrimonial</h2>
     <ul class="dx-benefits">${BENEFITS.map(([t, d]) => html`<li><strong>${t}</strong><span class="muted">${d}</span></li>`)}</ul>
+    <h3 id="incluye">Todo lo que incluye tu Plan Maestro</h3>
+    <div class="table-wrap"><table class="offer-table">
+      <thead><tr><th scope="col">Resultado gratuito (lo que ya tienes)</th><th scope="col">Plan Maestro (USD 69)</th></tr></thead>
+      <tbody>${FREE_VS_FULL.map(([a, b]) => html`<tr><td><span class="small muted">Hoy, gratis:</span> ${a}</td><td><strong>Con el Plan Maestro:</strong> ${b}</td></tr>`)}</tbody>
+    </table></div>
+    ${pkg && pkg.includes_json ? html`<p class="small"><strong>Incluye:</strong> ${JSON.parse(pkg.includes_json).join(' · ')}.</p>` : ''}
     ${has
       ? html`<div class="actions"><a class="btn btn-primary btn-lg" href="/evaluacion">Continuar con mi Plan Maestro</a></div>`
       : html`<div class="offer-cta">
           ${price ? html`<p class="dx-price"><strong>${price}</strong> <span class="muted">· Pago único · Evaluación profunda + plan personalizado</span></p>` : ''}
           <a class="btn btn-primary btn-lg" href="/resultado/plan-maestro">Quiero mi Plan Maestro</a>
-          <a class="btn btn-quiet" href="/resultado?ver=incluye#incluye">Ver qué incluye mi Plan Maestro</a>
+          <a class="btn btn-quiet" href="/resultado?ver=incluye#incluye">Ver de nuevo qué incluye</a>
           <p class="small muted">Revisarás y confirmarás tus datos antes de construir el plan. Los resultados son estimaciones; no se garantizan ingresos.${!user ? ' Te pediremos crear una cuenta para guardar tu plan.' : ''}</p>
           ${sandbox ? html`<p class="small note note--warn">Versión de prueba: el pago es simulado y no se cobra dinero real.</p>` : ''}
         </div>`}
@@ -278,20 +284,24 @@ function resultPage(ctx, { result: r, answers, user, products, owned, completedA
 
     ${r.minor
       ? ''
-      : html`<section class="section dx-bridge"><h2>¿Y si pudieras ir más lejos?</h2>
+      : sc.pitch
+        ? html`<section class="section dx-bridge dx-pitch" aria-labelledby="h-pitch">
+          <p class="kicker">Lo que puedes lograr</p>
+          <h2 id="h-pitch">${sc.pitch.title}</h2>
+          ${sc.pitch.goal ? html`<p class="lead">${sc.pitch.goal}</p>` : ''}
+          <p>${sc.pitch.text}</p>
+          <h3>Cómo te ayuda Día Uno</h3>
+          <ol class="dx-helps">${sc.pitch.helps.map((x) => html`<li>${x}</li>`)}</ol>
+          <p class="small muted">Son estimaciones y orientación: no prometemos resultados ni ingresos.</p>
+        </section>`
+        : html`<section class="section dx-bridge"><h2>¿Y si pudieras ir más lejos?</h2>
         <p>Ya sabes por dónde empezar. Falta descubrir qué camino te conviene más, cuánto podría cambiar tu situación y qué pasos seguir. Con los datos de este test no podemos calcular ganancias futuras.</p></section>`}
 
     ${offerBlock(r, { products, owned, user })}
 
     <section class="section dx-trust" aria-label="Más opciones">
       ${howCalculated(r, answers)}
-      ${r.minor
-        ? ''
-        : html`<details class="evidence" id="incluye" ${openDetail ? raw('open') : ''}><summary>Ver todo lo que incluye el Plan Maestro</summary>
-        <div class="table-wrap"><table class="offer-table">
-          <thead><tr><th scope="col">Resultado gratuito</th><th scope="col">Plan Maestro</th></tr></thead>
-          <tbody>${FREE_VS_FULL.map(([a, b]) => html`<tr><td>${a}</td><td>${b}</td></tr>`)}</tbody>
-        </table></div></details>`}
+      ${openDetail ? '' : ''}
       ${!user ? html`<p class="small muted"><strong>Guarda tu resultado.</strong> Con una cuenta no lo pierdes; sin cuenta, tus respuestas se conservan unos días desde tu última actividad. <a href="/registro">Crear mi cuenta</a> · <a href="/entrar?siguiente=/resultado">Ya tengo cuenta</a></p>` : ''}
       <p class="small muted">¿Algo no coincide? <a href="/test/revision">Corrige tus respuestas</a> y generaremos un resultado nuevo. · <a href="/privacidad">Privacidad</a> · <a href="/condiciones">Condiciones</a></p>
     </section>

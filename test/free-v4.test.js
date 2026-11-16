@@ -239,7 +239,8 @@ test('V4: flujo por formularios y resultado en nueve módulos con una sola ofert
     assert.match(fin.text, /Bs 1\.100/);
     assert.match(fin.text, /Tu primer paso, gratis/);
     assert.match(fin.text, /Quiero mi Plan Maestro/);
-    assert.match(fin.text, /Ver qué incluye mi Plan Maestro/);
+    assert.match(fin.text, /Todo lo que incluye tu Plan Maestro/);
+    assert.match(fin.text, /Cómo te ayuda Día Uno/);
     assert.match(fin.text, /USD 69/);
     assert.doesNotMatch(fin.text, /XP|reward-card|tasa de inter/i);
     assert.match(fin.text, /Pregunta a dos amigos o familiares/);
@@ -251,7 +252,7 @@ test('V4: flujo por formularios y resultado en nueve módulos con una sola ofert
     await c.get('/resultado');
     assert.equal(count('resultado_visto'), before.r, 'la vista ya se contó al finalizar y no se duplica');
     const det = await c.get('/resultado?ver=incluye');
-    assert.match(det.text, /id="incluye" open/);
+    assert.match(det.text, /id="incluye"/);
     assert.equal(count('detalle_plan'), before.d + 1);
     const go = await c.get('/resultado/plan-maestro', { follow: false });
     assert.equal(go.status, 303);

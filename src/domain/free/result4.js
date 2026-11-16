@@ -365,7 +365,55 @@ function screen(pkg, answers, diagnosis) {
   };
   // 02 · Hallazgo principal: siempre el del servidor, compatible con las cifras (flujo → seguridad → crecimiento).
   const head = template(pkg, answers).conclusion;
-  return { headline: { title: head.title, text: head.interpretation, evidence_refs: head.evidence_refs }, strength, brake, improvement, figures, trace: trace(pkg, answers, diagnosis, { bal, reserve, improvement }) };
+  return { headline: { title: head.title, text: head.interpretation, evidence_refs: head.evidence_refs }, strength, brake, improvement, figures, pitch: pitch(pkg, answers, { bal, reserve, pay, variability, otherAmt, improvement }), trace: trace(pkg, answers, diagnosis, { bal, reserve, improvement }) };
+}
+
+// ───────── Puente comercial personalizado ─────────
+// Qué oportunidad concreta tiene esta persona (con sus cifras) y qué hará Día Uno por ella
+// en el Plan Maestro. Lo escribe el servidor; sin promesas de resultado.
+function pitch(pkg, answers, { bal, reserve, pay, variability, otherAmt, improvement }) {
+  const cur = pkg.currency;
+  const goal = val(answers, 'Q05');
+  const goalText = goal && goal.code !== 'HELP' ? (goal.code === 'OTHER' && goal.other && !catalog.isGibberish(goal.other) ? goal.other : catalog.labelIn(catalog.OPTIONS.GOALS, goal.code)) : null;
+  const horizon = goal && goal.horizon && goal.horizon !== 'UNKNOWN' ? catalog.labelIn(catalog.OPTIONS.HORIZONS, goal.horizon).toLowerCase() : null;
+  const goalLine = goalText ? `Tu objetivo es ${goalText.toLowerCase()}${horizon ? ` en ${horizon}` : ''}.` : null;
+  const q10 = val(answers, 'Q10');
+  const hasDebt = q10 && q10.status !== 'NO' && !codes(answers, 'Q11').includes('NONE');
+  let title;
+  let text;
+  let helps;
+  if (pay === 'UNABLE' || pay === 'LATE') {
+    title = 'Tu oportunidad: salir de los atrasos sin endeudarte más';
+    text = 'Ordenar tus deudas ahora evita que los cargos sigan creciendo y te devuelve margen cada mes.';
+    helps = ['Revisamos cada deuda (saldo, cuota e interés) y te decimos cuál atender primero y por qué.', 'Armamos un plan de pagos para 30 y 90 días que quepa en lo que recibes.', 'Te acompañamos con seguimiento y coach por chat para que no vuelvas a atrasarte.'];
+  } else if (bal !== null && bal.lte(0)) {
+    title = bal.isZero() ? 'Tu oportunidad: liberar dinero cada mes' : `Tu oportunidad: cerrar el faltante de ${fmt(cur, bal.abs().toFixed(2))} al mes`;
+    text = otherAmt && otherAmt.gt(0)
+      ? `Hoy todo lo que entra se va en gastos${bal.isZero() ? '' : ' y no alcanza'}. Tus otros gastos (${fmt(cur, otherAmt.toFixed(2))} al mes) son el primer lugar donde buscar espacio sin tocar lo esencial.`
+      : `Hoy todo lo que entra se va en gastos${bal.isZero() ? '' : ' y no alcanza'}. Encontrar aunque sea una parte libre cada mes cambia lo que puedes hacer después.`;
+    helps = ['Desglosamos tus gastos y te mostramos cuáles puedes ajustar y cuánto liberarías al mes.', `Calculamos cuánto podrías empezar a guardar y en cuánto tiempo tendrías un primer respaldo${hasDebt ? ', sin descuidar tus deudas' : ''}.`, 'Te damos un plan de 30 y 90 días con tareas concretas y seguimiento de tu avance.'];
+  } else if (bal !== null && ((reserve !== null && reserve.lt(1)) || ['HIGH', 'DECREASING'].includes(variability))) {
+    title = `Tu oportunidad: convertir tus ${fmt(cur, bal.toFixed(2))} libres al mes en un respaldo`;
+    text = reserve !== null && reserve.lt(1) ? 'Te queda dinero cada mes, pero hoy no tienes un colchón para un imprevisto. Ese sobrante es tu punto de partida.' : 'Te queda dinero cada mes, pero tu ingreso cambia. Planificar con el mes flojo protege lo que ya tienes.';
+    helps = ['Calculamos cuánto separar cada mes y en cuánto tiempo llegarías a 3 meses de respaldo.', `Decidimos el orden entre reserva${hasDebt ? ', deudas' : ''} y tu objetivo, con escenarios a 1 y 3 años.`, improvement && improvement.validate ? 'Evaluamos si vale la pena probar un ingreso extra con lo que sabes hacer y cómo comprobarlo.' : 'Te damos un plan de 30 y 90 días con seguimiento y coach por chat.'];
+  } else if (improvement && improvement.validate) {
+    title = 'Tu oportunidad: ganar más con lo que ya sabes hacer';
+    text = `${improvement.text} Hay que comprobarlo antes de invertir tiempo o dinero.`;
+    helps = ['Comparamos tus opciones según tus habilidades, experiencia, tiempo y recursos.', 'Te mostramos cómo comprobar si alguien pagaría y cuánto te dejaría después de costos.', `Armamos un plan de 30 y 90 días${bal !== null ? ` y decidimos a dónde va tu sobrante de ${fmt(cur, bal.toFixed(2))}` : ''}.`];
+  } else if (bal !== null) {
+    title = `Tu oportunidad: decidir a dónde van tus ${fmt(cur, bal.toFixed(2))} libres al mes`;
+    text = 'Sin un destino claro, ese dinero se gasta sin notarlo. Bien repartido, te acerca a tu objetivo.';
+    helps = [`Ordenamos tus prioridades entre reserva${hasDebt ? ', deudas' : ''} y metas, con su justificación.`, 'Te mostramos escenarios a 1 y 3 años según cómo uses ese dinero.', 'Te damos un plan de 30 y 90 días con seguimiento y coach por chat.'];
+  } else {
+    title = 'Tu oportunidad: tener tus números claros para decidir';
+    text = 'Con los datos de este test no pudimos calcular cuánto te queda al mes. Ese es el primer paso para cualquier decisión.';
+    helps = ['Revisamos contigo ingresos, gastos y deudas con más detalle para tener cifras confiables.', 'Con eso te decimos qué hacer primero y por qué.', 'Te damos un plan de 30 y 90 días con seguimiento de tu avance.'];
+  }
+  // Si su objetivo es ganar más y la oportunidad no habla de ingresos, se conecta con ese objetivo.
+  if (goal && ['INCOME', 'INDEPENDENCE', 'BUSINESS'].includes(goal.code) && !helps.some((x) => /ingreso extra|ganar|habilidades/.test(x)) && codes(answers, 'Q16')[0] !== 'H0') {
+    helps.push('Y para tu objetivo de ganar más: evaluamos qué opción encaja con tu tiempo y lo que sabes hacer, y cómo comprobar si funciona.');
+  }
+  return { goal: goalLine, title, text, helps };
 }
 
 // ───────── Contrato de respuesta: confianza, fuente y datos faltantes (especificación V2, §10.2) ─────────
