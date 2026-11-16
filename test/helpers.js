@@ -5,6 +5,8 @@ process.env.DATABASE_PATH = ':memory:';
 process.env.AI_PROVIDER = 'local';
 // Las pruebas históricas usan el catálogo V2; las de V3 lo eligen explícitamente.
 process.env.FREE_CATALOG_VERSION = process.env.FREE_CATALOG_VERSION || 'FREE_25_V2_ES';
+// Las pruebas históricas de la evaluación profunda usan la v1; las de la v2 la publican explícitamente.
+process.env.DEEP_QUESTIONNAIRE_VERSION = process.env.DEEP_QUESTIONNAIRE_VERSION || '1';
 process.env.PAYMENT_WEBHOOK_SECRET = 'whsec_pruebas';
 process.env.SANDBOX_AUTO_DELIVER = 'false';
 process.env.ADMIN_EMAIL = 'admin@diauno.test';

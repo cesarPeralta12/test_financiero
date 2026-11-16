@@ -189,3 +189,10 @@ test('Primer paso: con saldo 0 la IA no puede proponer ventas; se usa el del ser
   ai2.first_action = { ...ai2.first_action, instruction: 'Redacta una propuesta de ventas en tres líneas.' };
   assert.match(result4.fixFirstStep(pkg2, pos.answers, ai2).first_action.instruction, /propuesta de ventas/);
 });
+
+test('Q07 tiene una respuesta neutra: «Sí, siempre el mismo monto»', () => {
+  const x = finish({ ...CASE, Q06: { amount: '4000' }, Q09: { amount: '900' }, Q07: { codes: ['FIXED'] } });
+  assert.equal(x.answers.Q07.value.codes[0], 'FIXED');
+  assert.match(cat.answerText(x.answers.Q07.variant_id, x.answers.Q07), /Sí, siempre el mismo monto/);
+  assert.doesNotMatch(x.r.screen.brake, /cambia de un mes a otro/);
+});

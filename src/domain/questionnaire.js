@@ -108,6 +108,7 @@ function isApplicable(q, map) {
   if (!a || a.unknown || a.skipped) return false;
   if (cond.in) return cond.in.includes(a.value);
   if (cond.not_empty) return Array.isArray(a.value) && a.value.length > 0;
+  if (cond.has_kind) return Array.isArray(a.value) && a.value.some((d) => d && d.kind === cond.has_kind);
   return true;
 }
 
@@ -224,6 +225,15 @@ function parseSubmission(q, body, currency) {
     }
     case 'money': {
       form.amount = body.amount;
+      if (q.config.presence) {
+        // Primero Sí/No: nadie tiene que escribir «0».
+        form.has = body.has;
+        if (body.has === 'no') return result(money.parseAmount('0', currency).value);
+        if (body.has !== 'si') {
+          errors.has = 'Elige Sí o No para continuar.';
+          return result(null);
+        }
+      }
       const p = money.parseAmount(body.amount, currency);
       if (p.empty) errors.amount = q.allowUnknown ? 'Escribe una cantidad o marca «No lo sé». Si no tienes, escribe 0.' : 'Escribe una cantidad. Si no tienes, escribe 0.';
       else if (!p.ok) errors.amount = p.error;
@@ -270,6 +280,28 @@ function parseSubmission(q, body, currency) {
       const f = body.f || {};
       const value = {};
       form.f = {};
+      if (q.config.pick) {
+        // Primero se marcan los gastos que tiene; solo esos piden monto. Lo no marcado es 0.
+        const keys = q.config.fields.map((x) => x.key);
+        const picked = bodyArray(body.pick).filter((k) => keys.includes(k));
+        form.pick = picked;
+        if (!picked.length) {
+          errors.value = 'Marca al menos un gasto o elige «No lo sé».';
+          return result(null);
+        }
+        for (const field of q.config.fields) {
+          form.f[field.key] = f[field.key];
+          if (!picked.includes(field.key)) {
+            value[field.key] = '0.00';
+            continue;
+          }
+          const p = money.parseAmount(f[field.key], currency);
+          if (p.empty) errors[`f.${field.key}`] = `Escribe cuánto gastas en ${field.label.toLowerCase().replace(/ \(.*\)$/, '')}.`;
+          else if (!p.ok) errors[`f.${field.key}`] = p.error;
+          else value[field.key] = p.value;
+        }
+        return result(value);
+      }
       for (const field of q.config.fields) {
         form.f[field.key] = f[field.key];
         const p = money.parseAmount(f[field.key], currency);
@@ -280,6 +312,7 @@ function parseSubmission(q, body, currency) {
       return result(value);
     }
     case 'debts': {
+      if (q.config.simple) return simpleDebts();
       const none = body.none === '1' || body.none === 'on';
       const rows = bodyArray(body.d).map((r) => r || {});
       form.none = none;
@@ -330,6 +363,7 @@ function parseSubmission(q, body, currency) {
       return result(out);
     }
     case 'goals': {
+      if (q.config.simple) return simpleGoals();
       const none = body.none === '1' || body.none === 'on';
       const rows = bodyArray(body.g).map((r) => r || {});
       form.none = none;
@@ -376,6 +410,94 @@ function parseSubmission(q, body, currency) {
     const ok = Object.keys(errors).length === 0;
     return { ok, unknown: false, value: ok ? value : null, errors, form };
   }
+
+  /** Deudas con botones: se marcan los tipos y, por cada uno, saldo y cuota; la tasa es opcional. */
+  function simpleDebts() {
+    const kinds = q.config.kinds || [];
+    const picked = bodyArray(body.kinds).filter(Boolean);
+    const k = body.k || {};
+    form.kinds = picked;
+    form.k = k;
+    if (!picked.length) {
+      errors.value = 'Marca tus deudas o «No tengo deudas».';
+      return result(null);
+    }
+    if (picked.includes('ninguna')) {
+      if (picked.length > 1) errors.value = '«No tengo deudas» no se puede combinar con otras opciones.';
+      return result([]);
+    }
+    const out = [];
+    for (const kind of picked) {
+      const def = kinds.find((x) => x.value === kind);
+      if (!def) {
+        errors.value = 'Elige opciones de la lista.';
+        continue;
+      }
+      const r = k[kind] || {};
+      const e = (f, m) => (errors[`k.${kind}.${f}`] = m);
+      const bal = money.parseAmount(r.balance, currency);
+      if (bal.empty) e('balance', `Escribe cuánto debes en total (${def.label.toLowerCase()}).`);
+      else if (!bal.ok) e('balance', bal.error);
+      const pay = money.parseAmount(r.payment, currency);
+      if (pay.empty) e('payment', 'Escribe cuánto pagas al mes. Si hoy no pagas, escribe 0.');
+      else if (!pay.ok) e('payment', pay.error);
+      let rate = null;
+      let rateType = 'desconocido';
+      const unknownRate = r.rate_unknown === '1' || r.rate_unknown === 'on';
+      const rateRaw = String(r.rate ?? '').trim();
+      if (!unknownRate && rateRaw) {
+        const p = parsePercent(rateRaw);
+        if (p.error) e('rate', p.error);
+        else if (p.d.gt(500)) e('rate', 'Revisa la tasa: parece demasiado alta.');
+        else {
+          rate = p.value;
+          rateType = r.rate_period === 'mensual' ? 'mensual' : 'nominal_anual';
+        }
+      }
+      out.push({ name: def.label, kind, balance: bal.value, payment: pay.value, rate, rate_type: rateType, fees: null });
+    }
+    return result(out);
+  }
+
+  /** Metas con botones: tipo de meta, cuánto necesita y plazo en botones. */
+  function simpleGoals() {
+    const kinds = q.config.kinds || [];
+    const picked = bodyArray(body.kinds).filter(Boolean);
+    const gk = body.gk || {};
+    form.kinds = picked;
+    form.gk = gk;
+    if (!picked.length) {
+      errors.value = 'Marca al menos una meta o «Aún no tengo metas».';
+      return result(null);
+    }
+    if (picked.includes('ninguna')) {
+      if (picked.length > 1) errors.value = '«Aún no tengo metas» no se puede combinar con otras opciones.';
+      return result([]);
+    }
+    const out = [];
+    for (const kind of picked) {
+      const def = kinds.find((x) => x.value === kind);
+      if (!def) {
+        errors.value = 'Elige opciones de la lista.';
+        continue;
+      }
+      const r = gk[kind] || {};
+      const e = (f, m) => (errors[`gk.${kind}.${f}`] = m);
+      let name = def.label;
+      if (kind === 'otra') {
+        name = String(r.name || '').trim().slice(0, 60);
+        if (!name) e('name', 'Escribe en pocas palabras cuál es tu meta.');
+      }
+      const t = money.parseAmount(r.target, currency);
+      if (t.empty) e('target', `Escribe cuánto necesitas para «${name || def.label}».`);
+      else if (!t.ok) e('target', t.error);
+      else if (new money.D(t.value).lte(0)) e('target', 'El monto debe ser mayor que 0.');
+      const allowed = (q.config.horizons || []).map((h) => String(h.value));
+      const months = r.months && allowed.includes(String(r.months)) && String(r.months) !== '0' ? Number(r.months) : null;
+      out.push({ name, kind, target: t.value, saved: '0.00', months });
+    }
+    return result(out);
+  }
 }
 
 /** Preguntas de ingreso opcional que primero preguntan Sí/No (el contenido vive en la BD). */
@@ -391,14 +513,25 @@ function toForm(q, a) {
   const v = a.value;
   switch (q.type) {
     case 'money':
-      return { amount: v };
+      if (q.config.presence && v !== null && Number(v) === 0) return { has: 'no' };
+      return { amount: v, ...(q.config.presence && v !== null ? { has: 'si' } : {}) };
     case 'money_flow':
       if (asksPresence(q) && v && Number(v.amount) === 0) return { has: 'no' };
       return { amount: v && v.amount, period: v && v.period, ...(asksPresence(q) && v ? { has: 'si' } : {}) };
     case 'breakdown':
+      if (q.config.pick && v) return { f: v, pick: Object.keys(v).filter((k) => Number(v[k]) > 0) };
       return { f: v || {} };
     case 'debts':
+      if (q.config.simple && Array.isArray(v)) {
+        if (!v.length) return { kinds: ['ninguna'], k: {} };
+        return { kinds: v.map((d) => d.kind), k: Object.fromEntries(v.map((d) => [d.kind, { balance: d.balance, payment: d.payment, rate: d.rate || '', rate_unknown: d.rate === null ? '1' : '', rate_period: d.rate_type === 'mensual' ? 'mensual' : 'anual' }])) };
+      }
+    // falls through
     case 'goals':
+      if (q.type === 'goals' && q.config.simple && Array.isArray(v)) {
+        if (!v.length) return { kinds: ['ninguna'], gk: {} };
+        return { kinds: v.map((g) => g.kind || 'otra'), gk: Object.fromEntries(v.map((g) => [g.kind || 'otra', { name: g.name, target: g.target, months: g.months ?? '0' }])) };
+      }
       return { rows: Array.isArray(v) ? v.map((r) => ({ ...r, months: r.months ?? '' })) : [], none: Array.isArray(v) && v.length === 0 };
     default:
       return { value: v };
@@ -420,16 +553,21 @@ function display(q, a, currency) {
     case 'multi':
       return (v || []).map(label).join(', ');
     case 'money':
+      if (q.config.presence && Number(v) === 0) return 'No';
       return money.format(v, currency);
     case 'money_flow':
       if (asksPresence(q) && Number(v.amount) === 0) return 'No';
       return `${money.format(v.amount, currency)} · ${calc.PERIODS[v.period]?.label.toLowerCase() || v.period}`;
-    case 'integer':
-      return `${v}${q.config.unit ? ' ' + q.config.unit : ''}`;
-    case 'percent':
-      return `${String(v).replace('.', ',')} %`;
+    case 'integer': {
+      const ch = (q.config.choices || []).find((x) => String(x.value) === String(v));
+      return ch ? ch.label : `${v}${q.config.unit ? ' ' + q.config.unit : ''}`;
+    }
+    case 'percent': {
+      const ch = (q.config.choices || []).find((x) => String(x.value) === String(v));
+      return ch ? ch.label : `${String(v).replace('.', ',')} %`;
+    }
     case 'breakdown':
-      return q.config.fields.map((f) => `${f.label}: ${money.format(v[f.key], currency)}`).join('; ');
+      return q.config.fields.filter((f) => !q.config.pick || Number(v[f.key]) > 0).map((f) => `${f.label}: ${money.format(v[f.key], currency)}`).join('; ') || 'Sin gastos marcados';
     case 'debts':
       if (!v.length) return 'No tengo deudas';
       return v.map((d) => `${d.name}: saldo ${money.format(d.balance, currency)}, cuota ${money.format(d.payment, currency)}`).join('; ');

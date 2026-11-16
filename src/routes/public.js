@@ -32,7 +32,7 @@ router.get('/', (req, res) => {
   const products = Object.fromEntries(db.all('SELECT * FROM products WHERE active = 1').map((p) => [p.code, p]));
   const price = (code) => (products[code] ? `${money.formatCents(products[code].price_cents, products[code].currency)} ${products[code].currency}` : 'De pago');
   const o = owner(req);
-  const inProgress = engine.findOwned(o, 'en_curso');
+  const inProgress = engine.findOpen(o, require('../config').freeCatalogVersion);
   const finished = engine.findLatestResultSession(o);
   const states = Array.from({ length: 25 }, (_, i) => (i === 0 ? 'now' : ''));
 

@@ -40,7 +40,7 @@ const DEPENDENTS = o('D0 = Ninguna; D1 = Una; D2 = Dos; D3 = Tres; D4PLUS = Cuat
 const ROUTES = o('EMPLOYEE = Soy empleado; INDEPENDENT = Trabajo por mi cuenta; BUSINESS = Tengo un negocio; MULTIPLE = Hago varias de estas actividades; NONE = No trabajo actualmente; OTHER = Otra situación');
 const GOALS = o('INCOME = Ganar más; STABILITY = Tener ingresos más estables; DEBT = Pagar mis deudas; RESERVE = Tener dinero para emergencias; BUSINESS = Mejorar mi negocio; ASSET = Comprar una vivienda u otro bien; INDEPENDENCE = Depender menos de mi trabajo; OTHER = Otro objetivo; HELP = Ayúdenme a elegir');
 const HORIZONS = o('M3 = 3 meses; M6 = 6 meses; Y1 = 1 año; LATER = Más adelante; UNKNOWN = Aún no lo sé');
-const VARIABILITY = o('SIMILAR = Sí, casi lo mismo; MODERATE = Cambia un poco; HIGH = Cambia mucho; DECREASING = Cada vez recibo menos; NO_INCOME = Ahora no recibo dinero');
+const VARIABILITY = o('FIXED = Sí, siempre el mismo monto; SIMILAR = Sí, casi lo mismo; MODERATE = Cambia un poco; HIGH = Cambia mucho; DECREASING = Cada vez recibo menos; NO_INCOME = Ahora no recibo dinero');
 const DEBT_STATUS = o('NO = No tengo deudas; DUE = Sí, y debo pagar este mes; NO_DUE = Sí, pero este mes no tengo pagos');
 const DEBT_TYPES = o('CARD = Tarjeta; PERSONAL = Préstamo personal; HOME = Vivienda; VEHICLE = Vehículo; FAMILY = Familiares o amigos; BUSINESS = Deuda del negocio; OTHER = Otra deuda; NONE = No tengo deudas');
 const PAYMENT = o('ON_TIME = Estoy al día; MINIMUM = Solo pago el mínimo de la tarjeta; LATE = Tengo pagos atrasados; UNABLE = No puedo pagar lo que vence ahora; NOT_DUE_YET = Aún no vence mi primer pago');

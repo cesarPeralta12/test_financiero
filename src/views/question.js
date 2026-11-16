@@ -137,7 +137,110 @@ function goalRows(q, form, errors, currency) {
     </div>`;
 }
 
+// ───────── Controles sencillos (evaluación profunda v2): botones primero, montos solo si aplican ─────────
+function pill(name, value, label, checked, { type = 'radio', exclusive = false } = {}) {
+  const id = `${c.fieldId(name)}-${String(value).replace(/[^a-z0-9_-]/gi, '')}`;
+  return html`<label class="pill" for="${id}"><input type="${type}" name="${name}" id="${id}" value="${value}" ${checked ? raw('checked') : ''} ${exclusive ? raw('data-exclusive') : ''} /><span>${label}</span></label>`;
+}
+function buttons(name, options, selected, { multi = false, exclusive = [] } = {}) {
+  const set = new Set([].concat(selected || []).map(String));
+  const type = multi ? 'checkbox' : 'radio';
+  return html`<div class="options">${options.map((o, i) => {
+    const id = `${c.fieldId(name)}-${i}`;
+    return html`<label class="option" for="${id}"><input type="${type}" name="${name}" id="${id}" value="${o.value}" ${set.has(String(o.value)) ? raw('checked') : ''} ${exclusive.includes(o.value) ? raw('data-exclusive') : ''} /><span class="opt-label">${o.label}</span></label>`;
+  })}</div>`;
+}
+function presence(q, form, errors, inner) {
+  const has = form.has || '';
+  return html`<fieldset class="field qf-has">
+      <legend class="visually-hidden">${q.prompt}</legend>
+      <div class="pills" ${c.describedBy(errors, 'has')}>${pill('has', 'si', 'Sí', has === 'si')}${pill('has', 'no', 'No', has === 'no')}</div>
+      ${c.errorText(errors, 'has')}
+    </fieldset>
+    <div class="qf-if" data-show-if="has=si">
+      <p class="q-sub">${q.config.presence_label || '¿Cuánto?'}</p>
+      ${inner}
+    </div>`;
+}
+function simpleDebts(q, form, errors, currency) {
+  const kinds = q.config.kinds || [];
+  const k = form.k || {};
+  return html`<p class="small muted qf-hint">Marca todas las que tengas.</p>
+    ${buttons('kinds', [...kinds, { value: 'ninguna', label: 'No tengo deudas' }], form.kinds, { multi: true, exclusive: ['ninguna'] })}
+    ${c.errorText(errors, 'value')}
+    ${kinds.map((d) => {
+      const r = k[d.value] || {};
+      const key = (f) => `k.${d.value}.${f}`;
+      const name = (f) => `k[${d.value}][${f}]`;
+      return html`<div class="qf-if row-card" data-show-if="kinds=${d.value}">
+        <p class="q-sub"><strong>${d.label}</strong></p>
+        <div class="field"><label for="${c.fieldId(key('balance'))}">¿Cuánto debes en total?</label>${c.moneyInput({ name: name('balance'), errorKey: key('balance'), value: r.balance, currency, errors })}</div>
+        <div class="field"><label for="${c.fieldId(key('payment'))}">¿Cuánto pagas al mes?</label>${c.moneyInput({ name: name('payment'), errorKey: key('payment'), value: r.payment, currency, errors })}</div>
+        <div class="field">
+          <label for="${c.fieldId(key('rate'))}">Interés (opcional)</label>
+          <div class="qf-if" data-hide-if="${name('rate_unknown')}=1">
+            <div class="money money--suffix input--short"><input class="input input--num" id="${c.fieldId(key('rate'))}" name="${name('rate')}" inputmode="decimal" value="${r.rate || ''}" placeholder="Ej. 36" ${c.invalid(errors, key('rate'))} /><span class="prefix" aria-hidden="true">%</span></div>
+            <div class="pills">${pill(name('rate_period'), 'anual', 'al año', r.rate_period !== 'mensual')}${pill(name('rate_period'), 'mensual', 'al mes', r.rate_period === 'mensual')}</div>
+          </div>
+          ${c.errorText(errors, key('rate'))}
+          <div class="pills">${pill(name('rate_unknown'), '1', 'No sé el interés', r.rate_unknown === '1' || r.rate_unknown === 'on', { type: 'checkbox' })}</div>
+        </div>
+      </div>`;
+    })}`;
+}
+function simpleGoals(q, form, errors, currency) {
+  const kinds = q.config.kinds || [];
+  const gk = form.gk || {};
+  const horizons = q.config.horizons || [];
+  return html`<p class="small muted qf-hint">Puedes marcar varias.</p>
+    ${buttons('kinds', [...kinds, { value: 'ninguna', label: 'Aún no tengo metas' }], form.kinds, { multi: true, exclusive: ['ninguna'] })}
+    ${c.errorText(errors, 'value')}
+    ${kinds.map((g) => {
+      const r = gk[g.value] || {};
+      const key = (f) => `gk.${g.value}.${f}`;
+      const name = (f) => `gk[${g.value}][${f}]`;
+      const months = String(r.months ?? '0');
+      return html`<div class="qf-if row-card" data-show-if="kinds=${g.value}">
+        <p class="q-sub"><strong>${g.label}</strong></p>
+        ${g.value === 'otra' ? html`<div class="field"><label for="${c.fieldId(key('name'))}">¿Cuál?</label><input class="input" id="${c.fieldId(key('name'))}" name="${name('name')}" maxlength="60" placeholder="Una frase corta" value="${r.name || ''}" ${c.invalid(errors, key('name'))} />${c.errorText(errors, key('name'))}</div>` : ''}
+        <div class="field"><label for="${c.fieldId(key('target'))}">¿Cuánto necesitas?</label>${c.moneyInput({ name: name('target'), errorKey: key('target'), value: r.target, currency, errors })}</div>
+        <fieldset class="field"><legend class="small">¿En cuánto tiempo?</legend><div class="pills">${horizons.map((h) => pill(name('months'), h.value, h.label, months === String(h.value)))}</div></fieldset>
+      </div>`;
+    })}`;
+}
+function pickBreakdown(q, form, errors, currency) {
+  const picked = form.pick || [];
+  return html`<p class="small muted qf-hint">Marca en qué gastas cada mes. Solo te pediremos el monto de lo que marques.</p>
+    ${buttons('pick', q.config.fields.map((f) => ({ value: f.key, label: f.label })), picked, { multi: true })}
+    ${c.errorText(errors, 'value')}
+    <div class="breakdown">${q.config.fields.map(
+      (f) => html`<div class="qf-if field" data-show-if="pick=${f.key}">
+        <label for="${c.fieldId('f.' + f.key)}">${f.label} al mes</label>
+        ${c.moneyInput({ name: `f[${f.key}]`, errorKey: `f.${f.key}`, value: (form.f || {})[f.key], currency, errors })}
+      </div>`
+    )}</div>`;
+}
+
 function inputFor(q, form, errors, currency) {
+  const simple = simpleInput(q, form, errors, currency);
+  // .v3-input activa en el navegador los bloques que se muestran según lo marcado.
+  return simple ? html`<div class="v3-input deep-simple">${simple}</div>` : classicInput(q, form, errors, currency);
+}
+
+function simpleInput(q, form, errors, currency) {
+  if ((q.type === 'percent' || q.type === 'integer') && q.config.choices) {
+    return html`${buttons('value', q.config.choices, form.value === undefined || form.value === null ? [] : [form.value])}${c.errorText(errors, 'value')}`;
+  }
+  if (q.type === 'breakdown' && q.config.pick) return pickBreakdown(q, form, errors, currency);
+  if (q.type === 'debts' && q.config.simple) return simpleDebts(q, form, errors, currency);
+  if (q.type === 'goals' && q.config.simple) return simpleGoals(q, form, errors, currency);
+  if (q.type === 'money' && q.config.presence) {
+    return presence(q, form, errors, html`<div class="field"><label for="${c.fieldId('amount')}" class="visually-hidden">Importe en ${currency}</label>${c.moneyInput({ name: 'amount', value: form.amount, currency, errors })}</div>`);
+  }
+  return null;
+}
+
+function classicInput(q, form, errors, currency) {
   switch (q.type) {
     case 'currency':
       if (q.config.tiles) return optionList(q, form, errors, { options: CURRENCY_TILES });
@@ -185,7 +288,7 @@ function inputFor(q, form, errors, currency) {
           ${c.errorText(errors, 'has')}
         </fieldset>
         <div class="qf-if" data-show-if="has=si">
-          <p class="q-sub">¿Cuánto recibes y cada cuánto?</p>
+          <p class="q-sub">${q.config.presence_label || '¿Cuánto recibes y cada cuánto?'}</p>
           ${fields}
         </div>`;
     }
@@ -253,7 +356,7 @@ function questionPage(ctx, o) {
   const ch = chapters[q.position - 1];
   const firstOfChapter = q.position > 1 && chapters[q.position - 2] !== ch;
   const pct = Math.round(((q.position - 1) / st.total) * 100);
-  const isGroup = ['single', 'multi'].includes(q.type) || (q.type === 'currency' && q.config.tiles);
+  const isGroup = ['single', 'multi'].includes(q.type) || (q.type === 'currency' && q.config.tiles) || (['percent', 'integer'].includes(q.type) && Boolean(q.config.choices));
   const Tag = isGroup ? 'fieldset' : 'div';
   const chapter = CHAPTERS[ch - 1];
   return html`<form class="qf" method="post" action="${o.base}/pregunta/${q.position}${o.actionSuffix || ''}" data-code="${q.code}" ${firstOfChapter ? raw(`data-interlude="${ch}"`) : ''} novalidate>
@@ -290,7 +393,7 @@ function questionPage(ctx, o) {
         : ''}
       ${o.prefilledNotice ? html`<div class="note note--warn" role="status"><strong>Revisa la respuesta anterior.</strong> Se guardará cuando pulses «Siguiente».</div>` : ''}
       ${inputFor(q, form, errors, currency)}
-      ${q.allowUnknown && !['debts', 'goals'].includes(q.type)
+      ${q.allowUnknown && !['debts', 'goals'].includes(q.type) && !(q.config.choices && q.config.choices.some((x) => x.value === 'dk'))
         ? html`<div class="unknown"><label class="pill pill--ghost"><input type="checkbox" name="unknown" value="1" ${form.unknown ? raw('checked') : ''} data-unknown /><span>No lo sé</span></label></div>`
         : ''}
       ${raw(`</${Tag}>`)}

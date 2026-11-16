@@ -24,6 +24,25 @@ function currencyFor(req, ev, map) {
   return (req.user && req.user.base_currency) || 'USD';
 }
 
+/**
+ * Respuestas del test gratuito V4 que sirven como sugerencia (la persona confirma con
+ * «Usar esta respuesta»): ingreso del mes, dinero guardado y personas a cargo.
+ * Solo montos exactos y en la misma moneda; un rango o «No lo sé» no se sugiere.
+ */
+const DEPENDENTS = { D0: 0, D1: 1, D2: 2, D3: 3, D4PLUS: 4 };
+function fromFreeTest(userId, code, currency) {
+  if (!['ingreso_principal', 'ahorro_disponible', 'dependientes'].includes(code)) return null;
+  const s = db.one("SELECT id FROM ft_sessions WHERE user_id = ? AND version_id = 'FREE_24_V4_ES' AND completed_revision IS NOT NULL ORDER BY completed_at DESC LIMIT 1", userId);
+  if (!s) return null;
+  const slot = { ingreso_principal: 'Q06', ahorro_disponible: 'Q13', dependientes: 'Q03' }[code];
+  const row = db.one("SELECT value_json FROM ft_answers WHERE session_id = ? AND slot_id = ? AND active = 1 AND response_status = 'answered'", s.id, slot);
+  const v = row && db.parse(row.value_json, null);
+  if (!v) return null;
+  if (code === 'dependientes') return v.codes && DEPENDENTS[v.codes[0]] !== undefined ? { value: DEPENDENTS[v.codes[0]] } : null;
+  if (v.amount === null || v.amount === undefined || v.currency !== currency) return null;
+  return code === 'ingreso_principal' ? { value: { amount: v.amount, period: 'mensual' } } : { value: v.amount };
+}
+
 function previousFor(req, q, ev, currency) {
   const userId = req.user.id;
   let source = null;
@@ -40,6 +59,7 @@ function previousFor(req, q, ev, currency) {
     const cur = db.value('SELECT currency FROM ft_sessions WHERE user_id = ? AND completed_revision IS NOT NULL AND currency IS NOT NULL ORDER BY completed_at DESC LIMIT 1', userId);
     if (cur) source = { value: cur };
   }
+  if (!source) source = fromFreeTest(userId, q.code, currency);
   if (!source) return null;
   const current = qs.answers(ev.id)[q.code];
   if (current && !current.unknown && JSON.stringify(current.value) === JSON.stringify(source.value)) return null;

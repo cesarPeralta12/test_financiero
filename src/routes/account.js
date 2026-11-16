@@ -20,7 +20,7 @@ const router = express.Router();
 function journey(user) {
   const o = { userId: user.id };
   const freeDone = engine.findLatestResultSession(o);
-  const freeOpen = engine.findOwned(o, 'en_curso');
+  const freeOpen = engine.findOpen(o, require('../config').freeCatalogVersion);
   const ents = entitlements.active(user.id);
   const diag = deep.latestDiagnosis(user.id);
   const deepOpen = qs.findEvaluation('profundo', o, 'en_curso');

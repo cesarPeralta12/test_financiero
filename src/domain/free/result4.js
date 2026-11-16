@@ -331,6 +331,7 @@ function screen(pkg, answers, diagnosis) {
   else if (pay === 'ON_TIME') strength = 'Estás al día con tus pagos. Mantenerlo te deja más opciones cuando quieras hacer cambios.';
   else if (reserve !== null && reserve.gte(3)) strength = 'Tienes dinero guardado para varios meses de gastos básicos. Te da tiempo para decidir sin apuro.';
   else if (bal !== null && bal.gt(0)) strength = 'Con tus respuestas, lo que recibes alcanza para cubrir tus gastos del mes.';
+  else if (variability === 'FIXED') strength = 'Recibes el mismo monto cada mes. Eso hace más fácil planificar.';
   else if (variability === 'SIMILAR') strength = 'Recibes más o menos lo mismo cada mes. Eso hace más fácil planificar.';
   else if (paid) strength = 'Ya te pagaron por usar lo que sabes hacer. Es un punto de partida real.';
   else strength = 'Ya pusiste tus números a la vista. Es el primer paso para decidir con información y no a ciegas.';

@@ -262,3 +262,20 @@ test('V4: flujo por formularios y resultado en nueve módulos con una sola ofert
     config.freeCatalogVersion = prev;
   }
 });
+
+test('V4: un test V3 sin terminar no se retoma; la persona empieza la versión vigente', async () => {
+  const prev = config.freeCatalogVersion;
+  try {
+    const c = new h.Client();
+    await h.consent(c);
+    config.freeCatalogVersion = 'FREE_25_V3_ES';
+    const old = await c.get('/test');
+    assert.match(old.text, /Pregunta 1 de 25/);
+    config.freeCatalogVersion = V4;
+    const now = await c.get('/test');
+    assert.match(now.text, /Pregunta 1 de 24/);
+    assert.match(now.text, /¿En qué país vives\?/);
+  } finally {
+    config.freeCatalogVersion = prev;
+  }
+});

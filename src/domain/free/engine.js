@@ -234,6 +234,16 @@ function findOwned({ userId, anonId }, status = null) {
   return null;
 }
 
+/**
+ * Test en curso que se puede retomar: solo si es de la versión de catálogo vigente.
+ * Un test sin terminar de una versión anterior (p. ej. V3 de 25 preguntas) se deja de lado
+ * y la persona empieza la versión actual; sus respuestas antiguas no se borran.
+ */
+function findOpen(owner, versionId) {
+  const s = findOwned(owner, 'en_curso');
+  return s && (!versionId || s.version_id === versionId) ? s : null;
+}
+
 /** Última sesión completada cuyo resultado corresponde a su revisión vigente. */
 function findLatestResultSession(owner) {
   const where = owner.userId ? ['user_id = ?', owner.userId] : owner.anonId ? ['anon_id = ? AND user_id IS NULL', owner.anonId] : null;
@@ -590,6 +600,7 @@ function snapshot(sessionId) {
 }
 
 module.exports = {
+  findOpen,
   TOTAL,
   CATALOGS,
   catalogOf: cat,

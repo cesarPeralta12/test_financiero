@@ -32,7 +32,7 @@ function needConsent(req, res) {
 /** Sesión sobre la que se trabaja: la que está en curso o, si no hay, la última completada. */
 function workingSession(req) {
   const o = owner(req);
-  return engine.findOwned(o, 'en_curso') || engine.findLatestResultSession(o);
+  return engine.findOpen(o, config.freeCatalogVersion) || engine.findLatestResultSession(o);
 }
 
 function startSession(req) {
@@ -145,7 +145,7 @@ function reviewItems(session) {
 router.get('/test', (req, res) => {
   if (needConsent(req, res)) return;
   const o = owner(req);
-  let s = engine.findOwned(o, 'en_curso');
+  let s = engine.findOpen(o, config.freeCatalogVersion);
   if (!s) {
     if (engine.findLatestResultSession(o) && req.query.nuevo !== '1') return res.redirect(303, '/resultado');
     s = startSession(req);
@@ -256,7 +256,7 @@ router.post('/test/finalizar', wrap(async (req, res) => {
 
 router.post('/test/repetir', (req, res) => {
   const o = owner(req);
-  if (!engine.findOwned(o, 'en_curso')) startSession(req);
+  if (!engine.findOpen(o, config.freeCatalogVersion)) startSession(req);
   res.redirect(303, '/test');
 });
 
@@ -276,7 +276,7 @@ router.get('/resultado', (req, res) => {
   const o = owner(req);
   const s = engine.findLatestResultSession(o);
   if (!s) return res.redirect(303, '/test');
-  const open = engine.findOwned(o, 'en_curso');
+  const open = engine.findOpen(o, config.freeCatalogVersion);
   let diag;
   try {
     diag = engine.getDiagnostic(s.id);

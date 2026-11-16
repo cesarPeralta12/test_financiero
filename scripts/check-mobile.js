@@ -188,8 +188,12 @@ async function main() {
   const problems = [];
   const host = new URL(base).hostname;
 
+  const cfg = require('../src/config');
+  const baseVersion = cfg.freeCatalogVersion;
   for (const [name, url, cookies0, prepare] of pages) {
     const cookies = prepare ? await prepare() : cookies0;
+    // Las pantallas V3 se revisan con el catálogo V3 vigente (un test V3 abierto no se retoma bajo otra versión).
+    cfg.freeCatalogVersion = name.startsWith('v3-') ? 'FREE_25_V3_ES' : baseVersion;
     await s.send('Network.clearBrowserCookies');
     for (const [k, v] of Object.entries(cookies)) await s.send('Network.setCookie', { name: k, value: v, domain: host, path: '/' });
     for (const w of widths) {

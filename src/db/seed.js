@@ -6,13 +6,21 @@ const config = require('../config');
 const { migrate } = require('./migrate');
 const { hashPassword } = require('../lib/security');
 const { DEEP, RULES, PRODUCTS, CONTENTS } = require('./content-v1');
+const { DEEP_V2 } = require('./content-deep-v2');
 
-function seedQuestionnaire(kind, def) {
-  if (db.value('SELECT COUNT(*) FROM questionnaires WHERE kind = ?', kind) > 0) return false;
+/**
+ * Publica la versión `version` del cuestionario si todavía no existe y retira la anterior.
+ * Las evaluaciones ya empezadas siguen ligadas a su versión y se terminan con ella.
+ */
+function seedQuestionnaire(kind, def, version = 1) {
+  if (version === 1 && db.value('SELECT COUNT(*) FROM questionnaires WHERE kind = ?', kind) > 0) return false;
+  if (version > 1 && db.value('SELECT COUNT(*) FROM questionnaires WHERE kind = ? AND version >= ?', kind, version) > 0) return false;
   const now = db.now();
+  if (version > 1) db.run("UPDATE questionnaires SET status = 'retirado' WHERE kind = ? AND status = 'publicado'", kind);
   const q = db.run(
-    "INSERT INTO questionnaires (kind, version, status, title, notes, created_at, published_at) VALUES (?, 1, 'publicado', ?, ?, ?, ?)",
+    "INSERT INTO questionnaires (kind, version, status, title, notes, created_at, published_at) VALUES (?, ?, 'publicado', ?, ?, ?, ?)",
     kind,
+    version,
     def.title,
     def.notes,
     now,
@@ -43,6 +51,7 @@ function seed({ quiet = false } = {}) {
   const log = (m) => !quiet && console.log(m);
   db.tx(() => {
     if (seedQuestionnaire('profundo', DEEP)) log('Cuestionario profundo v1 publicado.');
+    if (config.deepQuestionnaireVersion >= 2 && seedQuestionnaire('profundo', DEEP_V2, 2)) log('Cuestionario profundo v2 (botones) publicado.');
 
     if (!db.value("SELECT COUNT(*) FROM rule_sets WHERE kind = 'diagnostico'")) {
       db.run(
