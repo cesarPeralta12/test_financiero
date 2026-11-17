@@ -5,6 +5,7 @@
 // correcciones y termina con una sola oferta. Sin puntos, premios ni niveles.
 const { html, raw } = require('../lib/html');
 const c = require('./components');
+const OFFER_PM = require('../domain/knowledge/v3/offer_pm_v1_es.json');
 const cat = require('../domain/free/catalog4');
 const moneyLib = require('../lib/money');
 
@@ -231,12 +232,29 @@ function offerBlock(r, { products = [], owned = {}, user = null }) {
     <p class="kicker">Plan Maestro</p>
     <h2 id="h-oferta">Construye tu Plan Maestro de Crecimiento Patrimonial</h2>
     <ul class="dx-benefits">${BENEFITS.map(([t, d]) => html`<li><strong>${t}</strong><span class="muted">${d}</span></li>`)}</ul>
-    <h3 id="incluye">Todo lo que incluye tu Plan Maestro</h3>
+    <h3 id="incluye">Qué recibirás con tu Plan Maestro de Crecimiento Patrimonial</h3>
+    <p>Profundizamos en tu situación para ayudarte a generar más ingresos, organizar tu dinero, identificar oportunidades, construir activos y proteger tu patrimonio, con acompañamiento por chat y herramientas para controlar tu avance.</p>
+    <div class="table-wrap"><table class="offer-table offer-table--full">
+      <thead><tr><th scope="col">Qué recibirás</th><th scope="col">Qué contiene</th></tr></thead>
+      <tbody>${OFFER_PM.benefits.map((b) => html`<tr class="${b.id.startsWith('TOOL') ? 'is-tool' : ''}"><th scope="row">${b.title}</th><td>${b.description}</td></tr>`)}</tbody>
+    </table></div>
+    <p class="small muted">Todo se integra en tu Plan Maestro de Crecimiento Patrimonial, que construimos después de completar y confirmar tu información. Las cifras y estimaciones dependen de contar con datos suficientes.</p>
+    <h3>Lo que ya tienes gratis frente al Plan Maestro</h3>
     <div class="table-wrap"><table class="offer-table">
       <thead><tr><th scope="col">Resultado gratuito (lo que ya tienes)</th><th scope="col">Plan Maestro (USD 69)</th></tr></thead>
       <tbody>${FREE_VS_FULL.map(([a, b]) => html`<tr><td><span class="small muted">Hoy, gratis:</span> ${a}</td><td><strong>Con el Plan Maestro:</strong> ${b}</td></tr>`)}</tbody>
     </table></div>
-    ${pkg && pkg.includes_json ? html`<p class="small"><strong>Incluye:</strong> ${JSON.parse(pkg.includes_json).join(' · ')}.</p>` : ''}
+    ${(() => {
+      const parts = ['evaluacion', 'plan_maestro', 'acompanamiento'].map((code) => products.find((p) => p.code === code)).filter(Boolean);
+      return parts.length
+        ? html`<h3>Detalle de cada parte</h3><div class="dx-parts">${parts.map((p) => html`<article class="dx-part"><h4>${p.code === 'acompanamiento' ? 'Acompañamiento: coach por chat y calculadora' : p.name}</h4><p class="small muted">${p.summary}</p><ul class="ticklist">${JSON.parse(p.includes_json).map((i) => html`<li>${i}</li>`)}</ul>
+          <p class="small"><strong>Acceso:</strong> ${JSON.parse(p.grants_json).map((g) => c.durationText(g.days)).join(', ')} · <span class="muted">Por separado: ${priceText(p)}</span></p></article>`)}</div>
+          ${pkg ? (() => {
+            const sum = parts.reduce((t, p) => t + p.price_cents, 0);
+            return sum > pkg.price_cents ? html`<p class="small"><strong>Todo junto en tu Plan Maestro: ${priceText(pkg)}</strong> <span class="muted">en lugar de ${priceText({ ...pkg, price_cents: sum })} por separado.</span></p>` : '';
+          })() : ''}`
+        : pkg && pkg.includes_json ? html`<p class="small"><strong>Incluye:</strong> ${JSON.parse(pkg.includes_json).join(' · ')}.</p>` : '';
+    })()}
     ${has
       ? html`<div class="actions"><a class="btn btn-primary btn-lg" href="/evaluacion">Continuar con mi Plan Maestro</a></div>`
       : html`<div class="offer-cta">

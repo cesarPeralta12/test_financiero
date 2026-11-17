@@ -312,7 +312,7 @@ router.get('/resultado', (req, res) => {
     const view = s.version_id === 'FREE_24_V4_ES' ? require('../views/freeTest4') : ft3;
     return res.page({
       title: 'Tu diagnóstico',
-      body: html`${view.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products, owned, completedAt: s.completed_at, openDetail: req.query.ver === 'incluye' })}
+      body: html`${view.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products: s.version_id === 'FREE_24_V4_ES' ? db.all("SELECT * FROM products WHERE active = 1 ORDER BY sort") : products, owned, completedAt: s.completed_at, openDetail: req.query.ver === 'incluye' })}
         <div class="actions actions--center section">
           ${open
             ? html`<a class="btn btn-quiet" href="/test">Continuar el test que empezaste</a>`

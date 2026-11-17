@@ -1686,3 +1686,9 @@ table.data td {
 .dx-trust > * + * { margin-top: .8rem; }
 /* Botón invisible que hace que Enter avance (no retroceda) en las preguntas */
 .qf-enter { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+.dx-parts { display: grid; gap: .8rem; margin: .8rem 0 1rem; }
+@media (min-width: 760px) { .dx-parts { grid-template-columns: repeat(3, 1fr); } }
+.dx-part { border: 1px solid var(--line, rgba(255,255,255,.12)); border-radius: 12px; padding: .9rem 1rem; }
+.dx-part h4 { margin: 0 0 .3rem; }
+.dx-part .ticklist { margin: .5rem 0 0; }
