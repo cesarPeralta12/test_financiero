@@ -14,6 +14,7 @@ const queue = require('../../lib/queue');
 const schemaLib = require('../../lib/jsonschema');
 const openai = require('../ai/openai');
 const knowledge = require('../knowledge');
+const advice = require('./advice4');
 const catalog = require('./catalog4');
 const metrics4 = require('./metrics4');
 const r3 = require('./result3');
@@ -29,7 +30,7 @@ const OFFER = r3.OFFER;
 
 // Reglas propias del test V4 que se añaden al prompt del ingeniero.
 const V4_RULES = `REGLAS DEL TEST V4: las respuestas se dieron con botones. Las habilidades (Q17) y la experiencia (Q18) son declaradas: escribe «declaras…», nunca las presentes como capacidades comprobadas. Q19 dice si ya las usó en trabajos reales; no supongas ingresos futuros. Q20 son grupos a los que podría ofrecer algo: conocer personas no significa que comprarán. El tiempo (Q16) es un rango: no inventes una cantidad exacta de horas. En Q23 «Tal vez» no es dinero disponible. Este test no pregunta tasas de interés: no las pidas ni las supongas; el detalle de deudas es del diagnóstico completo. Respeta todas las condiciones de Q22. Si la persona es menor de 18 años, no propongas ventas, compras ni compromisos económicos. Evita etiquetas humillantes, urgencia artificial y rentabilidades o plazos de enriquecimiento.
-TÍTULO SEGÚN EL SALDO: si el saldo mensual es 0, di que lo que entra se utiliza por completo; nunca «te sobra» ni «tienes margen». Si es negativo: «Tus gastos y cuotas superan lo que recibes», y el primer paso es revisar números, vencimientos y gastos (nunca invertir). Si es positivo: «Al final del mes podría quedarte X», aclarando que es una estimación y no un ahorro comprobado. Nunca llames «ahorro» al margen. Si la reserva es 0, escribe «No declaras dinero reservado para emergencias». En los textos no menciones números de pregunta (ni «pregunta 10» ni «Q10»); los identificadores solo van en evidence_refs. No uses textos que no se entienden como habilidades. El primer paso debe tomar de 15 a 60 minutos o caber en el tiempo declarado, y decir cómo saber si funcionó.`;
+TÍTULO SEGÚN EL SALDO: si el saldo mensual es 0, di que lo que entra se utiliza por completo; nunca «te sobra» ni «tienes margen». Si es negativo: «Tus gastos y cuotas superan lo que recibes», y el primer paso es revisar números, vencimientos y gastos (nunca invertir). Si es positivo: «Al final del mes podría quedarte X», aclarando que es una estimación y no un ahorro comprobado. Nunca llames «ahorro» al margen. Si la reserva es 0, escribe «No declaras dinero reservado para emergencias». En los textos no menciones números de pregunta (ni «pregunta 10» ni «Q10»); los identificadores solo van en evidence_refs. No uses textos que no se entienden como habilidades. Escribe frases cortas: como máximo 30 palabras por texto. El primer paso debe tomar de 15 a 60 minutos o caber en el tiempo declarado, y decir cómo saber si funcionó.`;
 
 let client = null;
 function setClient(fn) {
@@ -365,7 +366,7 @@ function screen(pkg, answers, diagnosis) {
   };
   // 02 · Hallazgo principal: siempre el del servidor, compatible con las cifras (flujo → seguridad → crecimiento).
   const head = template(pkg, answers).conclusion;
-  return { headline: { title: head.title, text: head.interpretation, evidence_refs: head.evidence_refs }, strength, brake, improvement, figures, pitch: pitch(pkg, answers, { bal, reserve, pay, variability, otherAmt, improvement }), trace: trace(pkg, answers, diagnosis, { bal, reserve, improvement }) };
+  return { headline: { title: head.title, text: head.interpretation, evidence_refs: head.evidence_refs }, strength, brake, improvement, figures, tips: advice.tips(answers, pkg._metrics.metrics, cur), pitch: pitch(pkg, answers, { bal, reserve, pay, variability, otherAmt, improvement }), trace: trace(pkg, answers, diagnosis, { bal, reserve, improvement }) };
 }
 
 // ───────── Puente comercial personalizado ─────────

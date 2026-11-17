@@ -267,6 +267,17 @@ function offerBlock(r, { products = [], owned = {}, user = null }) {
   </section>`;
 }
 
+/** «Tus consejos»: salen de la tabla de reglas del backend (advice4.js), no de la IA. */
+function tipsBlock(tips) {
+  if (!tips || !tips.length) return '';
+  return html`<section class="section dx-block dx-tips" aria-labelledby="h-consejos">
+    <p class="kicker">Qué hacer ahora</p>
+    <h2 id="h-consejos">${tips.length === 1 ? 'Tu consejo' : `Tus ${tips.length} consejos`}</h2>
+    <ol class="dx-tiplist">${tips.map((t) => html`<li class="dx-tip"><span class="dx-tip-area">${t.area}</span><strong>${t.action}</strong><span class="muted">${t.why}</span></li>`)}</ol>
+    <p class="small faint">Consejos calculados con tus cifras según reglas fijas (${tips.map((t) => t.rule).join(', ')}). Son orientación, no asesoría financiera personalizada.</p>
+  </section>`;
+}
+
 function resultPage(ctx, { result: r, answers, user, products, owned, completedAt, openDetail = false }) {
   const sc = r.screen || {};
   const f = r.first_action;
@@ -285,20 +296,20 @@ function resultPage(ctx, { result: r, answers, user, products, owned, completedA
       ${r.contradictions && r.contradictions.length ? html`<div class="note note--warn">${r.contradictions.map((x) => html`<p>${x.text}</p>`)}</div>` : ''}
     </section>
 
-    ${block('Lo que esto significa', 'Una fortaleza y un freno', html`
-      ${sc.strength ? html`<article class="dx-insight"><h3>Lo que estás haciendo bien</h3><p>${sc.strength}</p></article>` : ''}
-      <article class="dx-insight"><h3>Lo que más conviene revisar</h3><p>${sc.brake || (r.bottleneck && r.bottleneck.interpretation)}</p></article>
-      ${evidence((sc.headline || r.conclusion).evidence_refs, answers)}`, 'significa')}
-
-    ${imp
-      ? block('Tu oportunidad de mejora', imp.title, html`<p>${imp.text}</p>
-        ${imp.test ? html`<p class="small"><strong>Cómo comprobarlo:</strong> ${imp.test}</p>` : ''}
-        ${imp.validate ? html`<p class="small muted">Es una posibilidad que todavía hay que comprobar: conocer personas no significa que comprarán.</p>${evidence(imp.evidence_refs, answers)}` : ''}`, 'oportunidad')
-      : ''}
+    ${tipsBlock(sc.tips)}
 
     ${block('Tu primer paso, gratis', 'Algo que puedes hacer esta semana', html`<article class="action-card"><p>${f.instruction}</p>
       <p class="meta"><strong>Sabrás que funcionó cuando:</strong> ${f.done_when}</p>
       <p class="meta small muted">${f.resource_fit} ${f.risk}</p></article>`, 'paso')}
+
+    <details class="section dx-why" id="por-que"${openDetail ? raw(' open') : ''}><summary><strong>Ver por qué te lo recomendamos</strong> <span class="small muted">Tu fortaleza, lo que conviene revisar y tu oportunidad</span></summary>
+      <article class="dx-insight"><h3>Lo que estás haciendo bien</h3><p>${sc.strength || ''}</p></article>
+      <article class="dx-insight"><h3>Lo que más conviene revisar</h3><p>${sc.brake || (r.bottleneck && r.bottleneck.interpretation)}</p></article>
+      ${imp ? html`<article class="dx-insight"><h3>Tu oportunidad de mejora: ${imp.title}</h3><p>${imp.text}</p>
+        ${imp.test ? html`<p class="small"><strong>Cómo comprobarlo:</strong> ${imp.test}</p>` : ''}
+        ${imp.validate ? html`<p class="small muted">Es una posibilidad que todavía hay que comprobar: conocer personas no significa que comprarán.</p>${evidence(imp.evidence_refs, answers)}` : ''}</article>` : ''}
+      ${evidence((sc.headline || r.conclusion).evidence_refs, answers)}
+    </details>
 
     ${r.minor
       ? ''

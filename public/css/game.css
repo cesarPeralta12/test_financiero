@@ -1704,3 +1704,11 @@ table.data td {
 .history-item p { margin: .25rem 0 0; }
 .history-tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .4rem; }
 .history-title { font-size: 1.1rem; margin: 0; }
+
+/* Resultado V4: consejos de la tabla de reglas y explicación plegada */
+.dx-tiplist { list-style: none; counter-reset: tip; padding: 0; margin: 12px 0; display: grid; gap: 10px; }
+.dx-tip { counter-increment: tip; position: relative; display: grid; gap: 4px; padding: 14px 14px 14px 52px; border: 1px solid var(--line-2, var(--line)); border-radius: var(--radius); background: var(--surface); }
+.dx-tip::before { content: counter(tip); position: absolute; left: 14px; top: 14px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: .9rem; background: var(--pine); color: var(--pine-on); }
+.dx-tip-area { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--pine); font-weight: 700; }
+.dx-why > summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.dx-why[open] > summary { margin-bottom: 12px; }
