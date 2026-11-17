@@ -272,11 +272,11 @@ function resultPage(ctx, { result: r, answers, user, products, owned, completedA
   const f = r.first_action;
   const imp = sc.improvement || (r.opportunity ? { title: r.opportunity.title, text: r.opportunity.hypothesis, test: r.opportunity.test, validate: true, evidence_refs: r.opportunity.evidence_refs } : null);
   return html`<div class="dx dx4">
-    <header class="section">
+    <div class="section dx-head">
       <div class="label-line"><span class="status-pill">Resultado gratuito</span><span class="small faint">${c.dateEs(completedAt)}</span></div>
       <h1 class="dx-title">Tu primer mapa financiero</h1>
       <p class="small muted">Basado en tus respuestas; es una orientación inicial, no un diagnóstico completo.</p>
-    </header>
+    </div>
 
     <section class="section dx-block dx-main" aria-labelledby="h-hallazgo">
       <h2 id="h-hallazgo">${(sc.headline || r.conclusion).title}</h2>

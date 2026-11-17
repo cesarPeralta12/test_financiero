@@ -122,7 +122,8 @@ test('V4: validaciones de botones, «Otro», exclusivas, máximo y contradicció
   for (const q of ['Q07', 'Q08', 'Q09', 'Q10', 'Q11', 'Q12', 'Q13']) put(s.id, q, BASE[q]);
   assert.throws(() => put(s.id, 'Q14', { codes: ['NONE', 'INSURANCE'] }), /no se puede combinar/);
   for (const q of ['Q14', 'Q15', 'Q16']) put(s.id, q, BASE[q]);
-  assert.throws(() => put(s.id, 'Q17', { codes: ['SELL', 'MANUAL', 'COOK'] }), /hasta dos/);
+  assert.throws(() => put(s.id, 'Q17', { codes: ['SELL', 'MANUAL', 'COOK', 'TEACH', 'CREATE', 'DRIVE'] }), /hasta cinco/);
+  put(s.id, 'Q17', { codes: ['SELL', 'MANUAL', 'COOK', 'TEACH', 'CREATE'] });
   assert.throws(() => cat.validate(cat.SLOT_BY_ID.Q24.variants[0], 'DK', engine.loadSession(s.id)), /Elige una opción/);
 });
 

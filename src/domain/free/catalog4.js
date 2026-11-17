@@ -99,7 +99,7 @@ slot(13, 'emergency_cash', one('V4_Q13', 'money', '¿Cuánto dinero tienes guard
 slot(14, 'backup', choice('V4_Q14', 'Si dejaras de recibir dinero, ¿qué ayuda tendrías?', 'Puedes marcar varias.', BACKUP, { multi: true, exclusive: ['NONE'], other: null }));
 slot(15, 'productive_resources', choice('V4_Q15', '¿Qué tienes que podrías usar para ganar dinero?', 'Puedes marcar varias.', RESOURCES, { multi: true, exclusive: ['NONE'], other_label: '¿Qué otro recurso?' }));
 slot(16, 'available_hours_week', choice('V4_Q16', '¿Cuánto tiempo podrías dedicar por semana a mejorar tus ingresos?', 'Marca una opción.', HOURS, { other: null }));
-slot(17, 'skills', choice('V4_Q17', '¿Qué se te da mejor?', 'Puedes marcar hasta dos opciones.', SKILLS, { multi: true, max: 2, exclusive: ['UNSURE'], other_label: '¿Qué otra habilidad?' }));
+slot(17, 'skills', choice('V4_Q17', '¿Qué se te da mejor?', 'Puedes marcar hasta cinco opciones.', SKILLS, { multi: true, max: 5, exclusive: ['UNSURE'], other_label: '¿Qué otra habilidad?' }));
 slot(18, 'experience', choice('V4_Q18', '¿En qué actividades tienes experiencia?', 'Puedes marcar hasta tres opciones.', EXPERIENCE, { multi: true, max: 3, exclusive: ['NONE'], other_label: '¿Qué otra actividad?' }));
 slot(19, 'skill_use', choice('V4_Q19', '¿Has usado esas habilidades en trabajos reales?', 'Puedes marcar las que correspondan.', SKILL_USE, { multi: true, exclusive: ['NOT_YET', 'UNKNOWN'], other: null, no_dk: true }));
 slot(20, 'market_access', choice('V4_Q20', '¿A quién podrías ofrecerle un producto o servicio?', 'Puedes marcar varias. No necesitamos nombres ni teléfonos.', AUDIENCE, { multi: true, exclusive: ['NOBODY', 'UNSURE'], other_label: '¿Qué otro grupo?' }));
@@ -236,7 +236,7 @@ function validate(variant, raw, session, ctx) {
       if (!variant.multi && codes.length > 1) fail('Elige solo una opción.');
       const excl = codes.filter((c) => (variant.exclusive || []).includes(c));
       if (excl.length && codes.length > 1) fail(`«${labelIn(opts, excl[0])}» no se puede combinar con otras opciones.`);
-      if (variant.max && codes.length > variant.max) fail(`Puedes marcar hasta ${variant.max === 2 ? 'dos' : variant.max === 3 ? 'tres' : variant.max} opciones.`);
+      if (variant.max && codes.length > variant.max) fail(`Puedes marcar hasta ${variant.max === 2 ? 'dos' : variant.max === 3 ? 'tres' : variant.max === 5 ? 'cinco' : variant.max} opciones.`);
       const other = variant.other && codes.includes(variant.other) ? otherText(r.other, variant.other_label) : null;
       const value = { codes, other };
       if (focus) value.focus = focus;

@@ -1692,3 +1692,9 @@ table.data td {
 .dx-part { border: 1px solid var(--line, rgba(255,255,255,.12)); border-radius: 12px; padding: .9rem 1rem; }
 .dx-part h4 { margin: 0 0 .3rem; }
 .dx-part .ticklist { margin: .5rem 0 0; }
+
+.pw-wrap { position: relative; display: block; }
+.pw-wrap input { width: 100%; padding-right: 3rem; }
+.pw-toggle { position: absolute; top: 50%; right: .5rem; transform: translateY(-50%); background: none; border: 0; color: inherit; opacity: .75; padding: .35rem; cursor: pointer; line-height: 0; border-radius: 8px; }
+.pw-toggle:hover, .pw-toggle:focus-visible { opacity: 1; }
+.pw-toggle:focus-visible { outline: 2px solid var(--accent, #2fd08a); outline-offset: 2px; }

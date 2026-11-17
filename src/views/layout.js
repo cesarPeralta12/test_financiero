@@ -84,10 +84,10 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
         <link rel="preload" href="/fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
         <link rel="stylesheet" href="/css/app.css?v=8" />
         <link rel="stylesheet" href="/css/motion.css?v=8" />
-        <link rel="stylesheet" href="/css/game.css?v=11" />
+        <link rel="stylesheet" href="/css/game.css?v=12" />
         <script src="/js/early.js?v=8"></script>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <script src="/js/app.js?v=8" defer></script>
+        <script src="/js/app.js?v=9" defer></script>
         <script src="/js/game.js?v=8" defer></script>
       </head>
       <body
