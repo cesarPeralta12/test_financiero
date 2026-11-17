@@ -206,15 +206,6 @@ const BENEFITS = [
   ['Tener un plan, no solo consejos', 'Acciones para 30 y 90 días y escenarios a uno y tres años.'],
   ['No avanzar a ciegas', 'Seguimiento de tu avance y coach por chat.'],
 ];
-// «Ver todo lo que incluye»: el detalle va plegado después del botón.
-const FREE_VS_FULL = [
-  ['Resumen estimado de tu flujo mensual', 'Revisión detallada de ingresos, gastos, deudas y costos, con escenarios'],
-  ['Una prioridad financiera inicial', 'Prioridades ordenadas con sus criterios y riesgos'],
-  ['Una oportunidad para explorar', 'Comparación de oportunidades según tu tiempo, recursos y demanda'],
-  ['Un primer paso práctico', 'Un plan de acciones con seguimiento de tu avance'],
-  ['Los datos que todavía faltan', 'Validación de tus datos y supuestos, con coach por chat y control de gastos'],
-];
-
 function priceText(pkg) {
   if (!pkg) return null;
   return `${pkg.currency} ${moneyLib.formatCents(pkg.price_cents, pkg.currency).replace(/[.,]00$/, '').replace(/^[^\d]+/, '')}`;
@@ -239,11 +230,6 @@ function offerBlock(r, { products = [], owned = {}, user = null }) {
       <tbody>${OFFER_PM.benefits.map((b) => html`<tr class="${b.id.startsWith('TOOL') ? 'is-tool' : ''}"><th scope="row">${b.title}</th><td>${b.description}</td></tr>`)}</tbody>
     </table></div>
     <p class="small muted">Todo se integra en tu Plan Maestro de Crecimiento Patrimonial, que construimos después de completar y confirmar tu información. Las cifras y estimaciones dependen de contar con datos suficientes.</p>
-    <h3>Lo que ya tienes gratis frente al Plan Maestro</h3>
-    <div class="table-wrap"><table class="offer-table">
-      <thead><tr><th scope="col">Resultado gratuito (lo que ya tienes)</th><th scope="col">Plan Maestro (USD 69)</th></tr></thead>
-      <tbody>${FREE_VS_FULL.map(([a, b]) => html`<tr><td><span class="small muted">Hoy, gratis:</span> ${a}</td><td><strong>Con el Plan Maestro:</strong> ${b}</td></tr>`)}</tbody>
-    </table></div>
     ${(() => {
       const parts = ['evaluacion', 'plan_maestro', 'acompanamiento'].map((code) => products.find((p) => p.code === code)).filter(Boolean);
       return parts.length
@@ -268,13 +254,17 @@ function offerBlock(r, { products = [], owned = {}, user = null }) {
 }
 
 /** «Tus consejos»: salen de la tabla de reglas del backend (advice4.js), no de la IA. */
-function tipsBlock(tips) {
-  if (!tips || !tips.length) return '';
+function tipsBlock(f, tips) {
+  const n = tips.length + (f ? 1 : 0);
+  if (!n) return '';
   return html`<section class="section dx-block dx-tips" aria-labelledby="h-consejos">
     <p class="kicker">Qué hacer ahora</p>
-    <h2 id="h-consejos">${tips.length === 1 ? 'Tu consejo' : `Tus ${tips.length} consejos`}</h2>
-    <ol class="dx-tiplist">${tips.map((t) => html`<li class="dx-tip"><span class="dx-tip-area">${t.area}</span><strong>${t.action}</strong><span class="muted">${t.why}</span></li>`)}</ol>
-    <p class="small faint">Consejos calculados con tus cifras según reglas fijas (${tips.map((t) => t.rule).join(', ')}). Son orientación, no asesoría financiera personalizada.</p>
+    <h2 id="h-consejos">${n === 1 ? 'Tu consejo' : `Tus ${n} consejos`}</h2>
+    <ol class="dx-tiplist">
+      ${f ? html`<li class="dx-tip dx-tip--first"><span class="dx-tip-area">Esta semana · gratis</span><strong>${f.instruction}</strong><span class="muted"><strong>Sabrás que funcionó cuando:</strong> ${f.done_when}</span>${f.resource_fit || f.risk ? html`<span class="small faint">${f.resource_fit} ${f.risk}</span>` : ''}</li>` : ''}
+      ${tips.map((t) => html`<li class="dx-tip"><span class="dx-tip-area">${t.area}</span><strong>${t.action}</strong><span class="muted">${t.why}</span></li>`)}
+    </ol>
+    <p class="small faint">Consejos calculados con tus cifras${tips.length ? ` según reglas fijas (${tips.map((t) => t.rule).join(', ')})` : ''}. Son orientación, no asesoría financiera personalizada.</p>
   </section>`;
 }
 
@@ -296,11 +286,7 @@ function resultPage(ctx, { result: r, answers, user, products, owned, completedA
       ${r.contradictions && r.contradictions.length ? html`<div class="note note--warn">${r.contradictions.map((x) => html`<p>${x.text}</p>`)}</div>` : ''}
     </section>
 
-    ${tipsBlock(sc.tips)}
-
-    ${block('Tu primer paso, gratis', 'Algo que puedes hacer esta semana', html`<article class="action-card"><p>${f.instruction}</p>
-      <p class="meta"><strong>Sabrás que funcionó cuando:</strong> ${f.done_when}</p>
-      <p class="meta small muted">${f.resource_fit} ${f.risk}</p></article>`, 'paso')}
+    ${tipsBlock(f, (sc.tips || []).slice(0, 2))}
 
     <details class="section dx-why" id="por-que"${openDetail ? raw(' open') : ''}><summary><strong>Ver por qué te lo recomendamos</strong> <span class="small muted">Tu fortaleza, lo que conviene revisar y tu oportunidad</span></summary>
       <article class="dx-insight"><h3>Lo que estás haciendo bien</h3><p>${sc.strength || ''}</p></article>

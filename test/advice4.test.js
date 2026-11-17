@@ -29,3 +29,9 @@ test('sin datos para el saldo: pide anotar gastos', () => {
   const t = advice.tips(ans({}), [], 'PEN');
   assert.equal(t[0].rule, 'R10');
 });
+
+test('saldo negativo sin atrasos: siempre hay 3 consejos útiles (recortar, sin deuda nueva, primer fondo)', () => {
+  const t = advice.tips(ans({ Q10: { status: 'NO' } }), metrics({ bal: '-500.00', ingreso: '2500.00', basicos: '2000.00', otros: '1000.00', reserve: '0' }), 'PEN');
+  assert.deepEqual(t.map((x) => x.rule), ['R02', 'R13', 'R14']);
+  assert.match(t[2].action, /PEN 500/);
+});

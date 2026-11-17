@@ -49,6 +49,18 @@ const RULES = [
     why: (v) => `Tus cuotas (${v.cuotas} al mes) se llevan una parte grande de tu ingreso.`,
   },
   {
+    id: 'R13', area: 'Deudas',
+    when: (x) => x.bal !== null && x.bal.lte(0) && !x.late,
+    do: () => 'No uses tarjeta ni préstamos para cubrir lo que falta a fin de mes.',
+    why: () => 'Cubrir un faltante con deuda lo hace más grande el mes siguiente.',
+  },
+  {
+    id: 'R14', area: 'Protección',
+    when: (x) => x.bal !== null && x.bal.lte(0) && (x.reserve === null || x.reserve.lt(1)) && x.miniFund,
+    do: (v) => `Junta un primer fondo de ${v.mini_fondo} con lo que liberes al recortar gastos.`,
+    why: () => 'Es una semana de tus gastos básicos: alcanza para un imprevisto pequeño sin pedir prestado.',
+  },
+  {
     id: 'R05', area: 'Ahorro',
     when: (x) => x.save && x.reserve !== null && x.reserve.lt(1),
     do: (v) => `Separa ${v.separar} cada mes apenas cobres, antes de gastar.`,
@@ -91,6 +103,18 @@ const RULES = [
     why: () => 'Antes de invertir tiempo o dinero, comprueba si alguien lo necesita.',
   },
   {
+    id: 'R15', area: 'Gastos',
+    when: (x) => x.bal !== null && x.bal.gt(0) && x.other && x.other.gt(0),
+    do: (v) => `Ponle un tope de ${v.otros} a tus otros gastos y revísalo a fin de cada mes.`,
+    why: () => 'Un tope fijo evita que lo que te queda se vaya en gastos pequeños sin notarlo.',
+  },
+  {
+    id: 'R16', area: 'Protección',
+    when: (x) => x.bal !== null && x.bal.gt(0) && x.reserve !== null && x.reserve.isZero() && !x.save,
+    do: () => 'Abre una cuenta o un sobre aparte solo para emergencias y no lo mezcles con tu gasto diario.',
+    why: () => 'Separar el dinero es el primer paso para que el respaldo no se gaste.',
+  },
+  {
     id: 'R12', area: 'Seguimiento',
     when: () => true,
     do: () => 'Vuelve a hacer este test en 30 días y compara tus cifras.',
@@ -130,6 +154,7 @@ function situation(answers, metrics, currency) {
     reserve,
     late: pay === 'LATE' || pay === 'UNABLE',
     save: save && save.gt(0) ? save : null,
+    miniFund: dec(ops.basicos) && dec(ops.basicos).gt(0) ? round(dec(ops.basicos).div(4)) : null,
     reserveGoal: base && base.gt(0) ? base.times(T.RESERVE_GOAL) : null,
     variability: codes(answers, 'Q07')[0],
     wantsIncome: Boolean(goal && ['INCOME', 'INDEPENDENCE', 'BUSINESS'].includes(goal.code)),
@@ -150,6 +175,7 @@ function vars(x) {
     separar: m(x.save),
     separar6: x.save ? m(x.save.times(6)) : '',
     meta_reserva: m(x.reserveGoal),
+    mini_fondo: m(x.miniFund),
   };
 }
 

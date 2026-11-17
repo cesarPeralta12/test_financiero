@@ -231,6 +231,7 @@ function history(userId) {
 }
 
 router.get('/historial', requireUser, (req, res) => {
+  res.active('historial');
   const items = history(req.user.id);
   res.page({
     title: 'Mis diagnósticos',

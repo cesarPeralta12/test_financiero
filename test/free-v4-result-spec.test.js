@@ -169,7 +169,7 @@ test('Spec 11 y 12: cálculo visible, módulos en orden y oferta USD 69 con pago
   assert.match(html, /USD 69/);
   assert.match(html, /Quiero mi Plan Maestro/);
   if (config.payments.gateway === 'sandbox') assert.match(html, /el pago es simulado/);
-  const order = ['Tu primer mapa financiero', 'h-hallazgo', 'h-consejos', 'Tu primer paso, gratis', 'Ver por qué te lo recomendamos', 'Tu oportunidad de mejora', 'Lo que puedes lograr', 'Construye tu Plan Maestro', 'Qué recibirás con tu Plan Maestro', 'Las cinco decisiones más importantes ahora', 'Control financiero y simulador', 'id="como-calculamos"'].map((t) => html.indexOf(t));
+  const order = ['Tu primer mapa financiero', 'h-hallazgo', 'h-consejos', 'Esta semana · gratis', 'Ver por qué te lo recomendamos', 'Tu oportunidad de mejora', 'Lo que puedes lograr', 'Construye tu Plan Maestro', 'Qué recibirás con tu Plan Maestro', 'Las cinco decisiones más importantes ahora', 'Control financiero y simulador', 'id="como-calculamos"'].map((t) => html.indexOf(t));
   assert.ok(order.every((i) => i >= 0), JSON.stringify(order));
   assert.deepEqual([...order].sort((a, b) => a - b), order);
   const minor = finish({ ...CASE, Q02: { codes: ['LT18'] } });

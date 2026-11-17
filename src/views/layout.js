@@ -41,7 +41,7 @@ function navLinks(ctx) {
     return html`<a href="/entrar" ${cur === 'entrar' ? raw('aria-current="page"') : ''}>Entrar</a>`;
   }
   const unread = ctx.unread ? html`<span class="count" aria-label="${ctx.unread} sin leer">${ctx.unread}</span>` : '';
-  return html`${a('/inicio', 'Inicio', 'inicio')}${a('/plan', 'Plan', 'plan')}${a('/tablero', 'Misiones', 'tablero')}${a('/logros', 'Logros', 'logros')}${a('/coach', 'Coach', 'coach')}${a(
+  return html`${a('/inicio', 'Inicio', 'inicio')}${a('/historial', 'Diagnósticos', 'historial')}${a('/plan', 'Plan', 'plan')}${a('/tablero', 'Misiones', 'tablero')}${a('/logros', 'Logros', 'logros')}${a('/coach', 'Coach', 'coach')}${a(
     '/calculadora',
     'Calculadora',
     'calculadora'
@@ -84,7 +84,7 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
         <link rel="preload" href="/fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
         <link rel="stylesheet" href="/css/app.css?v=8" />
         <link rel="stylesheet" href="/css/motion.css?v=8" />
-        <link rel="stylesheet" href="/css/game.css?v=14" />
+        <link rel="stylesheet" href="/css/game.css?v=15" />
         <script src="/js/early.js?v=8"></script>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <script src="/js/app.js?v=9" defer></script>

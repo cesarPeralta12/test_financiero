@@ -238,7 +238,7 @@ test('V4: flujo por formularios y resultado en nueve módulos con una sola ofert
     assert.match(fin.text, /Tu primer mapa financiero/);
     assert.match(fin.text, /Saldo estimado al mes/);
     assert.match(fin.text, /Bs 1\.100/);
-    assert.match(fin.text, /Tu primer paso, gratis/);
+    assert.match(fin.text, /Esta semana · gratis/);
     assert.match(fin.text, /Quiero mi Plan Maestro/);
     assert.match(fin.text, /Qué recibirás con tu Plan Maestro/);
     assert.match(fin.text, /Cómo te ayuda Día Uno/);
