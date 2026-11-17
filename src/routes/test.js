@@ -276,7 +276,23 @@ router.get('/resultado', (req, res) => {
   const o = owner(req);
   const s = engine.findLatestResultSession(o);
   if (!s) return res.redirect(303, '/test');
+  return showResult(req, res, s, null);
+});
+
+// Un resultado gratuito anterior de la persona (desde «Mis diagnósticos»).
+router.get('/resultado/anterior/:id', (req, res, next) => {
+  if (!req.user) return res.redirect(303, `/entrar?siguiente=${encodeURIComponent(req.originalUrl)}`);
+  const s = db.one('SELECT * FROM ft_sessions WHERE id = ? AND user_id = ? AND completed_revision IS NOT NULL', String(req.params.id), req.user.id);
+  if (!s) return next(notFound());
+  const latest = engine.findLatestResultSession(owner(req));
+  if (latest && latest.id === s.id) return res.redirect(303, '/resultado');
+  return showResult(req, res, s, s.completed_at);
+});
+
+function showResult(req, res, s, pastDate) {
+  const o = owner(req);
   const open = engine.findOpen(o, config.freeCatalogVersion);
+  const pastNote = pastDate ? html`<div class="note section" role="note"><strong>Resultado anterior.</strong> Es el test gratuito que hiciste el ${c.dateEs(pastDate)}; tus respuestas pueden haber cambiado desde entonces. <a href="/historial">Ver todos mis diagnósticos</a> · <a href="/resultado">Ver el más reciente</a></div>` : '';
   let diag;
   try {
     diag = engine.getDiagnostic(s.id);
@@ -295,7 +311,7 @@ router.get('/resultado', (req, res) => {
       title: 'Tu diagnóstico',
       body: html`<h1 class="section">Tu diagnóstico preliminar</h1>
         ${diag.status === 'pending'
-          ? html`<div class="dx-wait" role="status" aria-live="polite" data-autorefresh="/resultado"><div class="dx-spinner" aria-hidden="true"></div><p><strong>Estamos preparando tu diagnóstico.</strong></p><p class="muted">Analizamos tus respuestas; tarda unos segundos y la página se actualizará sola.</p><noscript><a class="btn btn-primary" href="/resultado">Ver mi diagnóstico</a></noscript></div>`
+          ? html`<div class="dx-wait" role="status" aria-live="polite" data-autorefresh="${req.originalUrl.split('?')[0]}"><div class="dx-spinner" aria-hidden="true"></div><p><strong>Estamos preparando tu diagnóstico.</strong></p><p class="muted">Analizamos tus respuestas; tarda unos segundos y la página se actualizará sola.</p><noscript><a class="btn btn-primary" href="/resultado">Ver mi diagnóstico</a></noscript></div>`
           : html`<div class="note note--risk" role="alert">No pudimos generar tu diagnóstico. Tus respuestas siguen guardadas: no necesitas repetir el test.</div><form method="post" action="/test/reintentar">${c.csrfField(res.locals.ctx)}<button class="btn btn-primary" type="submit">Reintentar</button></form>`}`,
     });
   }
@@ -312,7 +328,7 @@ router.get('/resultado', (req, res) => {
     const view = s.version_id === 'FREE_24_V4_ES' ? require('../views/freeTest4') : ft3;
     return res.page({
       title: 'Tu diagnóstico',
-      body: html`${view.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products: s.version_id === 'FREE_24_V4_ES' ? db.all("SELECT * FROM products WHERE active = 1 ORDER BY sort") : products, owned, completedAt: s.completed_at, openDetail: req.query.ver === 'incluye' })}
+      body: html`${pastNote}${view.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products: s.version_id === 'FREE_24_V4_ES' ? db.all("SELECT * FROM products WHERE active = 1 ORDER BY sort") : products, owned, completedAt: s.completed_at, openDetail: req.query.ver === 'incluye' })}
         <div class="actions actions--center section">
           ${open
             ? html`<a class="btn btn-quiet" href="/test">Continuar el test que empezaste</a>`
@@ -322,14 +338,14 @@ router.get('/resultado', (req, res) => {
   }
   res.page({
     title: 'Tu diagnóstico',
-    body: html`${ft.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products, offer, owned, reward: true, completedAt: s.completed_at })}
+    body: html`${pastNote}${ft.resultPage(res.locals.ctx, { result: diag.result, answers: engine.activeAnswers(s.id), user: req.user, products, offer, owned, reward: !pastDate, completedAt: s.completed_at })}
       <div class="actions actions--center section">
         ${open
           ? html`<a class="btn btn-quiet" href="/test">Continuar el test que empezaste</a>`
           : html`<form class="inline-form" method="post" action="/test/repetir">${c.csrfField(res.locals.ctx)}<button class="btn btn-quiet" type="submit">Repetir el test</button></form>`}
       </div>`,
   });
-});
+}
 
 // Botón «Quiero mi Plan Maestro» del resultado: cuenta el clic (con consentimiento) y lleva a la compra.
 router.get('/resultado/plan-maestro', (req, res) => {

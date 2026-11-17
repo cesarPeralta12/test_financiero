@@ -1698,3 +1698,9 @@ table.data td {
 .pw-toggle { position: absolute; top: 50%; right: .5rem; transform: translateY(-50%); background: none; border: 0; color: inherit; opacity: .75; padding: .35rem; cursor: pointer; line-height: 0; border-radius: 8px; }
 .pw-toggle:hover, .pw-toggle:focus-visible { opacity: 1; }
 .pw-toggle:focus-visible { outline: 2px solid var(--accent, #2fd08a); outline-offset: 2px; }
+
+.history-list { list-style: none; padding: 0; margin: 1.2rem 0; display: grid; gap: .8rem; }
+.history-item { border: 1px solid var(--line, rgba(255,255,255,.12)); border-radius: 14px; padding: 1rem 1.1rem; }
+.history-item p { margin: .25rem 0 0; }
+.history-tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .4rem; }
+.history-title { font-size: 1.1rem; margin: 0; }

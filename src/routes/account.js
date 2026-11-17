@@ -107,6 +107,12 @@ router.get('/inicio', requireUser, (req, res) => {
             </section>`
           : html`<section class="next-step"><p class="kicker">Al día</p><h2>No tienes tareas pendientes</h2><p class="muted">Revisa tu tablero o conversa con el coach para decidir tu próxima acción.</p><div class="actions"><a class="btn btn-secondary" href="/tablero">Abrir el tablero</a></div></section>`}
 
+      <section class="section history-link" aria-labelledby="h-hist">
+        <h2 id="h-hist">Mis diagnósticos</h2>
+        <p class="muted">Revisa tus resultados anteriores: los del test gratuito y los de tu plan de pago.</p>
+        <div class="actions"><a class="btn btn-secondary" href="/historial">Ver mis diagnósticos</a></div>
+      </section>
+
       <section class="section" aria-labelledby="h-rec">
         <h2 id="h-rec">Tu recorrido</h2>
         ${gv.worldMap(
@@ -182,6 +188,65 @@ router.post('/cuenta/privacidad', requireUser, (req, res) => {
     audit(req.user.id, `privacidad.solicitud_${kind}`, { targetType: 'solicitud', targetId: r.lastId });
   }
   res.redirect(303, '/cuenta?aviso=solicitud_enviada');
+});
+
+// ───────── Mis diagnósticos: historial de todo lo realizado ─────────
+const FREE_VERSION_LABEL = { FREE_24_V4_ES: '24 preguntas', FREE_25_V3_ES: '25 preguntas', FREE_25_V2_ES: '25 preguntas' };
+
+function freeTitle(r) {
+  if (!r) return null;
+  const sc = r.screen && r.screen.headline;
+  return (sc && sc.title) || (r.headline && r.headline.title) || (r.profile && r.profile.title) || null;
+}
+
+function history(userId) {
+  const items = [];
+  const latestFree = db.one('SELECT id FROM ft_sessions WHERE user_id = ? AND completed_revision IS NOT NULL ORDER BY completed_at DESC, rowid DESC LIMIT 1', userId);
+  for (const s of db.all('SELECT * FROM ft_sessions WHERE user_id = ? AND completed_revision IS NOT NULL ORDER BY completed_at DESC', userId)) {
+    const row = db.one("SELECT result_json FROM ft_results WHERE session_id = ? AND status = 'ready' ORDER BY answer_revision DESC, id DESC LIMIT 1", s.id);
+    let title = null;
+    try {
+      title = row ? freeTitle(JSON.parse(row.result_json)) : null;
+    } catch (e) {
+      title = null;
+    }
+    items.push({
+      date: s.completed_at,
+      kind: 'gratis',
+      label: 'Test gratuito',
+      detail: FREE_VERSION_LABEL[s.version_id] || null,
+      title: title || 'Resultado gratuito',
+      href: latestFree && latestFree.id === s.id ? '/resultado' : `/resultado/anterior/${encodeURIComponent(s.id)}`,
+      current: Boolean(latestFree && latestFree.id === s.id),
+    });
+  }
+  const lastDeep = db.one('SELECT id FROM diagnoses WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1', userId);
+  for (const d of db.all('SELECT id, created_at FROM diagnoses WHERE user_id = ? ORDER BY created_at DESC, id DESC', userId)) {
+    items.push({ date: d.created_at, kind: 'pago', label: 'Evaluación profunda', detail: 'Plan de pago', title: 'Diagnóstico detallado con tus cifras', href: `/diagnostico/${d.id}`, current: Boolean(lastDeep && lastDeep.id === d.id) });
+  }
+  for (const p of db.all("SELECT id, version_number, is_current, completed_at, created_at FROM plan_versions WHERE user_id = ? AND status = 'completo' ORDER BY version_number DESC", userId)) {
+    items.push({ date: p.completed_at || p.created_at, kind: 'pago', label: 'Plan Maestro', detail: `Versión ${p.version_number}`, title: 'Tu plan de 90 días y hoja de ruta', href: `/plan/version/${p.id}`, current: Boolean(p.is_current) });
+  }
+  return items.sort((x, y) => String(y.date).localeCompare(String(x.date)));
+}
+
+router.get('/historial', requireUser, (req, res) => {
+  const items = history(req.user.id);
+  res.page({
+    title: 'Mis diagnósticos',
+    body: html`<h1>Mis diagnósticos</h1>
+      <p class="muted">Todo lo que has hecho en Día Uno, del más reciente al más antiguo. Cada resultado se guarda tal como salió ese día.</p>
+      ${items.length
+        ? html`<ul class="history-list">${items.map(
+            (it) => html`<li class="history-item">
+              <div class="history-tags"><span class="badge ${it.kind === 'gratis' ? '' : 'badge--ok'}">${it.kind === 'gratis' ? 'Gratuito' : 'Plan de pago'}</span>${it.current ? html` <span class="badge badge--ok">Más reciente</span>` : ''}</div>
+              <h2 class="history-title"><a href="${it.href}">${it.label}${it.detail ? html` <span class="muted">· ${it.detail}</span>` : ''}</a></h2>
+              <p>${it.title}</p>
+              <p class="small faint">${c.dateEs(it.date, { time: true })}</p>
+            </li>`
+          )}</ul>`
+        : html`<div class="empty"><h3>Todavía no tienes diagnósticos</h3><p>Haz el test gratuito para obtener tu primer mapa financiero.</p><div class="actions"><a class="btn btn-primary" href="/test">Hacer el test gratuito</a></div></div>`}`,
+  });
 });
 
 router.get('/avisos', requireUser, (req, res) => {
