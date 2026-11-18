@@ -19,6 +19,8 @@ const { rateLimit } = require('../lib/security');
 const game = require('../domain/game');
 const config = require('../config');
 const ft3 = require('../views/freeTest3');
+const scenes = require('../domain/free/scenes');
+const { scenePage } = require('../views/scene');
 
 const router = express.Router();
 
@@ -169,6 +171,23 @@ router.get('/test/pregunta/:n', (req, res, next) => {
   renderQuestion(req, res, s, r.question, { answer: r.answer, note });
 });
 
+router.get('/test/escena/:n', (req, res, next) => {
+  if (needConsent(req, res)) return;
+  const s = workingSession(req);
+  if (!s) return res.redirect(303, '/test');
+  const n = intParam(req.params.n);
+  const C = engine.catalogOf(s);
+  const scene = n && scenes.after(C.VERSION_ID, n);
+  if (!scene) return next(notFound());
+  const answers = engine.activeAnswers(s.id);
+  const slot = C.SLOTS[n - 1];
+  const target = engine.nextPending(answers, s);
+  // Solo se muestra si esa pregunta ya se respondió y hay otra por delante.
+  if (!slot || !answers[slot.slot_id] || !target || C.SLOT_BY_ID[target].ordinal <= n) return res.redirect(303, '/test');
+  const nota = typeof req.query.nota === 'string' ? `?nota=${encodeURIComponent(req.query.nota)}` : '';
+  res.page({ title: `Test gratuito: ${scene.blockName}`, focus: true, body: scenePage(scene, { continueHref: `/test/pregunta/${C.SLOT_BY_ID[target].ordinal}${nota}` }) });
+});
+
 router.post('/test/pregunta/:n', (req, res, next) => {
   if (needConsent(req, res)) return;
   const limit = rateLimit({ key: `answer:${req.session.id}`, limit: 240, windowMs: 60_000 });
@@ -214,6 +233,8 @@ router.post('/test/pregunta/:n', (req, res, next) => {
     });
     const nextQ = out.next_question;
     const note = out.annotation ? `?nota=${encodeURIComponent(out.annotation.event_id)}` : '';
+    const scene = nextQ && nextQ.ordinal > n ? scenes.after(C.VERSION_ID, n) : null;
+    if (scene) return res.redirect(303, `/test/escena/${n}${note}`);
     return res.redirect(303, nextQ ? `/test/pregunta/${nextQ.ordinal}${note}` : '/test/revision');
   } catch (err) {
     if (!(err instanceof FreeError)) return next(err);
