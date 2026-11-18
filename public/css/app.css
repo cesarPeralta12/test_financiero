@@ -265,6 +265,104 @@ small,
   text-align: center;
   font-weight: 600;
 }
+.nav-main,
+.nav-side {
+  display: flex;
+  align-items: center;
+  gap: 4px 20px;
+}
+.nav-side {
+  margin-left: 8px;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+.nav-menu {
+  position: relative;
+}
+.nav-menu summary {
+  list-style: none;
+  cursor: pointer;
+  color: var(--ink-2);
+  padding: 6px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+.nav-menu summary::-webkit-details-marker {
+  display: none;
+}
+.nav-menu summary::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.2s ease;
+}
+.nav-menu[open] summary::after {
+  transform: translateY(1px) rotate(-135deg);
+}
+.nav-menu summary:hover,
+.nav-menu[open] summary,
+.nav-menu summary[data-current] {
+  color: var(--ink);
+}
+.nav-menu summary[data-current] {
+  box-shadow: inset 0 -2px 0 var(--pine);
+}
+.nav-menu summary:focus-visible {
+  outline: 2px solid var(--pine);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.nav-pop {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: -14px;
+  min-width: 220px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  z-index: 20;
+}
+.nav-menu--right .nav-pop {
+  left: auto;
+  right: -8px;
+}
+.nav .nav-pop a,
+.nav .nav-pop .nav-logout {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 8px;
+  box-shadow: none;
+  background: none;
+  color: var(--ink-2);
+}
+.nav .nav-pop a:hover,
+.nav .nav-pop .nav-logout:hover {
+  background: var(--line);
+  color: var(--ink);
+}
+.nav .nav-pop a[aria-current='page'] {
+  color: var(--ink);
+  background: var(--line);
+  box-shadow: inset 3px 0 0 var(--pine);
+}
+.nav .nav-pop .nav-inline-form {
+  display: block;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
 .nav-inline-form {
   display: inline;
   margin: 0;
@@ -1771,12 +1869,46 @@ details.more[open] > summary {
   .bar .nav-toggle {
     display: inline-flex;
   }
+  /* En el teléfono los grupos se muestran como secciones abiertas, sin ventanas flotantes. */
+  .nav-main,
+  .nav-side {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .nav-side {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+  .nav-menu summary {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+  }
+  .nav-pop {
+    position: static;
+    min-width: 0;
+    box-shadow: none;
+    border: 0;
+    border-left: 2px solid var(--line);
+    border-radius: 0;
+    margin: 0 0 6px 4px;
+    padding: 0 0 0 8px;
+    background: none;
+  }
+  .nav a {
+    padding: 10px 0;
+  }
   .js .nav[data-collapsible] {
     display: none;
     position: absolute;
     left: 0;
     right: 0;
-    top: 64px;
+    top: 100%;
     background: var(--paper);
     border-bottom: 1px solid var(--line);
     padding: 8px 16px 16px;
@@ -1994,7 +2126,7 @@ details.more[open] > summary {
 /* Test gratuito de 25 preguntas */
 .qf-note {
   margin: 0 0 14px;
-  color: var(--muted, #5b6560);
+  color: var(--ink-3);
   font-size: 0.95rem;
   line-height: 1.45;
 }
@@ -2004,7 +2136,7 @@ details.more[open] > summary {
 }
 .evidence summary {
   cursor: pointer;
-  color: var(--muted, #5b6560);
+  color: var(--ink-3);
 }
 .evidence ul {
   margin: 6px 0 0;
@@ -2044,3 +2176,38 @@ details.more[open] > summary {
 .roadmap li {
   margin-bottom: 8px;
 }
+
+/* Evaluación profunda: «Esto ya lo sabemos de ti». */
+.known-list {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0;
+  display: grid;
+  gap: 10px;
+}
+.known-item {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.known-item.is-stale {
+  border-style: dashed;
+}
+.known-item .check {
+  align-items: flex-start;
+}
+.known-value {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Deudas y metas: una pregunta por pantalla (evaluación profunda). */
+.step-bar { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
+.step-bar[hidden] { display: none; }
+.step-count { flex: 1; text-align: right; font-weight: 600; font-size: 0.9rem; color: var(--ink-2); }
+.deep-simple .step-off { display: none; }
+.deep-simple .row-card { border: 0; background: none; box-shadow: none; padding: 0; }
+.deep-simple .row-card > .q-sub { display: none; }
+.error-summary[hidden] { display: none; }
+.sound-head { margin-left: 4px; color: var(--ink-3); }

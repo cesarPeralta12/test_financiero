@@ -148,6 +148,19 @@ async function main() {
     ['plan', '/plan', userCookie],
     ['tablero', '/tablero', userCookie],
     ['coach', '/coach', userCookie],
+    // Coach v2 y Mi dinero (S2–S8): con la bandera abierta para esta cuenta.
+    ['coach-v2', '/coach', userCookie, async () => {
+      require('../src/lib/services').setSetting('coach_v2_enabled', true);
+      await c.post('/coach/enviar', { texto: 'gasté 8,50 en un café' });
+      await c.post('/coach/enviar', { texto: 'resumen del mes' });
+      return c.cookies;
+    }],
+    ['mi-dinero', '/mi-dinero', userCookie],
+    ['mi-dinero-lista', '/mi-dinero/movimientos', userCookie],
+    ['mi-dinero-nuevo', '/mi-dinero/nuevo', userCookie],
+    ['mi-dinero-atajos', '/mi-dinero/atajos', userCookie],
+    ['mi-dinero-analisis', '/mi-dinero/analisis', userCookie],
+    ['admin-coach', '/admin/coach', adminCookie],
     ['movimientos', '/calculadora/movimientos', userCookie],
     ['presupuesto', '/calculadora/presupuesto', userCookie],
     ['deudas', '/calculadora/deudas', userCookie],

@@ -17,6 +17,12 @@ const FLASH = {
   plan_en_cola: ['ok', 'Estamos preparando tu plan. Puede tardar unos segundos.'],
   guardado: ['ok', 'Guardado.'],
   eliminado: ['ok', 'Eliminado.'],
+  restaurado: ['ok', 'Listo, lo recuperamos.'],
+  plazo_vencido: ['warn', 'Ya pasó el tiempo para deshacer.'],
+  observacion_descartada: ['ok', 'Listo, no te lo volveremos a mostrar por unos días.'],
+  coach_error: ['warn', 'No pudimos procesar eso. Intenta con otra frase o elige una sugerencia.'],
+  repetido: ['ok', 'Repetimos tu último movimiento con la fecha de hoy.'],
+  sin_movimientos: ['warn', 'Aún no tienes movimientos que repetir.'],
   tarea_completada: ['ok', 'Marcaste la tarea como completada.'],
   tarea_pospuesta: ['ok', 'Pospusiste la tarea.'],
   tarea_reabierta: ['ok', 'Reabriste la tarea.'],
@@ -35,21 +41,39 @@ function brand() {
 
 function navLinks(ctx) {
   const cur = ctx.active;
+  // Dentro de «Mi dinero» cada pantalla marca su propia opción (no siempre «Resumen»).
+  const path = ctx.path || '';
+  const curEff = cur === 'midinero' ? (path.startsWith('/mi-dinero/movimientos') ? 'md-mov' : path.startsWith('/mi-dinero/atajos') ? 'md-atajos' : path.startsWith('/mi-dinero/analisis') ? 'md-analisis' : 'midinero') : cur;
   const a = (href, label, key, extra = null) =>
-    html`<a href="${href}" ${cur === key ? raw('aria-current="page"') : ''}>${label}${extra}</a>`;
+    html`<a href="${href}" ${curEff === key ? raw('aria-current="page"') : ''}>${label}${extra}</a>`;
   if (!ctx.user) {
     return html`<a href="/entrar" ${cur === 'entrar' ? raw('aria-current="page"') : ''}>Entrar</a>`;
   }
+  // Un grupo es un <details>: funciona sin JavaScript y el script solo lo cierra al tocar fuera o con Escape.
+  // Si la página actual es una de sus opciones, el grupo se marca como actual.
+  const grupo = (label, keys, items, { align = '', icon = '' } = {}) =>
+    html`<details class="nav-menu ${align}" data-nav-menu>
+      <summary ${keys.includes(cur) ? raw('data-current') : ''}>${icon ? raw(icon) : ''}<span>${label}</span></summary>
+      <div class="nav-pop">${items}</div>
+    </details>`;
   const unread = ctx.unread ? html`<span class="count" aria-label="${ctx.unread} sin leer">${ctx.unread}</span>` : '';
-  return html`${a('/inicio', 'Inicio', 'inicio')}${a('/historial', 'Diagnósticos', 'historial')}${a('/plan', 'Plan', 'plan')}${a('/tablero', 'Misiones', 'tablero')}${a('/logros', 'Logros', 'logros')}${a('/coach', 'Coach', 'coach')}${a(
-    '/calculadora',
-    'Calculadora',
-    'calculadora'
-  )}${a('/avisos', 'Avisos', 'avisos', unread)}${ctx.user.role === 'admin' ? a('/admin', 'Administración', 'admin') : ''}${a('/cuenta', 'Cuenta', 'cuenta')}
-    <form class="nav-inline-form" method="post" action="/salir">
-      <input type="hidden" name="_csrf" value="${ctx.csrf}" />
-      <button class="nav-logout" type="submit">Salir</button>
-    </form>`;
+  const dinero = ctx.moneyAccess
+    ? grupo(
+        'Mi dinero',
+        ['midinero', 'calculadora'],
+        html`${a('/mi-dinero', 'Resumen', 'midinero')}${a('/mi-dinero/movimientos', 'Movimientos', 'md-mov')}${a('/mi-dinero/atajos', 'Recurrentes y atajos', 'md-atajos')}${ctx.premium ? a('/mi-dinero/analisis', 'Análisis', 'md-analisis') : ''}${a('/calculadora', 'Calculadora', 'calculadora')}`
+      )
+    : a('/calculadora', 'Calculadora', 'calculadora');
+  const plan = grupo('Mi plan', ['plan', 'tablero', 'historial'], html`${a('/plan', 'Plan maestro', 'plan')}${a('/tablero', 'Misiones', 'tablero')}${a('/historial', 'Diagnósticos', 'historial')}`);
+  const cuenta = grupo(
+    'Cuenta',
+    ['cuenta', 'logros', 'admin'],
+    html`${a('/cuenta', 'Mi cuenta', 'cuenta')}${a('/logros', 'Logros y nivel', 'logros')}${ctx.user.role === 'admin' ? a('/admin', 'Administración', 'admin') : ''}
+      <form class="nav-inline-form" method="post" action="/salir"><input type="hidden" name="_csrf" value="${ctx.csrf}" /><button class="nav-logout" type="submit">Salir</button></form>`,
+    { align: 'nav-menu--right' }
+  );
+  return html`<div class="nav-main">${a('/inicio', 'Inicio', 'inicio')}${dinero}${a('/coach', 'Coach', 'coach')}${plan}</div>
+    <div class="nav-side">${a('/avisos', 'Avisos', 'avisos', unread)}${cuenta}</div>`;
 }
 
 function hud(ctx) {
@@ -82,13 +106,20 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
         <meta name="theme-color" content="#0b1020" />
         <link rel="preload" href="/fonts/hanken-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
         <link rel="preload" href="/fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
-        <link rel="stylesheet" href="/css/app.css?v=8" />
-        <link rel="stylesheet" href="/css/motion.css?v=8" />
-        <link rel="stylesheet" href="/css/game.css?v=15" />
-        <script src="/js/early.js?v=8"></script>
+        <link rel="stylesheet" href="/css/app.css?v=16" />
+        <link rel="stylesheet" href="/css/motion.css?v=15" />
+        <link rel="stylesheet" href="/css/game.css?v=21" />
+        <link rel="stylesheet" href="/css/mi-dinero.css?v=9" />
+        <link rel="stylesheet" href="/css/coach-v2.css?v=2" />
+        <script src="/js/early.js?v=9"></script>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <script src="/js/app.js?v=9" defer></script>
-        <script src="/js/game.js?v=8" defer></script>
+        <script src="/js/app.js?v=14" defer></script>
+        <script src="/js/game.js?v=10" defer></script>
+        <script src="/js/sfx.js?v=8" defer></script>
+        <script src="/js/soft-nav.js?v=1" defer></script>
+        <script src="/js/test-fx.js?v=12" defer></script>
+        <script src="/js/mi-dinero.js?v=3" defer></script>
+        <script src="/js/coach-v2.js?v=2" defer></script>
       </head>
       <body
         data-flash="${ctx.flash || ''}"

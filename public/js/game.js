@@ -29,6 +29,7 @@
       document.body.appendChild(stack);
     }
     setTimeout(function () {
+      try { if (window.Sfx) { window.Sfx.iniciar(); window.Sfx.superponer('meta'); } } catch (e) { /* sin sonido */ }
       const t = document.createElement('div');
       t.className = 'toast';
       t.innerHTML = '<span class="ico">' + STAR + '</span><span><small></small><strong></strong></span>';
@@ -71,10 +72,15 @@
     btn.focus();
     if (motion && window.DiaUnoConfetti) {
       setTimeout(function () {
-        window.DiaUnoConfetti(null, 180);
+        window.DiaUnoConfetti(null, 180); // trae su propio sonido de fanfarria
       }, 250);
+    } else if (window.Sfx) {
+      try { window.Sfx.iniciar(); window.Sfx.superponer('nivel'); } catch (e) { /* sin sonido */ }
     }
   }
+
+  // Para ver la celebración sin esperar a subir de nivel de verdad: en la consola, DiaUnoLevelUp(3, 'Constante').
+  window.DiaUnoLevelUp = levelUp;
 
   function countHud(from, to) {
     const el = document.querySelector('[data-hud-xp]');

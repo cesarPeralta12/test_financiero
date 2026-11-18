@@ -565,3 +565,168 @@ main {
 .ticks.sweep {
   overflow-x: clip;
 }
+
+/* Test gratuito: la opción elegida da un pequeño pulso y la barra avanza con suavidad */
+.motion .qf .option:has(input:checked),
+.motion .qf .pill:has(input:checked) {
+  animation: pop 0.4s var(--ease-spring);
+}
+.motion .qf-fill {
+  transition: width 0.6s var(--ease-out);
+}
+
+/* Escenas del test: entran con suavidad; las barras crecen una tras otra */
+.motion .scene > * {
+  animation: fade-up 0.7s var(--ease-out) both;
+}
+.motion .scene > :nth-child(2) { animation-delay: 0.08s; }
+.motion .scene > :nth-child(3) { animation-delay: 0.16s; }
+.motion .scene > :nth-child(4) { animation-delay: 0.24s; }
+.motion .scene > :nth-child(5) { animation-delay: 0.32s; }
+.motion .scene-art i {
+  transform-origin: bottom;
+  animation: scene-grow 0.8s var(--ease-spring) both;
+}
+.motion .scene-art i:nth-child(2) { animation-delay: 0.15s; }
+.motion .scene-art i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes scene-grow {
+  from { transform: scaleY(0); }
+}
+
+/* Test: la opción elegida rebota, la marca aparece con resorte y la barra late al recibir partículas */
+.motion .qf .option.fx-picked,
+.motion .qf .pill.fx-picked {
+  animation: fx-pick 0.5s var(--ease-spring);
+}
+@keyframes fx-pick {
+  0% { transform: scale(0.96); }
+  55% { transform: scale(1.025); }
+  100% { transform: scale(1); }
+}
+.motion .qf .options:not(.options--tiles) .option:has(input:checked)::after {
+  animation: fx-check 0.45s var(--ease-spring) both;
+}
+@keyframes fx-check {
+  from { transform: scale(0) rotate(-90deg); opacity: 0; }
+}
+.motion .qf-fill::after {
+  animation: fx-spark 1.6s ease-in-out infinite;
+}
+@keyframes fx-spark {
+  50% { transform: scale(1.35); opacity: 0.8; }
+}
+.motion .qf-fill.fx-hit {
+  animation: fx-hit 0.3s ease-out;
+}
+@keyframes fx-hit {
+  40% { filter: brightness(1.5); }
+}
+.motion .qf-actions .btn.is-launching {
+  animation: fx-press 0.5s var(--ease-spring) both;
+}
+@keyframes fx-press {
+  40% { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+
+/* Pausa: el orbe respira (cuatro segundos adentro, cinco afuera), con ondas y chispas que lo orbitan */
+.motion .aura-core {
+  transition: transform 1.2s var(--ease-out), box-shadow 1.2s ease;
+  animation: aura-float 6s ease-in-out infinite;
+}
+.motion .aura[data-phase='in'] .aura-core {
+  transform: scale(1.32);
+  transition: transform 4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 4s ease;
+  box-shadow: 0 0 56px rgba(196, 181, 253, 0.9), 0 0 130px rgba(129, 140, 248, 0.65), inset -8px -10px 22px rgba(99, 102, 241, 0.4);
+}
+.motion .aura[data-phase='hold'] .aura-core {
+  transform: scale(1.32);
+  animation: aura-glow 1.5s ease-in-out infinite;
+}
+.motion .aura[data-phase='out'] .aura-core {
+  transform: scale(0.82);
+  transition: transform 5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 5s ease;
+}
+@keyframes aura-float {
+  50% { translate: 0 -6px; }
+}
+@keyframes aura-glow {
+  50% { filter: brightness(1.18); }
+}
+.motion .aura-halo {
+  animation: aura-halo 5.4s ease-out infinite;
+}
+.motion .aura-halo--2 { animation-delay: 1.8s; }
+.motion .aura-halo--3 { animation-delay: 3.6s; }
+.motion .aura.is-active .aura-halo {
+  animation-duration: 3.6s;
+}
+.motion .aura.is-active .aura-halo--2 { animation-delay: 1.2s; }
+.motion .aura.is-active .aura-halo--3 { animation-delay: 2.4s; }
+@keyframes aura-halo {
+  0% { transform: scale(0.62); opacity: 0.8; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+.motion .aura-orbit {
+  animation: aura-spin 18s linear infinite;
+}
+.motion .aura.is-active .aura-orbit {
+  animation-duration: 9s;
+}
+@keyframes aura-spin {
+  to { transform: rotate(360deg); }
+}
+.motion .aura-orbit i {
+  animation: aura-twinkle 2.4s ease-in-out infinite;
+  animation-delay: var(--d);
+}
+@keyframes aura-twinkle {
+  50% { opacity: 0.25; scale: 0.6; }
+}
+.motion .breath-label.swap {
+  animation: label-swap 0.7s var(--ease-out) both;
+}
+@keyframes label-swap {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); filter: blur(4px); }
+}
+
+/* «Mi dinero»: entradas escalonadas, barras que crecen, hoja que sube y fila nueva que se desliza */
+.motion .md-card { animation: fade-up 0.55s var(--ease-out) both; }
+.motion .md-card:nth-child(2) { animation-delay: 0.07s; }
+.motion .md-card:nth-child(3) { animation-delay: 0.14s; }
+.motion .md-bar-fill { animation: md-grow 0.9s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 80ms + 200ms); }
+@keyframes md-grow { from { transform: scaleX(0); } }
+.motion .md-row-wrap { animation: fade-up 0.45s var(--ease-out) both; }
+.motion .md-row-wrap.fx-new { animation: md-new 0.7s var(--ease-spring) both; }
+.motion .md-row-wrap.fx-new .md-row { box-shadow: 0 0 0 1px #34d399, 0 0 26px -4px rgba(52, 211, 153, 0.7); }
+@keyframes md-new { from { opacity: 0; transform: translateY(-14px) scale(0.97); } }
+.motion .md-overlay { animation: md-fade 0.22s ease both; }
+.motion .md-sheet { animation: md-rise 0.38s var(--ease-out) both; }
+@keyframes md-fade { from { opacity: 0; } }
+@keyframes md-rise { from { transform: translateY(40px); opacity: 0.4; } }
+.motion .md-fab { animation: md-pop 0.6s var(--ease-spring) 0.35s both; }
+@keyframes md-pop { from { transform: scale(0); } }
+.motion .md-toast-item { animation: md-rise 0.35s var(--ease-spring) both; }
+.motion .md-toast-time { animation: md-time var(--undo, 6s) linear forwards; }
+@keyframes md-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.motion .md-card.fx-pulse { animation: md-pulse 0.6s var(--ease-spring); }
+@keyframes md-pulse { 40% { transform: scale(1.06); box-shadow: 0 0 28px -2px rgba(52, 211, 153, 0.7); } }
+.motion .md-amount.fx-shake { animation: shake 0.45s ease; }
+.motion .md-chips.fx-nudge .md-chip { animation: md-nudge 0.5s ease; }
+@keyframes md-nudge { 40% { transform: translateY(-4px); border-color: #fbbf24; } }
+.motion .md-chip.fx-picked { animation: fx-pick 0.5s var(--ease-spring); }
+.motion .md-preview:not([hidden]) { animation: md-fade 0.25s ease both; }
+
+/* Coach v2: las tarjetas entran con suavidad y escalonadas; el indicador «escribiendo» late */
+.motion .cv-msg { animation: cv-in 0.45s var(--ease-out) both; }
+.motion .cv-msg--usuario { animation-name: cv-in-user; }
+@keyframes cv-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } }
+@keyframes cv-in-user { from { opacity: 0; transform: translateX(16px) scale(0.98); } }
+.motion .cv-msg--coach .cv-card,
+.motion .cv-msg--coach .cv-chart { animation: cv-in 0.5s var(--ease-out) 0.12s both; }
+.motion .cv-actions { animation: cv-in 0.4s var(--ease-out) 0.22s both; }
+.motion .cv-typing i { animation: cv-dot 1s ease-in-out infinite; }
+.motion .cv-typing i:nth-child(2) { animation-delay: 0.15s; }
+.motion .cv-typing i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes cv-dot { 40% { transform: translateY(-5px); opacity: 1; } 0%, 100% { opacity: 0.45; } }
+.motion .cv-sugerencia:hover, .motion .cv-chip:hover { transform: translateY(-1px); }

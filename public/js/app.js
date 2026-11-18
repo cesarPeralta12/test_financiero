@@ -40,6 +40,27 @@
     });
   }
 
+  // Menús desplegables del encabezado (<details>): se cierran al tocar fuera, con Escape o al abrir otro.
+  const menus = Array.prototype.slice.call(document.querySelectorAll('[data-nav-menu]'));
+  menus.forEach(function (m) {
+    m.addEventListener('toggle', function () {
+      if (m.open) menus.forEach(function (o) { if (o !== m) o.open = false; });
+    });
+  });
+  document.addEventListener('click', function (e) {
+    menus.forEach(function (m) { if (m.open && !m.contains(e.target)) m.open = false; });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    menus.forEach(function (m) {
+      if (m.open) {
+        m.open = false;
+        const s = m.querySelector('summary');
+        if (s) s.focus();
+      }
+    });
+  });
+
   // Lleva el foco al resumen de errores
   const summary = document.querySelector('[data-autofocus]');
   if (summary) summary.focus();
@@ -149,6 +170,73 @@
       syncIf();
     });
     syncIf();
+
+    // Deudas y metas: primero marcas cuáles tienes y después se pregunta UNA cosa por pantalla
+    // («¿Cuánto debes en tu tarjeta?», «¿Cuánto pagas al mes?»…), solo de lo marcado. Sin JS se ve el formulario normal.
+    const cards = Array.prototype.slice.call(v3.querySelectorAll('.row-card[data-show-if^="kinds="]'));
+    if (cards.length > 0) {
+      let cur = 0;
+      const pickEls = Array.prototype.slice.call(v3.children).filter(function (n) { return cards.indexOf(n) < 0; });
+      const bar = document.createElement('div');
+      bar.className = 'step-bar';
+      bar.innerHTML = '<button type="button" class="btn btn-quiet btn-small" data-step-back>‹ Anterior</button><span class="step-count" aria-live="polite"></span>';
+      v3.insertBefore(bar, cards[0]);
+      const count = bar.querySelector('.step-count');
+      const fieldsOf = function (card) { return Array.prototype.slice.call(card.children).filter(function (n) { return n.classList.contains('field'); }); };
+      // Pasos: el 0 es elegir; luego cada campo de cada tarjeta visible.
+      const steps = function () {
+        const list = [{ pick: true }];
+        cards.filter(function (c) { return !c.hidden; }).forEach(function (card, ci, all) {
+          fieldsOf(card).forEach(function (f) { list.push({ card: card, field: f, n: ci + 1, of: all.length }); });
+        });
+        return list;
+      };
+      const render = function () {
+        const list = steps();
+        if (cur > list.length - 1) cur = list.length - 1;
+        const s = list[cur];
+        pickEls.forEach(function (n) { n.classList.toggle('step-off', !s.pick); });
+        cards.forEach(function (c) {
+          c.classList.toggle('step-off', s.pick || c !== s.card);
+          fieldsOf(c).forEach(function (f) { f.classList.toggle('step-off', s.pick || f !== s.field); });
+        });
+        bar.hidden = s.pick;
+        if (!s.pick) {
+          const t = s.card.querySelector('.q-sub strong');
+          count.textContent = (t ? t.textContent : '') + ' · ' + s.n + ' de ' + s.of;
+        }
+      };
+      const go = function (d) {
+        cur = Math.max(0, cur + d);
+        render();
+        const s = steps()[cur];
+        const inp = s && s.field && s.field.querySelector('input:not([type=radio]):not([type=checkbox]):not([type=hidden]), select');
+        if (inp) inp.focus();
+        v3.scrollIntoView({ block: 'nearest' });
+      };
+      bar.querySelector('[data-step-back]').addEventListener('click', function () { go(-1); });
+      form.addEventListener('change', function () { window.setTimeout(render, 0); });
+      // «Siguiente»/Intro avanza de pregunta mientras queden; en la última envía de verdad.
+      form.addEventListener('click', function (e) {
+        const b = e.target.closest('button[name=action][value=next]');
+        if (!b) return;
+        if (cur < steps().length - 1) { e.preventDefault(); go(1); }
+      });
+      // Si el servidor devolvió un error, se abre justo esa pregunta.
+      const list0 = steps();
+      const bad = list0.findIndex(function (s) { return s.field && s.field.querySelector('[aria-invalid="true"]'); });
+      if (bad >= 0) {
+        cur = bad;
+        // El aviso rojo general sobra: ya se está respondiendo esa pregunta, el mensaje queda junto al campo.
+        const sum = form.querySelector('.error-summary');
+        if (sum) sum.hidden = true;
+      }
+      render();
+      if (bad >= 0) {
+        const f = steps()[cur].field.querySelector('input:not([type=radio]):not([type=checkbox]):not([type=hidden])');
+        if (f) f.focus();
+      }
+    }
   }
 
   // Diagnóstico en preparación: la página se actualiza sola, sin pedir clic.
@@ -528,6 +616,15 @@
 
   // ───────── Celebración ─────────
   function confetti(origin, count) {
+    // Sonido de celebración: fanfarria y polvo de estrellas en las grandes; un logro corto en las pequeñas.
+    try {
+      if (window.Sfx) {
+        const grande = (count || 110) >= 140;
+        window.Sfx.iniciar();
+        window.Sfx.superponer(grande ? 'nivel' : 'meta');
+        if (grande) setTimeout(function () { window.Sfx.superponer('magia'); }, 380);
+      }
+    } catch (e) { /* el sonido nunca bloquea la celebración */ }
     const canvas = document.createElement('canvas');
     canvas.className = 'confetti';
     canvas.setAttribute('aria-hidden', 'true');

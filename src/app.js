@@ -40,6 +40,8 @@ function context(req, res, next) {
     csrf: req.session ? req.session.csrf : null,
     flash: typeof req.query.aviso === 'string' ? req.query.aviso : null,
     unread: req.user ? unreadCount(req.user.id) : 0,
+    premium: req.user ? require('./domain/entitlements').has(req.user.id, 'acompanamiento') : false,
+    moneyAccess: req.user ? require('./routes/guards').hasMoneyAccess(req.user) : false,
     game: req.user && isPage ? require('./domain/game').profile(req.user.id) : null,
     active: null,
     path: req.path,
@@ -82,6 +84,7 @@ function createApp() {
   app.use(require('./routes/plan'));
   app.use(require('./routes/coach'));
   app.use(require('./routes/calculator'));
+  app.use(require('./routes/miDinero'));
   app.use(require('./routes/dashboard'));
   app.use('/admin', require('./routes/admin'));
   app.use('/api/free-tests', require('./routes/freeApi'));
