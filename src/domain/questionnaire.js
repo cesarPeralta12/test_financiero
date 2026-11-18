@@ -90,7 +90,7 @@ function startEvaluation(kind, owner) {
 function answers(evaluationId) {
   const map = {};
   for (const a of db.all('SELECT * FROM answers WHERE evaluation_id = ?', evaluationId)) {
-    map[a.code] = { value: db.parse(a.value_json), unknown: Boolean(a.is_unknown), skipped: Boolean(a.is_skipped), fromPrevious: Boolean(a.from_previous), questionId: a.question_id, updatedAt: a.updated_at };
+    map[a.code] = { value: db.parse(a.value_json), unknown: Boolean(a.is_unknown), skipped: Boolean(a.is_skipped), fromPrevious: Boolean(a.from_previous), known: a.from_previous === 2, questionId: a.question_id, updatedAt: a.updated_at };
   }
   return map;
 }
@@ -152,7 +152,7 @@ function saveAnswer(evaluation, q, parsed, { fromPrevious = false } = {}) {
       q.code,
       parsed.unknown ? null : JSON.stringify(parsed.value),
       parsed.unknown ? 1 : 0,
-      fromPrevious ? 1 : 0,
+      fromPrevious === 2 ? 2 : fromPrevious ? 1 : 0,
       db.now()
     );
     const patch = q.type === 'currency' && !parsed.unknown ? parsed.value : null;

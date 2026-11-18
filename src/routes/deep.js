@@ -12,6 +12,8 @@ const entitlements = require('../domain/entitlements');
 const { track, content } = require('../lib/services');
 const c = require('../views/components');
 const { createFlow } = require('./flow');
+const conocido = require('../domain/deepConocido');
+const { rateLimit } = require('../lib/security');
 const { requireEntitlement, requireUser } = require('./guards');
 const { intParam, notFound } = require('./util');
 
@@ -45,6 +47,9 @@ function fromFreeTest(userId, code, currency) {
 
 function previousFor(req, q, ev, currency) {
   const userId = req.user.id;
+  const qn = qs.load(ev.questionnaire_id);
+  const smart = conocido.paraPregunta(userId, ev, qn, q.code);
+  if (smart) return { value: smart.value, text: smart.text, origin: smart.sourceLabel };
   let source = null;
   const prevDeep = db.one(
     "SELECT id FROM evaluations WHERE user_id = ? AND kind = 'profundo' AND status = 'finalizada' AND id <> ? ORDER BY completed_at DESC LIMIT 1",
@@ -81,6 +86,17 @@ router.use(
     guards: [guard],
     currency: currencyFor,
     previous: previousFor,
+    // Antes de la primera pregunta: lo que ya se sabe, para confirmarlo de una vez en lugar de volver a preguntarlo.
+    beforeQuestions(req, res, ev, qn, map) {
+      if (ev.known_reviewed_at || Object.keys(map).length) return false;
+      const lista = conocido.candidatos(req.user.id, ev, qn);
+      if (!lista.length) {
+        db.run('UPDATE evaluations SET known_reviewed_at = ? WHERE id = ?', db.now(), ev.id);
+        return false;
+      }
+      res.redirect(303, '/evaluacion/conocido');
+      return true;
+    },
     savedNote: 'Cada respuesta se guarda al avanzar. Puedes continuar desde cualquier dispositivo con tu cuenta.',
     reviewExtra(req, ev, qn, map) {
       const list = checksFor(ev, qn, map);
@@ -127,13 +143,70 @@ router.use(
     },
     async finish(req, res, ev) {
       const d = deep.createDiagnosis(ev, req.user.id);
-      const hasMovements = db.value('SELECT 1 FROM movements WHERE user_id = ? LIMIT 1', req.user.id);
+      const hasMovements = db.value('SELECT 1 FROM movements WHERE user_id = ? AND deleted_at IS NULL LIMIT 1', req.user.id);
       if (!hasMovements && ev.base_currency) db.run('UPDATE users SET base_currency = ?, updated_at = ? WHERE id = ?', ev.base_currency, db.now(), req.user.id);
       track('evaluacion_completada', { userId: req.user.id, dedupe: `evaluacion_completada:${ev.id}` });
       res.redirect(303, `/diagnostico/${d.id}`);
     },
   })
 );
+
+// ───────── Lo que ya sabemos de ti ─────────
+function conocidoPage(req, res, extra = {}) {
+  const ev = qs.findEvaluation('profundo', { userId: req.user.id }, 'en_curso');
+  if (!ev) return res.redirect(303, '/evaluacion');
+  const qn = qs.load(ev.questionnaire_id);
+  const lista = conocido.candidatos(req.user.id, ev, qn);
+  if (!lista.length) return res.redirect(303, '/evaluacion');
+  const total = qn.questions.length;
+  return res.status(extra.status || 200).page({
+    title: 'Evaluación profunda: lo que ya sabemos',
+    focus: true,
+    body: html`<div class="q-head"><div class="progress-meta"><span>Antes de empezar</span><span>${total} preguntas en total</span></div></div>
+      <h1>Esto ya lo sabemos de ti</h1>
+      <p class="muted">Para no preguntarte dos veces lo mismo, preparamos estas respuestas con lo que ya nos contaste o registraste. Deja marcado lo que sigue siendo correcto y salta esas preguntas: <strong>${lista.filter((x) => x.fresh).length} de ${total}</strong> ya vienen resueltas. Lo desmarcado te lo preguntamos normalmente, y todo se puede cambiar al final.</p>
+      <form method="post" action="/evaluacion/conocido" class="known">
+        ${c.csrfField(res.locals.ctx)}
+        <ul class="known-list">
+          ${lista.map((x) => html`<li class="known-item ${x.fresh ? '' : 'is-stale'}">
+            <label class="check"><input type="checkbox" name="ok" value="${x.code}" ${x.fresh ? raw('checked') : ''} />
+              <span><strong>${x.label}</strong><br /><span class="known-value">${x.text}</span><br />
+              <span class="small faint">${x.sourceLabel}${x.detail ? ` · ${x.detail}` : ''} · ${c.dateEs(x.date)}${x.fresh ? '' : ' · puede haber cambiado, revísalo'}</span></span></label>
+          </li>`)}
+        </ul>
+        <div class="actions"><button class="btn btn-primary" type="submit" name="action" value="usar">Usar lo marcado y continuar</button>
+          <button class="btn btn-quiet" type="submit" name="action" value="ninguno">Prefiero responder todo desde cero</button></div>
+        <p class="small faint">Nada se guarda sin tu confirmación. Estos datos son tuyos: salen de tu test gratuito, de Mi dinero o de tu evaluación anterior, no de terceros.</p>
+      </form>`,
+  });
+}
+
+router.get('/evaluacion/conocido', guard, (req, res) => conocidoPage(req, res));
+
+router.post('/evaluacion/conocido', guard, (req, res) => {
+  const limit = rateLimit({ key: `conocido:${req.session.id}`, limit: 30, windowMs: 60_000 });
+  if (!limit.allowed) return res.status(429).page({ title: 'Demasiados intentos', body: html`<h1>Espera un momento</h1><p>Vuelve a intentarlo en unos segundos.</p>` });
+  const ev = qs.findEvaluation('profundo', { userId: req.user.id }, 'en_curso');
+  if (!ev) return res.redirect(303, '/evaluacion');
+  const qn = qs.load(ev.questionnaire_id);
+  if (req.body.action === 'usar') {
+    // Los valores se recalculan en el servidor: del formulario solo se lee qué códigos se aceptaron.
+    const aceptados = new Set([].concat(req.body.ok || []).map(String));
+    const lista = conocido.candidatos(req.user.id, ev, qn).filter((x) => aceptados.has(x.code));
+    // La moneda manda sobre los importes: si se aceptó algo con dinero, se fija la misma moneda de esos datos.
+    const moneda = conocido.candidatos(req.user.id, ev, qn).find((x) => x.code === 'moneda_base');
+    const usar = lista.slice();
+    if (moneda && usar.length && !usar.some((x) => x.code === 'moneda_base')) usar.unshift(moneda);
+    db.tx(() => {
+      for (const x of usar) {
+        const q = qn.questions.find((k) => k.code === x.code);
+        if (q) qs.saveAnswer(ev, q, { value: x.value, unknown: false }, { fromPrevious: 2 });
+      }
+    });
+  }
+  db.run('UPDATE evaluations SET known_reviewed_at = ? WHERE id = ?', db.now(), ev.id);
+  res.redirect(303, '/evaluacion');
+});
 
 router.post('/evaluacion/nueva', guard, (req, res) => {
   const open = qs.findEvaluation('profundo', { userId: req.user.id }, 'en_curso');

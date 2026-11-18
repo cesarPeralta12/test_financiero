@@ -107,6 +107,8 @@ const { FREE_ANSWERS, DEEP_ANSWERS } = require('./fixtures');
 /** Responde un cuestionario completo siguiendo las redirecciones del flujo. */
 async function answerAll(client, base, answers) {
   let r = await client.get(base);
+  // Evaluación profunda inteligente: si ofrece «lo que ya sabemos», las pruebas históricas responden todo desde cero.
+  if (/\/conocido/.test(r.url)) r = await client.post(`${base}/conocido`, { action: 'ninguno' });
   for (let guard = 0; guard < 40; guard++) {
     const m = r.url.match(/\/pregunta\/(\d+)/);
     if (!m) break;

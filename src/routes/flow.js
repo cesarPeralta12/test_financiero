@@ -15,7 +15,8 @@ const { rateLimit } = require('../lib/security');
  *   kind, base, title, guards: [], before(req,res) → bool (true = respondió),
  *   currency(req, evaluation, map), previous(req, q, evaluation) → {value, text}|null,
  *   reviewExtra(req, ctx) → {html, blocking}, finish(req, res, evaluation, map),
- *   onStart(req, evaluation), allowRestart
+ *   onStart(req, evaluation), allowRestart,
+ *   beforeQuestions(req, res, evaluation, qn, map) → bool (true = respondió: p. ej. la pantalla «lo que ya sabemos»)
  * }
  */
 function createFlow(opts) {
@@ -26,6 +27,18 @@ function createFlow(opts) {
     const o = owner(req);
     let ev = qs.findEvaluation(opts.kind, o, 'en_curso');
     return { o, ev };
+  }
+
+  /** Siguiente pregunta que de verdad hay que hacer: las confirmadas desde «lo que ya sabemos» se saltan (se pueden cambiar desde la revisión). */
+  function nextToAsk(qn, map, from) {
+    let pos = qs.nextApplicable(qn, map, from, 1);
+    while (pos !== null) {
+      const q = qn.questions[pos - 1];
+      const a = map[q.code];
+      if (!(a && a.known && qs.isAnswered(q, a))) return pos;
+      pos = qs.nextApplicable(qn, map, pos, 1);
+    }
+    return null;
   }
 
   function stateList(qn, map, current) {
@@ -71,6 +84,7 @@ function createFlow(opts) {
     }
     const qn = qs.load(ev.questionnaire_id);
     const map = qs.answers(ev.id);
+    if (opts.beforeQuestions && opts.beforeQuestions(req, res, ev, qn, map)) return;
     const pos = qs.firstUnanswered(qn, map);
     if (pos === null) return res.redirect(303, `${opts.base}/revision`);
     res.redirect(303, `${opts.base}/pregunta/${pos}`);
@@ -86,7 +100,7 @@ function createFlow(opts) {
     if (!q) return next(notFound());
     const map = qs.answers(ev.id);
     if (!qs.isApplicable(q, map)) {
-      const fwd = qs.nextApplicable(qn, map, n, 1);
+      const fwd = nextToAsk(qn, map, n);
       return res.redirect(303, fwd ? `${opts.base}/pregunta/${fwd}` : `${opts.base}/revision`);
     }
     qs.setPosition(ev, n);
@@ -140,7 +154,7 @@ function createFlow(opts) {
     const fromPrevious = Boolean(prev && JSON.stringify(prev.value) === JSON.stringify(parsed.value));
     qs.saveAnswer(ev, q, parsed, { fromPrevious });
     const after = qs.answers(ev.id);
-    const fwd = qs.nextApplicable(qn, after, n, 1);
+    const fwd = nextToAsk(qn, after, n);
     if (req.query.volver === 'revision') return res.redirect(303, `${opts.base}/revision`);
     res.redirect(303, fwd ? `${opts.base}/pregunta/${fwd}` : `${opts.base}/revision`);
   });
