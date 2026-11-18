@@ -63,7 +63,7 @@ function streak(userId) {
   const rows = db.all(
     `SELECT DISTINCT substr(d, 1, 10) AS day FROM (
        SELECT created_at AS d FROM task_events WHERE user_id = ? AND from_status IS NOT NULL
-       UNION ALL SELECT created_at FROM movements WHERE user_id = ?
+       UNION ALL SELECT created_at FROM movements WHERE user_id = ? AND deleted_at IS NULL
        UNION ALL SELECT m.created_at FROM messages m WHERE m.user_id = ? AND m.role = 'usuario'
        UNION ALL SELECT a.updated_at FROM answers a JOIN evaluations e ON e.id = a.evaluation_id WHERE e.user_id = ?
        UNION ALL SELECT updated_at FROM budget_lines WHERE user_id = ?
@@ -111,8 +111,10 @@ function profile(userId) {
     diagnoses: v('SELECT COUNT(*) FROM diagnoses WHERE user_id = ?', userId),
     plans: v("SELECT COUNT(*) FROM plan_versions WHERE user_id = ? AND status = 'completo'", userId),
     tasks: v("SELECT COUNT(*) FROM tasks WHERE user_id = ? AND status = 'completada'", userId),
-    movements: v('SELECT COUNT(*) FROM movements WHERE user_id = ?', userId),
-    savings: v("SELECT COUNT(*) FROM movements WHERE user_id = ? AND kind = 'ahorro'", userId),
+    movements: v('SELECT COUNT(*) FROM movements WHERE user_id = ? AND deleted_at IS NULL', userId),
+    // XP del registro: como mucho 5 movimientos por día cuentan (nadie infla el contador anotando 40 veces) y el importe no pesa.
+    movementsXp: v('SELECT COALESCE(SUM(MIN(n, 5)), 0) FROM (SELECT COUNT(*) AS n FROM movements WHERE user_id = ? AND deleted_at IS NULL GROUP BY date)', userId),
+    savings: v("SELECT COUNT(*) FROM movements WHERE user_id = ? AND kind = 'ahorro' AND deleted_at IS NULL", userId),
     budgets: v('SELECT COUNT(DISTINCT month) FROM budget_lines WHERE user_id = ?', userId),
     goals: v("SELECT COUNT(*) FROM goals WHERE user_id = ? AND source <> 'plan'", userId),
     goalsReached: v("SELECT COUNT(*) FROM goals WHERE user_id = ? AND status = 'alcanzada'", userId),
@@ -134,7 +136,7 @@ function profile(userId) {
     ['Evaluaciones profundas', Math.min(c.diagnoses, 3) * XP.evaluacion],
     ['Planes generados', Math.min(c.plans, 3) * XP.plan],
     ['Tareas completadas', c.tasks * XP.tarea],
-    ['Movimientos registrados', Math.min(c.movements, 300) * XP.movimiento],
+    ['Movimientos registrados', Math.min(c.movementsXp, 300) * XP.movimiento],
     ['Presupuestos mensuales', c.budgets * XP.presupuesto],
     ['Metas creadas', Math.min(c.goals, 10) * XP.meta],
     ['Metas alcanzadas', c.goalsReached * XP.metaAlcanzada],

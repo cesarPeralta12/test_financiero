@@ -7,7 +7,7 @@ const entitlements = require('../domain/entitlements');
 const qs = require('../domain/questionnaire');
 const tracker = require('../domain/tracker');
 const coach = require('../domain/coach');
-const { requireUser, requireEntitlement } = require('./guards');
+const { requireUser, requireEntitlement, requireMoneyAccess } = require('./guards');
 const { intParam, wrap } = require('./util');
 
 const router = express.Router();
@@ -52,14 +52,26 @@ router.get('/coach/mensajes', requireEntitlement('acompanamiento'), (req, res) =
   res.json(coach.messages(conv.id, req.user.id).map((m) => ({ id: m.id, rol: m.role, tipo: m.kind, contenido: m.content, propuesta: db.parse(m.proposal_json), estado_propuesta: m.proposal_status, fecha: m.created_at })));
 });
 
+// Coach v2 (bandera coach_v2_enabled): reglas y catálogo, sin IA. Con la bandera apagada responde el Coach anterior.
+const coachV2 = require('./coachV2');
+router.get('/coach/conversacion', requireEntitlement('acompanamiento'), coachV2.conversacion);
+router.post('/coach/mensajes', requireEntitlement('acompanamiento'), coachV2.post);
+
 router.post('/coach/mensajes', requireEntitlement('acompanamiento'), wrap(async (req, res) => {
   const r = await coach.send(req.user.id, req.body && req.body.mensaje);
   res.status(r.error && !r.ok ? 202 : 201).json(r);
 }));
 
-router.get('/movimientos', requireEntitlement('acompanamiento'), (req, res) => {
-  const month = tracker.validMonth(req.query.mes) || tracker.currentMonth();
-  res.json({ mes: month, movimientos: tracker.listMovements(req.user.id, month) });
+// Coach v2: movimientos (lista con filtros y orden, alta idempotente, edición, borrado suave) y resumen del mes.
+router.use('/movimientos', requireMoneyAccess, require('./movimientos'));
+
+// Insights y gráficos (análisis: acompañamiento).
+const insightsApi = require('./insightsApi');
+router.use('/insights', requireEntitlement('acompanamiento'), insightsApi.insights);
+router.use('/graficos', requireEntitlement('acompanamiento'), insightsApi.graficos);
+
+router.get('/resumen', requireMoneyAccess, (req, res) => {
+  res.json(tracker.summaryDetail(req.user.id, tracker.validMonth(req.query.mes) || tracker.currentMonth()));
 });
 
 router.post('/simulador', requireEntitlement('acompanamiento'), (req, res) => {

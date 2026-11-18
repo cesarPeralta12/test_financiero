@@ -1,0 +1,137 @@
+/* Día Uno — Coach v2: conversación de tarjetas. Móvil primero; el movimiento va bajo .motion. */
+.cv {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+  margin: 0 auto;
+  grid-template-rows: auto auto 1fr auto;
+  min-height: calc(100dvh - 140px);
+}
+.cv-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cv-head h1 { margin: 0; }
+.cv-chat {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 4px 0 8px;
+}
+.cv-msg { display: grid; gap: 6px; max-width: 94%; }
+.cv-msg--usuario {
+  justify-self: end;
+  padding: 10px 14px;
+  border-radius: 18px 18px 4px 18px;
+  background: linear-gradient(135deg, #2fb98f, #1f9d78);
+  color: #04281b;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.cv-msg--coach, .cv-msg--sistema { justify-self: start; width: 100%; }
+.cv-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.78rem; color: var(--ink-3); }
+.cv-origin { display: inline-flex; align-items: center; gap: 5px; }
+.cv-ico { width: 14px; height: 14px; }
+.cv-sev {
+  padding: 1px 9px;
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+.cv-sev--alerta { background: var(--red-wash); color: #fecdd3; }
+.cv-sev--atencion { background: var(--amber-wash); color: #fde68a; }
+.cv-sev--logro { background: var(--pine-wash); color: #a7f3d0; }
+.cv-bubble {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 4px 18px 18px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+}
+.cv-text { margin: 0; line-height: 1.55; }
+.cv-card {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.cv-card h4 { margin: 0 0 6px; font-size: 0.9rem; }
+.cv-card table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.cv-card th, .cv-card td { padding: 4px 0; text-align: left; }
+.cv-card td { text-align: right; font-variant-numeric: tabular-nums; }
+.cv-chart .gr { padding: 8px; background: var(--surface-2); }
+.cv-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.cv-act { display: inline; margin: 0; }
+.cv-act .btn { min-height: 40px; }
+.cv-fix { width: auto; }
+.cv-fix[open] { width: 100%; }
+.cv-fix summary { cursor: pointer; display: inline-block; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface-2); font-weight: 600; font-size: 0.9rem; }
+.cv-fix[open] summary { border-color: var(--pine); }
+.cv-fix-body { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+.cv-fix-body .input { max-width: 180px; }
+.cv-chip {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
+}
+.cv-chip:hover { border-color: #5eead4; background: var(--surface-2); }
+.cv-chip:active { transform: scale(0.96); }
+.cv-welcome {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 28px 16px;
+  border-radius: 20px;
+  border: 1px dashed var(--line-2);
+  background: rgba(255, 255, 255, 0.02);
+}
+.cv-welcome h2 { margin: 0; }
+.cv-welcome p { margin: 0; max-width: 38ch; color: var(--ink-2); }
+.cv-welcome-art { font-size: 2.6rem; }
+.cv-msg--error .cv-bubble { border-color: var(--red); background: var(--red-wash); }
+
+/* Campo y sugerencias */
+.cv-composer {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  gap: 8px;
+  padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, transparent, var(--paper) 22%);
+}
+.cv-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.cv-chips::-webkit-scrollbar { display: none; }
+.cv-chips .cv-act { flex: none; }
+.cv-sugerencia {
+  flex: none;
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.12s ease;
+}
+.cv-sugerencia:hover { border-color: #5eead4; }
+.cv-sugerencia:active { transform: scale(0.96); }
+.cv-form { display: flex; gap: 8px; }
+.cv-form .input { flex: 1; min-width: 0; }
+
+/* «Escribiendo» */
+.cv-typing .cv-bubble { display: flex; gap: 5px; width: max-content; padding: 14px 16px; }
+.cv-typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cv-typing i { animation: none; }
+}

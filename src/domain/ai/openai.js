@@ -11,7 +11,7 @@
  * Llama al modelo y devuelve { json, usage, latencyMs, model }.
  * { system, user, apiKey, model, baseUrl, timeoutMs, schema, schemaName, temperature, reasoningEffort, fetchImpl }
  */
-async function chat({ system, user, apiKey, model, baseUrl = 'https://api.openai.com/v1', timeoutMs = 20000, schema = null, schemaName = 'respuesta', temperature = null, reasoningEffort = null, fetchImpl = fetch }) {
+async function chat({ system, user, apiKey, model, baseUrl = 'https://api.openai.com/v1', timeoutMs = 20000, schema = null, schemaName = 'respuesta', temperature = null, reasoningEffort = null, maxTokens = null, fetchImpl = fetch }) {
   if (!apiKey) throw new Error('Falta OPENAI_API_KEY.');
   const body = {
     model,
@@ -23,6 +23,7 @@ async function chat({ system, user, apiKey, model, baseUrl = 'https://api.openai
   };
   if (temperature !== null && temperature !== undefined) body.temperature = temperature;
   if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+  if (maxTokens) body.max_completion_tokens = maxTokens;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   const t0 = Date.now();

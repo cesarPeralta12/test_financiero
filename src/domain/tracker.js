@@ -5,6 +5,8 @@
 const db = require('../db');
 const money = require('../lib/money');
 const calc = require('./calc');
+const { normalizar } = require('./coach/normalizar');
+const subcats = require('./coach/subcategorias');
 
 const { D } = money;
 const ZERO = new D(0);
@@ -80,6 +82,8 @@ function validateMovement(userId, body) {
   else if (new D(amount.value).lte(0)) errors.amount = 'El importe debe ser mayor que 0.';
   if (body.currency && body.currency !== currency) errors.currency = `Tu cuenta usa ${currency}. No hacemos conversiones entre monedas: registra el importe ya convertido.`;
   const note = String(body.note || '').trim().slice(0, 140) || null;
+  const subcategory = body.subcategory ? String(body.subcategory) : null;
+  if (subcategory && !subcats.valida(kind, category, subcategory)) errors.subcategory = 'Elige una subcategoría de esa categoría.';
   const owned = (table, id) => (id ? db.value(`SELECT id FROM ${table} WHERE id = ? AND user_id = ?`, Number(id), userId) : null);
   let debtId = null;
   let goalId = null;
@@ -99,20 +103,22 @@ function validateMovement(userId, body) {
     if (goalId && goalId === toGoalId) errors.to_goal_id = 'El origen y el destino deben ser distintos.';
   }
   const ok = Object.keys(errors).length === 0;
-  return { ok, errors, value: ok ? { kind, category, date, amount: amount.value, currency, note, debtId, goalId, toGoalId } : null };
+  return { ok, errors, value: ok ? { kind, category, subcategory, date, amount: amount.value, currency, note, noteNorm: note ? normalizar(note) || null : null, debtId, goalId, toGoalId } : null };
 }
 
 function createMovement(userId, v, source = 'usuario') {
   const r = db.run(
-    `INSERT INTO movements (user_id, date, kind, category, amount, currency, note, debt_id, goal_id, to_goal_id, source, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO movements (user_id, date, kind, category, subcategory, amount, currency, note, note_norm, debt_id, goal_id, to_goal_id, source, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     userId,
     v.date,
     v.kind,
     v.category,
+    v.subcategory || null,
     v.amount,
     v.currency,
     v.note,
+    v.noteNorm || null,
     v.debtId,
     v.goalId,
     v.toGoalId,
@@ -125,13 +131,15 @@ function createMovement(userId, v, source = 'usuario') {
 
 function updateMovement(userId, id, v) {
   return db.run(
-    'UPDATE movements SET date = ?, kind = ?, category = ?, amount = ?, currency = ?, note = ?, debt_id = ?, goal_id = ?, to_goal_id = ?, updated_at = ? WHERE id = ? AND user_id = ?',
+    'UPDATE movements SET date = ?, kind = ?, category = ?, subcategory = ?, amount = ?, currency = ?, note = ?, note_norm = ?, debt_id = ?, goal_id = ?, to_goal_id = ?, updated_at = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL',
     v.date,
     v.kind,
     v.category,
+    v.subcategory || null,
     v.amount,
     v.currency,
     v.note,
+    v.noteNorm || null,
     v.debtId,
     v.goalId,
     v.toGoalId,
@@ -146,16 +154,16 @@ function deleteMovement(userId, id) {
 }
 
 function getMovement(userId, id) {
-  return db.one('SELECT * FROM movements WHERE id = ? AND user_id = ?', id, userId);
+  return db.one('SELECT * FROM movements WHERE id = ? AND user_id = ? AND deleted_at IS NULL', id, userId);
 }
 
 function listMovements(userId, month) {
-  return db.all("SELECT * FROM movements WHERE user_id = ? AND substr(date, 1, 7) = ? ORDER BY date DESC, id DESC", userId, month);
+  return db.all("SELECT * FROM movements WHERE user_id = ? AND substr(date, 1, 7) = ? AND deleted_at IS NULL ORDER BY date DESC, id DESC", userId, month);
 }
 
 /** Totales reales del mes. Las transferencias entre ahorros propios no cuentan. */
-function monthSummary(userId, month = currentMonth()) {
-  const rows = db.all("SELECT kind, category, amount FROM movements WHERE user_id = ? AND substr(date, 1, 7) = ? AND kind <> 'transferencia'", userId, month);
+function monthSummary(userId, month = currentMonth(), uptoDay = 31) {
+  const rows = db.all("SELECT kind, category, amount FROM movements WHERE user_id = ? AND substr(date, 1, 7) = ? AND CAST(substr(date, 9, 2) AS INTEGER) <= ? AND kind <> 'transferencia' AND deleted_at IS NULL", userId, month, uptoDay);
   const t = { ingreso: ZERO, gasto: ZERO, pago_deuda: ZERO, ahorro: ZERO, retiro_ahorro: ZERO };
   const byCategory = {};
   for (const r of rows) {
@@ -166,6 +174,223 @@ function monthSummary(userId, month = currentMonth()) {
   const balance = t.ingreso.minus(t.gasto).minus(t.pago_deuda);
   const netSaving = t.ahorro.minus(t.retiro_ahorro);
   return { month, ...t, balance, netSaving, free: balance.minus(netSaving), byCategory, count: rows.length };
+}
+
+// ───────── Coach v2: borrado suave, listas con orden, resumen y avisos de registro ─────────
+
+const UMBRALES = require('./coach/data/umbrales.json');
+const UNDO_SECONDS = UMBRALES.registro_y_recordatorios.deshacer_segundos.valor;
+const BIG_TIMES = UMBRALES.registro_y_recordatorios.importe_alto_confirmar_veces_mediana.valor;
+const DUP_MINUTES = UMBRALES.registro_y_recordatorios.duplicado_ventana_minutos.valor;
+const MIN_FOR_MEDIAN = 5;
+
+/** Borrado suave: el movimiento queda oculto y se puede restaurar durante unos segundos. */
+function softDeleteMovement(userId, id) {
+  const now = db.now();
+  const n = db.run('UPDATE movements SET deleted_at = ?, updated_at = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL', now, now, id, userId).changes;
+  if (!n) return null;
+  return { undoUntil: new Date(Date.parse(now) + UNDO_SECONDS * 1000).toISOString() };
+}
+
+function restoreMovement(userId, id) {
+  const m = db.one('SELECT deleted_at FROM movements WHERE id = ? AND user_id = ?', id, userId);
+  if (!m || !m.deleted_at) return { error: 'NO_ENCONTRADO' };
+  if (Date.now() - Date.parse(m.deleted_at) > UNDO_SECONDS * 1000) return { error: 'PLAZO_VENCIDO' };
+  db.run('UPDATE movements SET deleted_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?', db.now(), id, userId);
+  return { ok: true };
+}
+
+/** Elimina definitivamente lo borrado hace más de `days` días. */
+function purgeDeletedMovements(days = 7) {
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+  return db.run('DELETE FROM movements WHERE deleted_at IS NOT NULL AND deleted_at < ?', cutoff).changes;
+}
+
+// Lista blanca de ordenamientos: el texto de `orden` nunca llega al SQL.
+const ORDERS = {
+  fecha_desc: 'date DESC, id DESC',
+  fecha_asc: 'date ASC, id ASC',
+  importe_desc: 'amount_cents DESC, date DESC, id DESC',
+  importe_asc: 'amount_cents ASC, date DESC, id DESC',
+  categoria_asc: 'category ASC, date DESC, id DESC',
+  nota_asc: 'note_norm ASC, date DESC, id DESC',
+  creado_desc: 'created_at DESC, id DESC',
+};
+const ORIGINS = ['usuario', 'texto', 'boton', 'coach', 'recurrente', 'plantilla'];
+const asList = (v) => (v === undefined || v === null || v === '' ? [] : Array.isArray(v) ? v : [v]).map(String);
+const likeEscape = (s) => s.replace(/[\\%_]/g, (c) => '\\' + c);
+
+/** Lista filtrada, ordenada y paginada de movimientos vivos de una cuenta. */
+function findMovements(userId, f = {}) {
+  const currency = baseCurrency(userId);
+  const where = ['user_id = ?', 'deleted_at IS NULL'];
+  const args = [userId];
+  const from = validDate(f.desde);
+  const to = validDate(f.hasta);
+  if (from || to) {
+    if (from) {
+      where.push('date >= ?');
+      args.push(from);
+    }
+    if (to) {
+      where.push('date <= ?');
+      args.push(to);
+    }
+  } else {
+    where.push('substr(date, 1, 7) = ?');
+    args.push(validMonth(f.mes) || currentMonth());
+  }
+  const kinds = asList(f.tipo).filter((k) => KINDS[k]);
+  if (kinds.length) {
+    where.push(`kind IN (${kinds.map(() => '?').join(',')})`);
+    args.push(...kinds);
+  }
+  const cats = asList(f.categoria).filter((c) => /^[a-z_]{1,30}$/.test(c));
+  if (cats.length) {
+    where.push(`category IN (${cats.map(() => '?').join(',')})`);
+    args.push(...cats);
+  }
+  if (f.sub && /^[a-z_]{1,30}$/.test(String(f.sub))) {
+    where.push('subcategory = ?');
+    args.push(String(f.sub));
+  }
+  const origins = asList(f.origen).filter((o) => ORIGINS.includes(o));
+  if (origins.length) {
+    where.push(`source IN (${origins.map(() => '?').join(',')})`);
+    args.push(...origins);
+  }
+  const text = normalizar(f.q).slice(0, 60);
+  if (text) {
+    where.push("(note_norm LIKE ? ESCAPE '\\' OR category LIKE ? ESCAPE '\\')");
+    args.push(`%${likeEscape(text)}%`, `%${likeEscape(text)}%`);
+  }
+  for (const [key, op] of [['min', '>='], ['max', '<=']]) {
+    const p = f[key] === undefined || f[key] === '' ? null : money.parseAmount(f[key], currency);
+    if (p && p.ok) {
+      where.push(`amount_cents ${op} ?`);
+      args.push(new D(p.value).times(100).round().toNumber());
+    }
+  }
+  const order = ORDERS[f.orden] ? f.orden : 'fecha_desc';
+  const limit = Math.min(100, Math.max(1, Number.parseInt(f.limite, 10) || 30));
+  const page = Math.max(1, Number.parseInt(f.pagina, 10) || 1);
+  const sql = where.join(' AND ');
+  const total = db.value(`SELECT COUNT(*) FROM movements WHERE ${sql}`, ...args) || 0;
+  const items = db.all(`SELECT * FROM movements WHERE ${sql} ORDER BY ${ORDERS[order]} LIMIT ? OFFSET ?`, ...args, limit, (page - 1) * limit);
+  return { items, total, page, limit, order };
+}
+
+const fx = (d) => new D(d).toFixed(2);
+function aggregateRows(rows) {
+  const byKey = {};
+  for (const r of rows) {
+    const key = `${r.kind}:${r.category}`;
+    const e = byKey[key] || (byKey[key] = { kind: r.kind, category: r.category, total: ZERO, n: 0 });
+    e.total = e.total.plus(r.amount);
+    e.n += 1;
+  }
+  return byKey;
+}
+const movementRows = (userId, month, uptoDay) =>
+  db.all("SELECT kind, category, amount FROM movements WHERE user_id = ? AND substr(date, 1, 7) = ? AND CAST(substr(date, 9, 2) AS INTEGER) <= ? AND kind <> 'transferencia' AND deleted_at IS NULL", userId, month, uptoDay);
+
+/** Resumen del mes (ResumenMes): totales, ranking por categoría y comparación con el mes anterior «a la misma altura». */
+function summaryDetail(userId, month = currentMonth(), hoy = new Date().toISOString().slice(0, 10)) {
+  const [y, m] = month.split('-').map(Number);
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const elapsed = month === hoy.slice(0, 7) ? Math.min(Number(hoy.slice(8, 10)), daysInMonth) : daysInMonth;
+  const cur = monthSummary(userId, month);
+  const prevKey = prevMonth(month);
+  const prev = monthSummary(userId, prevKey, elapsed);
+  const curAgg = aggregateRows(movementRows(userId, month, 31));
+  const prevAgg = aggregateRows(movementRows(userId, prevKey, elapsed));
+  const rows = [];
+  for (const kind of ['gasto', 'ingreso']) {
+    const total = cur[kind];
+    const entries = Object.values(curAgg)
+      .filter((x) => x.kind === kind)
+      .sort((a, b) => b.total.cmp(a.total) || a.category.localeCompare(b.category));
+    for (const e of entries) {
+      const before = prevAgg[`${kind}:${e.category}`];
+      const delta = before ? e.total.minus(before.total) : null;
+      rows.push({
+        tipo: kind,
+        categoria: e.category,
+        etiqueta: CATEGORIES[kind][e.category] || e.category,
+        monto: fx(e.total),
+        pct_del_total: total.gt(0) ? Math.round(e.total.div(total).times(1000).toNumber()) / 10 : null,
+        n: e.n,
+        delta_pct: before && before.total.gt(0) ? Math.round(delta.div(before.total).times(1000).toNumber()) / 10 : null,
+        delta_monto: delta ? fx(delta) : null,
+      });
+    }
+  }
+  const days = db.value('SELECT COUNT(DISTINCT date) FROM movements WHERE user_id = ? AND substr(date, 1, 7) = ? AND deleted_at IS NULL', userId, month) || 0;
+  const plan = budgetSummary(userId, month);
+  return {
+    mes: month,
+    moneda: baseCurrency(userId),
+    ingreso: fx(cur.ingreso),
+    gasto: fx(cur.gasto),
+    pago_deuda: fx(cur.pago_deuda),
+    ahorro_neto: fx(cur.netSaving),
+    saldo: fx(cur.balance),
+    saldo_libre: fx(cur.free),
+    n_movimientos: cur.count,
+    dias_con_registro: days,
+    dias_transcurridos: elapsed,
+    dias_del_mes: daysInMonth,
+    por_categoria: rows,
+    previsto: plan ? { ingreso: fx(plan.ingreso), gasto: fx(plan.gasto), pago_deuda: fx(plan.pago_deuda), ahorro: fx(plan.ahorro), saldo: fx(plan.balance) } : null,
+    mes_anterior: prev.count
+      ? { mes: prevKey, a_la_misma_altura: true, hasta_dia: elapsed, ingreso: fx(prev.ingreso), gasto: fx(prev.gasto), pago_deuda: fx(prev.pago_deuda), ahorro_neto: fx(prev.netSaving), saldo: fx(prev.balance) }
+      : null,
+  };
+}
+
+/** Mediana de los gastos de los últimos 90 días (en centavos), o null si hay pocos datos. */
+function medianExpenseCents(userId) {
+  const since = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const rows = db.all("SELECT amount_cents AS c FROM movements WHERE user_id = ? AND kind = 'gasto' AND deleted_at IS NULL AND date >= ? ORDER BY amount_cents", userId, since);
+  if (rows.length < MIN_FOR_MEDIAN) return null;
+  const mid = Math.floor(rows.length / 2);
+  return rows.length % 2 ? rows[mid].c : Math.round((rows[mid - 1].c + rows[mid].c) / 2);
+}
+
+/** ¿Es un gasto muy grande para esta persona? (≥ 5 veces su mediana). Pide confirmación antes de guardar. */
+function isLargeExpense(userId, kind, amount) {
+  if (kind !== 'gasto') return false;
+  const med = medianExpenseCents(userId);
+  return Boolean(med) && new D(amount).times(100).gte(med * BIG_TIMES);
+}
+
+/** ¿Hay un movimiento igual (importe, categoría y nota) registrado en los últimos minutos? */
+function findDuplicate(userId, v) {
+  const since = new Date(Date.now() - DUP_MINUTES * 60000).toISOString();
+  return db.one(
+    "SELECT id FROM movements WHERE user_id = ? AND deleted_at IS NULL AND kind = ? AND category = ? AND amount_cents = ? AND COALESCE(note_norm, '') = ? AND created_at >= ? ORDER BY id DESC LIMIT 1",
+    userId,
+    v.kind,
+    v.category,
+    new D(v.amount).times(100).round().toNumber(),
+    v.noteNorm || '',
+    since
+  );
+}
+
+/** Códigos de categoría de un tipo, las más usadas (últimos 90 días) primero; luego el resto en su orden. */
+function categoryUsage(userId, kind) {
+  if (!CATEGORIES[kind]) return [];
+  const since = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const used = db
+    .all('SELECT category, COUNT(*) AS n FROM movements WHERE user_id = ? AND kind = ? AND deleted_at IS NULL AND date >= ? GROUP BY category ORDER BY n DESC, category', userId, kind, since)
+    .map((r) => r.category)
+    .filter((c) => CATEGORIES[kind][c]);
+  return [...used, ...Object.keys(CATEGORIES[kind]).filter((c) => !used.includes(c))];
+}
+
+function lastMovement(userId) {
+  return db.one('SELECT * FROM movements WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1', userId);
 }
 
 // ───────── Presupuesto (previsto) ─────────
@@ -305,7 +530,7 @@ function goals(userId, { includeArchived = false } = {}) {
   const now = new Date();
   const months = [0, 1, 2].map((i) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1 - i, 1)).toISOString().slice(0, 7));
   return rows.map((g) => {
-    const flows = db.all('SELECT kind, amount, goal_id, to_goal_id, date FROM movements WHERE user_id = ? AND (goal_id = ? OR to_goal_id = ?)', userId, g.id, g.id);
+    const flows = db.all('SELECT kind, amount, goal_id, to_goal_id, date FROM movements WHERE user_id = ? AND deleted_at IS NULL AND (goal_id = ? OR to_goal_id = ?)', userId, g.id, g.id);
     let saved = new D(g.initial_saved);
     const perMonth = {};
     for (const f of flows) {
@@ -496,7 +721,7 @@ function saveScenario(userId, name, inputs) {
 /** Fecha del último cambio de datos de seguimiento (para ofrecer recalcular). */
 function lastDataChange(userId) {
   return db.value(
-    "SELECT MAX(t) FROM (SELECT MAX(updated_at) AS t FROM movements WHERE user_id = ? UNION ALL SELECT MAX(created_at) FROM debt_balances WHERE user_id = ? AND note <> 'Saldo de la evaluación profunda' UNION ALL SELECT MAX(updated_at) FROM goals WHERE user_id = ? AND source <> 'plan')",
+    "SELECT MAX(t) FROM (SELECT MAX(updated_at) AS t FROM movements WHERE user_id = ? AND deleted_at IS NULL UNION ALL SELECT MAX(created_at) FROM debt_balances WHERE user_id = ? AND note <> 'Saldo de la evaluación profunda' UNION ALL SELECT MAX(updated_at) FROM goals WHERE user_id = ? AND source <> 'plan')",
     userId,
     userId,
     userId
@@ -516,6 +741,18 @@ module.exports = {
   createMovement,
   updateMovement,
   deleteMovement,
+  softDeleteMovement,
+  categoryUsage,
+  lastMovement,
+  restoreMovement,
+  purgeDeletedMovements,
+  findMovements,
+  summaryDetail,
+  isLargeExpense,
+  findDuplicate,
+  UNDO_SECONDS,
+  ORDERS,
+  ORIGINS,
   getMovement,
   listMovements,
   monthSummary,

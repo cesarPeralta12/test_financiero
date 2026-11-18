@@ -3,6 +3,7 @@ const entitlements = require('../domain/entitlements');
 const { html } = require('../lib/html');
 const db = require('../db');
 const c = require('../views/components');
+const { getSetting } = require('../lib/services');
 
 function wantsJson(req) {
   return req.path.startsWith('/api/') || req.originalUrl.startsWith('/api/') || (req.get('accept') || '').includes('application/json');
@@ -50,4 +51,14 @@ function requireEntitlement(code) {
   };
 }
 
-module.exports = { requireUser, requireAdmin, requireEntitlement, wantsJson, safeNext };
+/** ¿Puede esta cuenta usar «Mi dinero»? Con el acompañamiento, o con la bandera `coach_v2_registro_rapido` (registro y resumen gratuitos). */
+function hasMoneyAccess(user) {
+  return Boolean(user) && (getSetting('coach_v2_registro_rapido') === true || entitlements.has(user.id, 'acompanamiento'));
+}
+
+function requireMoneyAccess(req, res, next) {
+  if (req.user && hasMoneyAccess(req.user)) return next();
+  return requireEntitlement('acompanamiento')(req, res, next);
+}
+
+module.exports = { requireUser, requireAdmin, requireEntitlement, requireMoneyAccess, hasMoneyAccess, wantsJson, safeNext };

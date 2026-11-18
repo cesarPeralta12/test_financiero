@@ -7,6 +7,7 @@ const db = require('../../db');
 const config = require('../../config');
 const log = require('../../lib/log');
 const { getSetting } = require('../../lib/services');
+const precios = require('../coach/ia/precios');
 
 // Precio por millón de tokens (USD), entrada / salida. Ver docs/DECISIONES.md.
 const PRICING = {
@@ -58,14 +59,20 @@ function usage(userId, purpose) {
   return { used: userMonthlyCount(userId, purpose), limit: userLimit(userId, purpose) };
 }
 
-function record({ userId, purpose, provider, model, promptVersion, input, output, status, errorCode = null, inTok = 0, outTok = 0, latency = null }) {
-  const [pi, po] = PRICING[model] || PRICING['claude-opus-5-5'];
-  const cost = Math.round(inTok * pi + outTok * po); // micro-dólares
+function record({ userId, purpose, provider, model, promptVersion, input, output, status, errorCode = null, inTok = 0, outTok = 0, latency = null, task = null, cacheRead = 0, cacheWrite = 0, ttl = '1h' }) {
+  // Con precio verificado se calcula distinguiendo caché (lectura ≈ 0,05–0,1 × la entrada); si no, la tabla de referencia.
+  const config_ = require('../../config');
+  let cost = provider === 'openai' ? precios.costoOpenAI(config_.ai.openaiPrices, { entrada: inTok, salida: outTok, cacheLectura: cacheRead }) : precios.costoMicros(model, { entrada: inTok, salida: outTok, cacheLectura: cacheRead, cacheEscritura: cacheWrite, ttl });
+  if (cost === null) {
+    const [pi, po] = PRICING[model] || PRICING['claude-opus-5-5'];
+    cost = Math.round((inTok + cacheRead + cacheWrite) * pi + outTok * po); // micro-dólares, sin descuento de caché
+  }
   const r = db.run(
-    `INSERT INTO ai_runs (user_id, purpose, provider, model, prompt_version, input_json, output_text, status, error_code, input_tokens, output_tokens, cost_micros, latency_ms, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO ai_runs (user_id, purpose, task, provider, model, prompt_version, input_json, output_text, status, error_code, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_micros, latency_ms, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     userId,
     purpose,
+    task,
     provider,
     model,
     promptVersion,
@@ -75,6 +82,8 @@ function record({ userId, purpose, provider, model, promptVersion, input, output
     errorCode,
     inTok,
     outTok,
+    cacheRead,
+    cacheWrite,
     cost,
     latency,
     db.now()
@@ -157,4 +166,4 @@ async function call({ userId, purpose, promptVersion, system, messages, tools = 
   }
 }
 
-module.exports = { call, usage, checkLimits, monthlySpendMicros, AiError, PRICING, providerName, monthStart };
+module.exports = { call, usage, checkLimits, monthlySpendMicros, AiError, PRICING, providerName, monthStart, record, anthropic };

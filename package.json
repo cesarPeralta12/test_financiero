@@ -19,7 +19,13 @@
     "restore": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/restore.js",
     "demo": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/demo.js",
     "check:mobile": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/check-mobile.js",
-    "test": "node --experimental-sqlite --disable-warning=ExperimentalWarning --test --test-concurrency=1 \"test/*.test.js\""
+    "test": "node --experimental-sqlite --disable-warning=ExperimentalWarning --test --test-concurrency=1 \"test/*.test.js\"",
+    "coach:validar": "node docs/coach-v2/herramientas/validar.js",
+    "coach:parser": "node --experimental-sqlite --disable-warning=ExperimentalWarning --test test/coach-parser.test.js",
+    "coach:costos": "node docs/coach-v2/herramientas/costos.js",
+    "coach:baseline": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/coach-baseline.js",
+    "coach:no-entendidos": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/coach-no-entendidos.js",
+    "coach:eval": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/coach-eval.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

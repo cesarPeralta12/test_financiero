@@ -81,6 +81,27 @@ const config = {
     apiKey: env.ANTHROPIC_API_KEY || '',
     model: env.AI_MODEL || 'claude-opus-5-5',
     timeoutMs: int(env.AI_TIMEOUT_MS, 60000),
+    // Coach v2: modelo por tarea (docs/coach-v2/02 §2). Haiku para clasificar, extraer y redactar; Sonnet para el consejo abierto.
+    coachModels: {
+      clasificar: env.AI_MODEL_CLASIFICAR || 'claude-haiku-5-5',
+      extraer: env.AI_MODEL_EXTRAER || 'claude-haiku-5-5',
+      redactar: env.AI_MODEL_REDACTAR || 'claude-haiku-5-5',
+      consejo: env.AI_MODEL_CONSEJO || 'claude-sonnet-5-5',
+    },
+    cacheTtl: env.AI_CACHE_TTL === '5m' ? '5m' : '1h',
+    // Proveedor de la IA del Coach: COACH_AI_PROVIDER=openai|anthropic|local. Sin indicarlo: OpenAI si hay
+    // OPENAI_API_KEY, si no Anthropic si hay clave, si no el simulador local. AI_PROVIDER=local fuerza el simulador.
+    coachProvider: env.COACH_AI_PROVIDER || (env.AI_PROVIDER === 'local' ? 'local' : env.OPENAI_API_KEY ? 'openai' : env.ANTHROPIC_API_KEY ? 'anthropic' : 'local'),
+    // Modelos de OpenAI por tarea (el consejo puede usar uno mayor).
+    coachOpenaiModels: {
+      clasificar: env.OPENAI_MODEL_CLASIFICAR || env.OPENAI_MODEL || 'gpt-6-luna',
+      extraer: env.OPENAI_MODEL_EXTRAER || env.OPENAI_MODEL || 'gpt-6-luna',
+      redactar: env.OPENAI_MODEL_REDACTAR || env.OPENAI_MODEL || 'gpt-6-luna',
+      consejo: env.OPENAI_MODEL_CONSEJO || env.OPENAI_MODEL || 'gpt-6-luna',
+    },
+    // Precios de OpenAI en USD por millón de tokens. NO están verificados: se configuran a mano. Sin ellos el costo se
+    // estima con el precio más alto conocido (nunca se subestima el gasto).
+    openaiPrices: env.OPENAI_PRICE_INPUT && env.OPENAI_PRICE_OUTPUT ? { entrada: Number(env.OPENAI_PRICE_INPUT), cacheada: Number(env.OPENAI_PRICE_CACHED || env.OPENAI_PRICE_INPUT), salida: Number(env.OPENAI_PRICE_OUTPUT) } : null,
     // Redacción del resultado gratuito con OpenAI. Sin clave (o con FREE_RESULT_AI=false)
     // el resultado se genera con plantillas deterministas: el test nunca depende de la IA.
     openai: {

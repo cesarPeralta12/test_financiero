@@ -10,6 +10,14 @@ const c = require('../views/components');
 const { requireEntitlement } = require('./guards');
 const { intParam, notFound, wrap } = require('./util');
 const { rateLimit } = require('../lib/security');
+const db = require('../db');
+const { getSetting } = require('../lib/services');
+const { CoachError } = require('../domain/coach/respuesta');
+const { responderConIA } = require('../domain/coach/respuestaIA');
+const { sugerencias } = require('../domain/coach/sugerencias');
+const v2view = require('../views/coachV2');
+
+const v2 = (user) => require('../domain/coach/rollout').activoPara(user && user.id);
 
 const router = express.Router();
 const guard = requireEntitlement('acompanamiento');
@@ -58,6 +66,40 @@ function messageView(ctx, m, cur) {
     </div>
   </div>`;
 }
+
+// ───────── Coach v2: conversación de tarjetas (bandera coach_v2_enabled) ─────────
+function paginaV2(req, res) {
+  const conv = coach.conversation(req.user.id);
+  const filas = db.all('SELECT * FROM (SELECT * FROM messages WHERE conversation_id = ? AND user_id = ? ORDER BY id DESC LIMIT 40) ORDER BY id', conv.id, req.user.id).map((f) => ({ ...f, payload: db.parse(f.payload_json, {}) || {} }));
+  const vacia = !filas.some((f) => f.origin);
+  res.active('coach').page({
+    title: 'Coach',
+    body: v2view.pagina(res.locals.ctx, { filas, cur: tracker.baseCurrency(req.user.id), vacia, sugerencias: sugerencias(req.user.id) }),
+  });
+}
+
+/** Un mensaje o un botón: con `X-Fragment: 1` devuelve la tarjeta para agregarla sin recargar; sin JavaScript, redirige. */
+router.post('/coach/enviar', guard, wrap(async (req, res, next) => {
+  if (!v2(req.user)) return next(notFound());
+  const fragmento = req.get('x-fragment') === '1';
+  const b = req.body || {};
+  const cur = tracker.baseCurrency(req.user.id);
+  const mostrar = String(b.texto || b.etiqueta || '').slice(0, 80);
+  const enviar = (extra) => res.type('html').send(v2view.fragmento(res.locals.ctx, { texto: mostrar, sugerencias: sugerencias(req.user.id), cur, ...extra }).toString());
+  const rl = rateLimit({ key: `coachv2web:${req.user.id}`, limit: 20, windowMs: 60_000 });
+  if (!rl.allowed) return fragmento ? res.status(429).type('html').send(v2view.fragmento(res.locals.ctx, { error: 'Vas muy rápido. Espera un momento y vuelve a intentarlo.', sugerencias: sugerencias(req.user.id), cur }).toString()) : res.redirect(303, '/coach?aviso=coach_error#cv-fin');
+  try {
+    const out = await responderConIA(req.user.id, { texto: b.texto, accion: b.accion, mensaje_id: b.mensaje_id, campo: b.campo, valor: b.valor, intencion: b.intencion });
+    if (!fragmento) return res.redirect(303, '/coach#cv-fin');
+    return enviar({ respuesta: out });
+  } catch (e) {
+    if (!(e instanceof CoachError)) throw e;
+    if (!fragmento) return res.redirect(303, '/coach?aviso=coach_error#cv-fin');
+    return res.status(e.status === 409 ? 200 : e.status).type('html').send(v2view.fragmento(res.locals.ctx, { texto: mostrar, error: e.message, sugerencias: sugerencias(req.user.id), cur }).toString());
+  }
+}));
+
+router.get('/coach', guard, (req, res, next) => (v2(req.user) ? paginaV2(req, res) : next()));
 
 router.get('/coach', guard, (req, res) => {
   const conv = coach.conversation(req.user.id);

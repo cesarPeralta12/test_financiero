@@ -8,6 +8,7 @@ const backup = require('./lib/backup');
 const log = require('./lib/log');
 const { getSetting, setSetting, audit } = require('./lib/services');
 const tasks = require('./domain/tasks');
+const tracker = require('./domain/tracker');
 
 // Carga los manejadores de cola de cada módulo.
 require('./lib/mailer');
@@ -48,7 +49,24 @@ queue.register('purgar_anonimas', async () => {
   const n = purgeAnonymous();
   log.info('Sesiones anónimas purgadas', { n });
 });
-queue.register('avisos_diarios', async () => tasks.dailyNotices());
+// Coach v2: elimina lo borrado hace más de 7 días y las claves de idempotencia de más de 24 h.
+function purgeCoach() {
+  const keys = db.run('DELETE FROM idempotency_keys WHERE created_at < ?', new Date(Date.now() - 86400000).toISOString()).changes;
+  const movements = tracker.purgeDeletedMovements(7);
+  let cache = 0;
+  try {
+    cache = require('./domain/coach/ia/cache').purgar();
+  } catch {
+    /* la caché es opcional */
+  }
+  return { keys, movements, cache };
+}
+queue.register('purgar_coach', async () => log.info('Coach: purga diaria', purgeCoach()));
+queue.register('avisos_diarios', async () => {
+  const tareas = tasks.dailyNotices();
+  const coach = require('./domain/coach/recordatorios').diario();
+  return tareas + coach;
+});
 queue.register('respaldo', async () => runBackup());
 
 /** Se llama periódicamente: encola los trabajos diarios una vez por día. */
@@ -59,6 +77,7 @@ function scheduleDaily() {
     setSetting('last_daily_run', today);
     queue.enqueue('purgar_anonimas', {});
     queue.enqueue('avisos_diarios', {});
+    queue.enqueue('purgar_coach', {});
   }
   const lb = getSetting('last_backup_at');
   const hour = new Date().getHours();
@@ -75,4 +94,4 @@ async function tick() {
   scheduleDaily();
 }
 
-module.exports = { purgeAnonymous, runBackup, scheduleDaily, tick };
+module.exports = { purgeCoach, purgeAnonymous, runBackup, scheduleDaily, tick };

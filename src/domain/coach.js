@@ -9,6 +9,9 @@ const ai = require('./ai/provider');
 const prompts = require('./ai/prompts');
 const tracker = require('./tracker');
 const tasks = require('./tasks');
+const parser = require('./coach/parser');
+const { conTildes, limpiar } = require('./coach/nota');
+const { normalizar } = require('./coach/normalizar');
 const planDomain = require('./plan');
 
 const { D } = money;
@@ -121,9 +124,11 @@ function buildProposal(userId, type, input) {
     return { proposal: { type, title, reason: String(input.motivo || '').slice(0, 300), criteria: String(input.criterio || '').slice(0, 300) } };
   }
   if (type === 'registrar_movimiento') {
-    const v = tracker.validateMovement(userId, { kind: input.tipo, category: input.categoria, amount: String(input.importe), date: input.fecha, note: input.nota });
+    // La nota es lo gastado («café»), nunca la frase completa que dijo la persona o escribió un modelo.
+    const nota = limpiar(input.nota, { moneda: tracker.baseCurrency(userId) });
+    const v = tracker.validateMovement(userId, { kind: input.tipo, category: input.categoria, subcategory: input.subcategoria, amount: String(input.importe), date: input.fecha, note: nota });
     if (!v.ok) return { error: `Datos no válidos: ${Object.values(v.errors).join(' ')}` };
-    return { proposal: { type, kind: v.value.kind, category: v.value.category, amount: v.value.amount, date: v.value.date, note: v.value.note } };
+    return { proposal: { type, kind: v.value.kind, category: v.value.category, subcategory: v.value.subcategory, amount: v.value.amount, date: v.value.date, note: v.value.note } };
   }
   if (type === 'completar_tarea') {
     const t = tasks.get(userId, Number(input.tarea_id));
@@ -152,7 +157,7 @@ function confirm(userId, messageId) {
       tasks.create(userId, { title: p.title, reason: p.reason, criteria: p.criteria, source: 'coach' });
       summary = `Creé la tarea «${p.title}».`;
     } else if (p.type === 'registrar_movimiento') {
-      tracker.createMovement(userId, { kind: p.kind, category: p.category, date: p.date, amount: p.amount, currency: tracker.baseCurrency(userId), note: p.note, debtId: null, goalId: null, toGoalId: null }, 'coach');
+      tracker.createMovement(userId, { kind: p.kind, category: p.category, subcategory: p.subcategory || null, date: p.date, amount: p.amount, currency: tracker.baseCurrency(userId), note: p.note, noteNorm: p.note ? normalizar(p.note) || null : null, debtId: null, goalId: null, toGoalId: null }, 'coach');
       summary = 'Registré el movimiento.';
     } else if (p.type === 'completar_tarea') {
       tasks.complete(userId, p.taskId, 'Confirmada desde el coach');
@@ -356,6 +361,13 @@ function localReply(userId, text, ctx) {
     msg += '.';
     if (new D(s.free).lt(0)) msg += ' Ojo: ese escenario deja tu saldo libre en negativo.';
     return { text: msg, simulation: sim };
+  }
+  const reg = parser.parsear(text, { hoy: new Date().toISOString().slice(0, 10), moneda: cur });
+  if (String(reg.intencion || '').startsWith('registrar_') && reg.entidades.tipo && reg.entidades.importe && reg.entidades.categoria) {
+    const e = reg.entidades;
+    const b = buildProposal(userId, 'registrar_movimiento', { tipo: e.tipo, categoria: e.categoria, subcategoria: e.subcategoria, importe: e.importe, fecha: e.fecha, nota: e.nota ? conTildes(text, e.nota) : null });
+    if (b.error) return { text: `No pude preparar el registro: ${b.error}` };
+    return { text: 'Te propongo registrar este movimiento. Revisa los datos y confírmalo si es correcto; si no, descártalo.', proposal: b.proposal };
   }
   if (/(gaste|pague|cobre|recibi|deposite|ahorre|registra|anota|apunta)/.test(t) && amount) {
     let kind = 'gasto';
