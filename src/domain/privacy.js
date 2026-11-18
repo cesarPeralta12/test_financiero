@@ -24,7 +24,7 @@ function exportUser(userId) {
   }));
   const conversations = db.all('SELECT id, title, created_at FROM conversations WHERE user_id = ?', userId).map((c) => ({
     ...c,
-    messages: db.all('SELECT role, kind, content, proposal_json, proposal_status, created_at FROM messages WHERE conversation_id = ? ORDER BY id', c.id),
+    messages: db.all('SELECT role, kind, content, origin, intent, proposal_json, proposal_status, created_at FROM messages WHERE conversation_id = ? ORDER BY id', c.id),
   }));
   return {
     exportado: new Date().toISOString(),
@@ -46,7 +46,11 @@ function exportUser(userId) {
     hitos: db.all('SELECT month, title, status, reached_at FROM milestones WHERE user_id = ?', userId),
     metas: db.all('SELECT id, name, kind, target_amount, initial_saved, target_months, status, created_at FROM goals WHERE user_id = ?', userId),
     deudas: db.all('SELECT id, name, kind, rate, rate_type, payment, fees, status FROM debts WHERE user_id = ?', userId).map((d) => ({ ...d, saldos: db.all('SELECT date, balance FROM debt_balances WHERE debt_id = ?', d.id) })),
-    movimientos: db.all('SELECT date, kind, category, amount, currency, note, debt_id, goal_id, to_goal_id, created_at FROM movements WHERE user_id = ?', userId),
+    movimientos: db.all('SELECT date, kind, category, subcategory, amount, currency, note, source, debt_id, goal_id, to_goal_id, created_at FROM movements WHERE user_id = ? AND deleted_at IS NULL', userId),
+    recurrentes: db.all('SELECT kind, category, subcategory, amount, day_of_month, note, active, created_at FROM recurring_movements WHERE user_id = ?', userId),
+    atajos: db.all('SELECT label, kind, category, subcategory, amount, uses, created_at FROM quick_templates WHERE user_id = ?', userId),
+    pistas_de_categoria: db.all('SELECT term, kind, category, subcategory, hits FROM category_hints WHERE user_id = ?', userId),
+    preferencias_del_coach: db.parse(db.value('SELECT coach_prefs_json FROM users WHERE id = ?', userId), {}),
     presupuestos: db.all('SELECT month, kind, category, amount FROM budget_lines WHERE user_id = ?', userId),
     escenarios: db.all('SELECT name, base_source, inputs_json, results_json, created_at FROM scenarios WHERE user_id = ?', userId),
     conversaciones: conversations,

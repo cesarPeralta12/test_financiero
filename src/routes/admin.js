@@ -29,6 +29,7 @@ const NAV = [
   ['ordenes', 'Órdenes'],
   ['fallos', 'Fallos y reintentos'],
   ['ia', 'Uso de IA'],
+  ['coach', 'Coach'],
   ['cuestionarios', 'Cuestionarios'],
   ['reglas', 'Reglas'],
   ['textos', 'Textos'],
@@ -665,6 +666,64 @@ router.post('/productos/:id', (req, res, next) => {
   );
   audit(req.user.id, 'producto.actualizado', { targetType: 'producto', targetId: p.code, meta: { price_cents: cents, currency: req.body.currency, grants } });
   res.redirect(303, '/admin/productos?aviso=guardado');
+});
+
+// ───────── Coach: métricas y alarmas ─────────
+router.get('/coach', (req, res) => {
+  const dias = { 1: 1, 7: 7, 30: 30 }[Number(req.query.dias)] || 7;
+  const m = require('../domain/coach/ia/metricas').resumen(dias);
+  const mejora = require('../domain/coach/mejora');
+  const lote = mejora.loteSemanal(25);
+  const rv = mejora.resumen();
+  const pct = (x) => (x === null || x === undefined ? '—' : `${(x * 100).toFixed(1).replace('.', ',')} %`);
+  const n = (x) => Number(x || 0).toLocaleString('es');
+  page(res, 'coach', 'Coach', html`<p class="small links">${[1, 7, 30].map((d) => html`<a href="/admin/coach?dias=${d}" ${d === dias ? raw('aria-current="true"') : ''}>${d === 1 ? '24 horas' : `${d} días`}</a>`)}</p>
+    ${m.alarmas.length ? html`<div class="notice notice-warn" role="alert"><strong>Alarmas</strong><ul>${m.alarmas.map((a) => html`<li>${a.texto}</li>`)}</ul></div>` : html`<p class="muted">Sin alarmas activas.</p>`}
+    <ul class="figures">
+      <li><span class="k">Respuestas del Coach</span><span class="v">${n(m.origenes.total)}</span></li>
+      <li><span class="k">Resueltas sin IA</span><span class="v">${pct(m.origenes.sinIA)}</span></li>
+      <li><span class="k">«No entendí»</span><span class="v">${n(m.origenes.noEntendi)} (${pct(m.origenes.tasaNoEntendi)})</span></li>
+      <li><span class="k">Aciertos de caché de prompt</span><span class="v">${pct(m.cache.tasa)}</span></li>
+      <li><span class="k">Proveedor</span><span class="v">${m.proveedor.nombre}${m.proveedor.preciosConfigurados ? '' : ' · sin precios configurados: el costo se sobreestima (define OPENAI_PRICE_INPUT, OPENAI_PRICE_CACHED y OPENAI_PRICE_OUTPUT)'}</span></li>
+    </ul>
+    <h2 class="section">Por tarea</h2>
+    <table class="data stack-sm"><thead><tr><th>Tarea</th><th class="r">Llamadas</th><th class="r">Errores</th><th class="r">Descartadas</th><th class="r">Tokens entrada / salida</th><th class="r">Caché lectura / escritura</th><th class="r">Latencia (ms)</th><th class="r">Costo</th></tr></thead><tbody>
+      ${m.tareas.map((t) => html`<tr><td data-label="Tarea">${t.tarea}</td><td data-label="Llamadas" class="r">${n(t.llamadas)}</td><td data-label="Errores" class="r">${n(t.errores)}</td><td data-label="Descartadas" class="r">${n(t.descartadas)}</td><td data-label="Tokens" class="r">${n(t.entrada)} / ${n(t.salida)}</td><td data-label="Caché" class="r">${n(t.cache_lectura)} / ${n(t.cache_escritura)}</td><td data-label="Latencia" class="r">${t.latencia ?? '—'}</td><td data-label="Costo" class="r">${usd(t.costo || 0)}</td></tr>`)}
+    </tbody></table>
+    <h2 class="section">Mejora continua del parser</h2>
+    <p class="small muted">Frases que el Coach no entendió, anonimizadas (sin cuenta ni números). Nuevas: ${rv.nuevo} · incorporadas: ${rv.incorporado} · descartadas: ${rv.descartado}. Revisión semanal: pasa las repetidas al diccionario o al banco de casos.</p>
+    ${lote.length ? html`<table class="data stack-sm"><thead><tr><th>Frase</th><th class="r">Veces</th><th>Última vez</th><th>Acción</th></tr></thead><tbody>${lote.map((f) => html`<tr><td data-label="Frase">${f.phrase}</td><td data-label="Veces" class="r">${f.hits}</td><td data-label="Última vez">${String(f.last_seen).slice(0, 10)}</td><td data-label="Acción"><form method="post" action="/admin/coach/frases/${f.id}" class="inline">${c.csrfField(res.locals.ctx)}<button class="btn btn-secondary btn-small" name="estado" value="incorporado">Incorporada</button> <button class="btn btn-secondary btn-small" name="estado" value="descartado">Descartar</button></form></td></tr>`)}</tbody></table>` : html`<p class="muted">Nada por revisar.</p>`}
+    <h2 class="section">Despliegue</h2>
+    <form method="post" action="/admin/coach/despliegue" class="stack" novalidate style="max-width:40rem">${c.csrfField(res.locals.ctx)}
+      <label class="check"><input type="checkbox" name="enabled" value="1" ${m.ajustes.coach_v2_enabled ? raw('checked') : ''} /> <span>Coach v2 abierto (apagado: Coach anterior para todos, salvo el equipo)</span></label>
+      <div class="field"><label for="f-pct">Porcentaje de cuentas (0 a 100)</label><input class="input" id="f-pct" name="pct" inputmode="numeric" value="${m.despliegue.pct}" /></div>
+      <div class="field"><label for="f-equipo">Cuentas del equipo (ids separados por coma; siempre ven el Coach v2)</label><input class="input" id="f-equipo" name="equipo" value="${m.despliegue.equipo.join(', ')}" /></div>
+      <label class="check"><input type="checkbox" name="ia_auto" value="1" ${m.ajustes.coach_v2_ia_automatica ? raw('checked') : ''} /> <span>IA barata automática cuando el parser duda</span></label>
+      <label class="check"><input type="checkbox" name="resumen" value="1" ${m.ajustes.coach_v2_resumen_semanal ? raw('checked') : ''} /> <span>Resumen semanal los lunes</span></label>
+      <button class="btn btn-primary" type="submit">Guardar despliegue</button>
+    </form>
+    <p class="small faint">Pasos sugeridos: equipo → 10 % → 50 % → 100 %, con 14 días sin regresiones antes de retirar el Coach anterior. Para revertir basta apagar la bandera.</p>
+    <h2 class="section">Interruptores y límites</h2>
+    <ul class="figures">${Object.entries(m.ajustes).map(([k, v]) => html`<li><span class="k"><code>${k}</code></span><span class="v">${String(v)}</span></li>`)}</ul>
+    <p class="small faint">Se muestran solo agregados; ningún texto de las personas. Los límites se editan en «Límites de IA».</p>`);
+});
+
+router.post('/coach/despliegue', (req, res) => {
+  const pct = Math.max(0, Math.min(100, Math.round(Number(String(req.body.pct || '').replace(',', '.')) || 0)));
+  const equipo = String(req.body.equipo || '').split(/[\s,;]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 100);
+  setSetting('coach_v2_enabled', req.body.enabled === '1', req.user.id);
+  setSetting('coach_v2_rollout_pct', pct, req.user.id);
+  setSetting('coach_v2_equipo', equipo, req.user.id);
+  setSetting('coach_v2_ia_automatica', req.body.ia_auto === '1', req.user.id);
+  setSetting('coach_v2_resumen_semanal', req.body.resumen === '1', req.user.id);
+  audit(req.user.id, 'coach.despliegue', { meta: { enabled: req.body.enabled === '1', pct, equipo: equipo.length, ia_auto: req.body.ia_auto === '1', resumen: req.body.resumen === '1' } });
+  res.redirect(303, '/admin/coach?aviso=guardado');
+});
+
+router.post('/coach/frases/:id', (req, res, next) => {
+  const id = intParam(req.params.id);
+  if (!id || !require('../domain/coach/mejora').marcar(id, String(req.body.estado || ''))) return next(notFound());
+  res.redirect(303, '/admin/coach');
 });
 
 // ───────── Ajustes de IA ─────────

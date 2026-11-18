@@ -83,3 +83,16 @@ Apps nativas; conexión con cuentas bancarias; lectura automática de extractos;
 - La oferta OFFER_PM_V1_ES (14 componentes + coach y control financiero) la añade el servidor con precio real; sin XP ni logros en el diagnóstico. La espera del diagnóstico se actualiza sola.
 - Prueba real: técnico, docente y persona sin ingresos con atrasos → 3/3 redactados por la IA y aceptados (~4.700 tokens y ~17 s por diagnóstico).
 - Pendiente de producto: la oferta promete 14 componentes; el Plan Maestro actual aún no los cubre todos (resolver alcance antes de cobrar, según el documento 00).
+
+## Coach v2: decisiones y primer corte (17-11-2026)
+
+Decisiones aprobadas (recomendaciones de `docs/PLAN-COACH-V2.md`): D1 registro y resumen gratuitos (análisis, metas, deudas e IA de pago); D2 interfaz de IA común, arrancando con Anthropic; D3 IA barata automática con tope diario; D4 sonido encendido y suave con interruptor; D7 recurrentes con confirmación de un toque; D8 sin categorías propias al inicio; D9 retención igual que el resto de la cuenta. D5 (BOB) ya estaba resuelta: `money.js` lo soporta. D6 (umbrales financieros) sigue pendiente de validación por quien responda por el contenido financiero.
+
+Corte S1 (datos y API), lo hecho:
+- Migración `005_coach_v2.sql` (la del zip, probada): subcategoría, nota normalizada y borrado suave en `movements`; tablas de recurrentes, plantillas, pistas, caché de IA; trazabilidad en `messages`; `ai_runs` reconstruida (no tiene claves foráneas hacia ella).
+- Migración `006_movimientos_importes.sql`: `amount_cents` como columna **generada** (no cambia datos ni código existente) para ordenar y filtrar numéricamente, y tabla `idempotency_keys`.
+- Todas las lecturas de movimientos excluyen lo borrado (totales, juego, exportación, evaluación). El borrado de la pantalla actual sigue siendo definitivo; la API usa borrado suave (deshacer 6 s, purga a los 7 días en el trabajo diario `purgar_coach`).
+- API `/api/v1/movimientos` (lista con filtros y orden de lista blanca, alta idempotente, edición, borrado y restauración) y `/api/v1/resumen`. Errores `{ error: { codigo, mensaje, campo } }`. La lista conserva la clave `movimientos` del formato anterior hasta que migren las pantallas.
+- La API no admite fechas futuras (lo previsto va en presupuesto o recurrentes); la pantalla web actual sí admite hasta un año.
+- **D1 aún no está aplicada**: las rutas siguen exigiendo el permiso `acompanamiento`. Se abrirá registro y resumen cuando exista la pantalla «Mi dinero» (S2), detrás de la bandera `coach_v2_registro_rapido`, porque cambia el acceso y las pruebas de permisos.
+- Medición de línea base: `npm run coach:baseline` (en esta base local no hay llamadas; debe correrse contra producción).

@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diauno.example/coach-v2/esquemas.json",
+  "title": "Contratos JSON del Coach v2",
+  "description": "Esquemas de los datos que viajan entre la interfaz, el backend y (solo para las dos tareas de IA barata) el proveedor de IA. Los objetos que se pasan a un modelo con salida estructurada tienen additionalProperties: false y todas sus propiedades en required, como exigen OpenAI y Anthropic para el modo estricto.",
+  "$defs": {
+    "Dinero": { "type": "string", "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$", "description": "Importe decimal como texto con hasta 2 decimales. Nunca número de coma flotante." },
+    "Moneda": { "type": "string", "pattern": "^[A-Z]{3}$", "description": "ISO 4217. Una por cuenta; no se convierte." },
+    "Fecha": { "type": "string", "format": "date", "description": "AAAA-MM-DD en la zona horaria de la cuenta." },
+    "Mes": { "type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$" },
+    "Porcentaje": { "type": "number", "description": "Porcentaje (31.2 significa 31,2 %). Se calcula con decimales exactos y se redondea solo al mostrarlo." },
+    "TipoMovimiento": { "enum": ["ingreso", "gasto", "pago_deuda", "ahorro", "retiro_ahorro", "transferencia"] },
+    "Severidad": { "enum": ["info", "logro", "atencion", "alerta"] },
+    "Tono": { "enum": ["cercano", "neutral", "motivador", "directo"] },
+    "OrigenRespuesta": { "enum": ["boton", "regla", "plantilla", "cache", "ia"] },
+    "TipoGrafico": { "enum": ["barras_categorias", "barra_ingreso_gasto", "tendencia_vs_ritmo", "comparativa_meses", "mes_a_mes", "mapa_semana", "medidor_meta", "medidor_presupuesto", "cascada_mes", "sparkline"] },
+
+    "Movimiento": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "fecha", "tipo", "categoria", "importe", "moneda", "origen", "creado_en"],
+      "properties": {
+        "id": { "type": "integer" },
+        "fecha": { "$ref": "#/$defs/Fecha" },
+        "tipo": { "$ref": "#/$defs/TipoMovimiento" },
+        "categoria": { "type": "string" },
+        "subcategoria": { "type": ["string", "null"] },
+        "importe": { "$ref": "#/$defs/Dinero" },
+        "moneda": { "$ref": "#/$defs/Moneda" },
+        "nota": { "type": ["string", "null"], "maxLength": 140 },
+        "deuda_id": { "type": ["integer", "null"] },
+        "meta_id": { "type": ["integer", "null"] },
+        "meta_destino_id": { "type": ["integer", "null"] },
+        "origen": { "enum": ["usuario", "coach", "texto", "recurrente", "plantilla"] },
+        "creado_en": { "type": "string", "format": "date-time" }
+      }
+    },
+    "MovimientoEntrada": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "categoria", "importe", "fecha", "idempotency_key"],
+      "properties": {
+        "tipo": { "$ref": "#/$defs/TipoMovimiento" },
+        "categoria": { "type": "string" },
+        "subcategoria": { "type": ["string", "null"] },
+        "importe": { "$ref": "#/$defs/Dinero" },
+        "fecha": { "$ref": "#/$defs/Fecha" },
+        "nota": { "type": ["string", "null"], "maxLength": 140 },
+        "deuda_id": { "type": ["integer", "null"] },
+        "meta_id": { "type": ["integer", "null"] },
+        "meta_destino_id": { "type": ["integer", "null"] },
+        "origen": { "enum": ["usuario", "coach", "texto", "recurrente", "plantilla"], "default": "usuario" },
+        "idempotency_key": { "type": "string", "minLength": 8, "maxLength": 120 },
+        "confirmar_importe_alto": { "type": "boolean", "default": false },
+        "confirmar_duplicado": { "type": "boolean", "default": false }
+      }
+    },
+    "LineaCategoria": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "categoria", "monto", "pct_del_total", "n"],
+      "properties": {
+        "tipo": { "$ref": "#/$defs/TipoMovimiento" },
+        "categoria": { "type": "string" },
+        "etiqueta": { "type": "string" },
+        "monto": { "$ref": "#/$defs/Dinero" },
+        "pct_del_total": { "$ref": "#/$defs/Porcentaje" },
+        "n": { "type": "integer" },
+        "delta_pct": { "type": ["number", "null"] },
+        "delta_monto": { "oneOf": [{ "$ref": "#/$defs/Dinero" }, { "type": "null" }] }
+      }
+    },
+    "ResumenMes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mes", "moneda", "ingreso", "gasto", "pago_deuda", "ahorro_neto", "saldo", "n_movimientos", "dias_con_registro", "por_categoria"],
+      "properties": {
+        "mes": { "$ref": "#/$defs/Mes" },
+        "moneda": { "$ref": "#/$defs/Moneda" },
+        "ingreso": { "$ref": "#/$defs/Dinero" },
+        "gasto": { "$ref": "#/$defs/Dinero" },
+        "pago_deuda": { "$ref": "#/$defs/Dinero" },
+        "ahorro_neto": { "$ref": "#/$defs/Dinero" },
+        "saldo": { "$ref": "#/$defs/Dinero" },
+        "saldo_libre": { "$ref": "#/$defs/Dinero" },
+        "n_movimientos": { "type": "integer" },
+        "dias_con_registro": { "type": "integer" },
+        "dias_transcurridos": { "type": "integer" },
+        "dias_del_mes": { "type": "integer" },
+        "por_categoria": { "type": "array", "items": { "$ref": "#/$defs/LineaCategoria" } },
+        "previsto": { "type": ["object", "null"], "properties": { "ingreso": { "$ref": "#/$defs/Dinero" }, "gasto": { "$ref": "#/$defs/Dinero" }, "pago_deuda": { "$ref": "#/$defs/Dinero" }, "ahorro": { "$ref": "#/$defs/Dinero" }, "saldo": { "$ref": "#/$defs/Dinero" } } },
+        "mes_anterior": { "type": ["object", "null"], "description": "Mismo resumen a la misma altura del mes (mismos días transcurridos)." }
+      }
+    },
+    "SerieGrafico": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "etiqueta", "valor"],
+      "properties": {
+        "id": { "type": "string" },
+        "etiqueta": { "type": "string" },
+        "valor": { "$ref": "#/$defs/Dinero" },
+        "pct": { "$ref": "#/$defs/Porcentaje" },
+        "delta_pct": { "type": ["number", "null"] },
+        "valor_comparado": { "oneOf": [{ "$ref": "#/$defs/Dinero" }, { "type": "null" }] },
+        "token_color": { "type": "string", "description": "Nombre de token de color del tema (no un color literal) para respetar modo oscuro y contraste." },
+        "patron": { "enum": ["liso", "rayas", "puntos", "cuadros"], "description": "Segunda señal además del color (WCAG 1.4.1)." },
+        "destacar": { "type": "boolean" }
+      }
+    },
+    "Grafico": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "titulo", "moneda", "series", "a11y"],
+      "properties": {
+        "tipo": { "$ref": "#/$defs/TipoGrafico" },
+        "titulo": { "type": "string" },
+        "subtitulo": { "type": "string" },
+        "moneda": { "$ref": "#/$defs/Moneda" },
+        "orden": { "enum": ["valor_desc", "valor_asc", "alfabetico", "fecha", "cambio_desc", "cambio_asc", "manual"] },
+        "series": { "type": "array", "items": { "$ref": "#/$defs/SerieGrafico" }, "maxItems": 40 },
+        "referencias": { "type": "array", "items": { "type": "object", "required": ["etiqueta", "valor"], "properties": { "etiqueta": { "type": "string" }, "valor": { "$ref": "#/$defs/Dinero" } } }, "description": "Líneas de referencia: previsto, ritmo ideal, ingreso." },
+        "a11y": {
+          "type": "object",
+          "required": ["resumen", "tabla"],
+          "properties": {
+            "resumen": { "type": "string", "description": "Una frase con lo esencial, para lectores de pantalla y para texto alternativo." },
+            "tabla": { "type": "array", "items": { "type": "array", "items": { "type": "string" } }, "description": "Los mismos datos como filas, para mostrar «Ver datos»." }
+          }
+        }
+      }
+    },
+    "Insight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "tipo", "severidad", "prioridad", "intencion_mensaje", "variables", "periodo", "version_reglas"],
+      "properties": {
+        "id": { "type": "string", "description": "Estable por cuenta y período, p. ej. INS-MAYOR-CATEGORIA:2026-11." },
+        "tipo": { "type": "string", "pattern": "^INS-[A-Z0-9-]+$" },
+        "severidad": { "$ref": "#/$defs/Severidad" },
+        "prioridad": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Mayor se muestra antes. Ver 05-insights-y-graficos.md." },
+        "intencion_mensaje": { "type": "string", "description": "Id de intención del catálogo de mensajes." },
+        "variables": { "type": "object", "description": "Valores ya calculados que rellenan la plantilla." },
+        "grafico": { "$ref": "#/$defs/Grafico" },
+        "acciones": { "type": "array", "items": { "type": "string" } },
+        "evidencia": { "type": "object", "properties": { "movimientos_ids": { "type": "array", "items": { "type": "integer" }, "maxItems": 20 }, "formula": { "type": "string" } } },
+        "periodo": { "type": "string" },
+        "version_reglas": { "type": "string" },
+        "descartable": { "type": "boolean", "default": true }
+      }
+    },
+    "Boton": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "etiqueta", "accion"],
+      "properties": {
+        "id": { "type": "string" },
+        "etiqueta": { "type": "string" },
+        "accion": { "type": "string" },
+        "params": { "type": "object" },
+        "destino": { "type": "string" },
+        "intencion": { "type": "string" }
+      }
+    },
+    "Tarjeta": {
+      "type": "object",
+      "required": ["tipo"],
+      "properties": {
+        "tipo": { "enum": ["cifra", "ranking", "comparacion", "movimiento", "deuda", "meta", "propuesta", "vista_previa"] },
+        "titulo": { "type": "string" },
+        "cifra": { "type": "string" },
+        "detalle": { "type": "string" },
+        "filas": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } }
+      }
+    },
+    "SolicitudCoach": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["idempotency_key"],
+      "properties": {
+        "texto": { "type": "string", "maxLength": 500 },
+        "accion": { "type": "object", "required": ["id"], "properties": { "id": { "type": "string" }, "params": { "type": "object" } }, "description": "Pulsación de un botón: no pasa por el parser." },
+        "mes": { "$ref": "#/$defs/Mes" },
+        "permitir_ia": { "type": "boolean", "default": false, "description": "Solo true si la persona pulsó «Preguntarle a la IA»." },
+        "idempotency_key": { "type": "string", "minLength": 8, "maxLength": 120 }
+      },
+      "oneOf": [{ "required": ["texto"] }, { "required": ["accion"] }]
+    },
+    "RespuestaCoach": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "origen", "intencion", "mensaje", "botones"],
+      "properties": {
+        "id": { "type": "string" },
+        "origen": { "$ref": "#/$defs/OrigenRespuesta" },
+        "intencion": { "type": "string" },
+        "confianza": { "type": "number", "minimum": 0, "maximum": 1 },
+        "mensaje": {
+          "type": "object",
+          "required": ["texto", "variante_id", "tono", "severidad"],
+          "properties": { "texto": { "type": "string" }, "variante_id": { "type": "string" }, "tono": { "$ref": "#/$defs/Tono" }, "severidad": { "$ref": "#/$defs/Severidad" } }
+        },
+        "tarjetas": { "type": "array", "items": { "$ref": "#/$defs/Tarjeta" } },
+        "graficos": { "type": "array", "items": { "$ref": "#/$defs/Grafico" } },
+        "insights": { "type": "array", "items": { "$ref": "#/$defs/Insight" }, "maxItems": 5 },
+        "botones": { "type": "array", "items": { "$ref": "#/$defs/Boton" }, "maxItems": 5 },
+        "propuesta": { "type": ["object", "null"], "description": "Cambio pendiente de confirmación (movimiento, tarea, meta). Nada se guarda sin confirmar." },
+        "uso_ia": {
+          "type": ["object", "null"],
+          "properties": { "modelo": { "type": "string" }, "tarea": { "type": "string" }, "tokens_entrada": { "type": "integer" }, "tokens_salida": { "type": "integer" }, "tokens_cache_lectura": { "type": "integer" }, "costo_usd_micros": { "type": "integer" } }
+        }
+      }
+    },
+    "EntidadesParser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "importe", "categoria", "subcategoria", "fecha", "nota", "recurrente"],
+      "properties": {
+        "tipo": { "enum": ["ingreso", "gasto", "pago_deuda", "ahorro", "retiro_ahorro", null] },
+        "importe": { "oneOf": [{ "$ref": "#/$defs/Dinero" }, { "type": "null" }] },
+        "categoria": { "type": ["string", "null"] },
+        "subcategoria": { "type": ["string", "null"] },
+        "fecha": { "oneOf": [{ "$ref": "#/$defs/Fecha" }, { "type": "null" }] },
+        "nota": { "type": ["string", "null"], "maxLength": 140 },
+        "recurrente": { "type": "boolean" }
+      }
+    },
+    "ResultadoParser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intencion", "confianza", "entidades", "alternativas", "falta"],
+      "properties": {
+        "intencion": { "type": "string" },
+        "confianza": { "type": "number", "minimum": 0, "maximum": 1 },
+        "entidades": { "$ref": "#/$defs/EntidadesParser" },
+        "alternativas": { "type": "array", "items": { "type": "object", "required": ["intencion", "confianza"], "properties": { "intencion": { "type": "string" }, "confianza": { "type": "number" } } }, "maxItems": 3 },
+        "falta": { "type": "array", "items": { "enum": ["tipo", "importe", "categoria", "fecha"] } }
+      }
+    },
+    "IAClasificarSalida": {
+      "title": "Salida estricta de la tarea «clasificar» (Haiku 5.5)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intencion", "confianza", "categoria_consultada"],
+      "properties": {
+        "intencion": { "type": "string", "description": "Una de las ids de intención del parser; si ninguna aplica, fuera_de_alcance." },
+        "confianza": { "type": "number", "minimum": 0, "maximum": 1 },
+        "categoria_consultada": { "type": ["string", "null"] }
+      }
+    },
+    "IAExtraerSalida": {
+      "title": "Salida estricta de la tarea «extraer» (Haiku 5.5)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entidades", "confianza"],
+      "properties": {
+        "entidades": { "$ref": "#/$defs/EntidadesParser" },
+        "confianza": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "IARedactarEntrada": {
+      "title": "Entrada de la tarea «redactar»: solo hechos ya calculados",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tema", "hechos", "tono", "longitud_maxima_palabras"],
+      "properties": {
+        "tema": { "type": "string" },
+        "hechos": { "type": "array", "items": { "type": "object", "required": ["clave", "valor"], "properties": { "clave": { "type": "string" }, "valor": { "type": "string" } } }, "maxItems": 12 },
+        "tono": { "$ref": "#/$defs/Tono" },
+        "longitud_maxima_palabras": { "type": "integer", "maximum": 120 }
+      }
+    },
+    "IARedactarSalida": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["texto"],
+      "properties": { "texto": { "type": "string", "maxLength": 700 } }
+    },
+    "Preferencias": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sonido", "volumen", "movimiento", "tono", "recordatorios"],
+      "properties": {
+        "sonido": { "type": "boolean" },
+        "volumen": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.2 },
+        "movimiento": { "enum": ["sistema", "reducido", "completo"], "default": "sistema" },
+        "tono": { "enum": ["cercano", "neutral", "motivador", "directo", "mixto"], "default": "mixto" },
+        "recordatorios": { "type": "boolean", "default": true }
+      }
+    },
+    "Recurrente": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "tipo", "categoria", "importe", "dia_del_mes", "activo"],
+      "properties": {
+        "id": { "type": "integer" },
+        "tipo": { "enum": ["ingreso", "gasto", "pago_deuda", "ahorro"] },
+        "categoria": { "type": "string" },
+        "subcategoria": { "type": ["string", "null"] },
+        "importe": { "$ref": "#/$defs/Dinero" },
+        "dia_del_mes": { "type": "integer", "minimum": 1, "maximum": 31 },
+        "nota": { "type": ["string", "null"] },
+        "activo": { "type": "boolean" },
+        "ultimo_mes_sugerido": { "oneOf": [{ "$ref": "#/$defs/Mes" }, { "type": "null" }] }
+      }
+    },
+    "Plantilla": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "etiqueta", "tipo", "categoria", "importe"],
+      "properties": {
+        "id": { "type": "integer" },
+        "etiqueta": { "type": "string", "maxLength": 40 },
+        "tipo": { "enum": ["ingreso", "gasto"] },
+        "categoria": { "type": "string" },
+        "subcategoria": { "type": ["string", "null"] },
+        "importe": { "$ref": "#/$defs/Dinero" },
+        "usos": { "type": "integer" }
+      }
+    },
+    "ErrorApi": {
+      "type": "object",
+      "required": ["error"],
+      "properties": {
+        "error": {
+          "type": "object",
+          "required": ["codigo", "mensaje"],
+          "properties": { "codigo": { "type": "string" }, "mensaje": { "type": "string" }, "campo": { "type": "string" }, "actual": { "type": "object" } }
+        }
+      }
+    }
+  }
+}
