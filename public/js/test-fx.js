@@ -102,6 +102,52 @@
 
   addToggle(form.querySelector('.qf-top'), false);
 
+  // ── Test en forma de chat ──
+  var isChat = form.classList.contains('qf-chat');
+  var sentSound = false;
+  if (isChat) {
+    var card = form.querySelector('.qf-intro') || form.querySelector('.qf-card');
+    // La conversación crece hacia abajo: se muestra la pregunta actual con un poco de contexto arriba.
+    if (card && form.querySelector('.chat-log')) {
+      var y = card.getBoundingClientRect().top + window.pageYOffset - 140;
+      window.scrollTo(0, Math.max(0, y));
+      if (store.get('du-qdir') === 'next') window.setTimeout(function () { play('recibir'); }, 120);
+    }
+  }
+  function visible(el) { return !!(el.offsetParent || el.getClientRects().length); }
+  /** Respuesta única sin nada más que completar: se envía sola, como un mensaje. */
+  function chatAuto(input) {
+    if (!isChat || input.type !== 'radio' || !input.checked || form.dataset.advancing) return false;
+    var special = input.name === 'special';
+    if (!special) {
+      if (Array.prototype.some.call(form.querySelectorAll('input[type=checkbox]'), visible)) return false;
+      if (Array.prototype.some.call(form.querySelectorAll('input[type=text], input[type=number], input:not([type]), select, textarea'), visible)) return false;
+    }
+    var next = form.querySelector('.qf-actions button[value=next]');
+    if (!next) return false;
+    form.dataset.advancing = '1';
+    window.setTimeout(function () {
+      // Si al elegir apareció otro grupo de opciones (o un campo), se espera a que lo complete.
+      if (!special) {
+        var groups = {};
+        Array.prototype.forEach.call(form.querySelectorAll('input[type=radio]'), function (r) { if (visible(r) && r.name !== 'special') groups[r.name] = groups[r.name] || r.checked; });
+        var pending = Object.keys(groups).some(function (k) { return !groups[k]; });
+        var fields = Array.prototype.some.call(form.querySelectorAll('input[type=text], input[type=number], input:not([type]), select, textarea, input[type=checkbox]'), visible);
+        if (pending || fields) { delete form.dataset.advancing; play('punto'); return; }
+      }
+      var label = input.closest('label');
+      var bubble = document.createElement('p');
+      bubble.className = 'chat-msg chat-msg--me is-new';
+      bubble.textContent = (label ? label.textContent : input.value).trim();
+      var actions = form.querySelector('.qf-actions');
+      if (actions) actions.parentNode.insertBefore(bubble, actions);
+      sentSound = true;
+      play('enviar');
+      window.setTimeout(function () { form.requestSubmit(next); }, 380);
+    }, 0);
+    return true;
+  }
+
   // ── Entrada de la pregunta según la dirección ──
   var body = form.querySelector('.q-body');
   var dir = store.get('du-qdir');
@@ -122,6 +168,8 @@
 
   form.addEventListener('submit', function (e) {
     var action = e.submitter && e.submitter.value;
+    // Chat: cada respuesta enviada suena como un mensaje (una sola vez por envío).
+    if (isChat && action === 'next' && !sentSound) { sentSound = true; play('enviar'); }
     if (action === 'next') store.set('du-qdir', 'next');
     else if (action === 'prev') store.set('du-qdir', 'prev');
   });
@@ -164,6 +212,7 @@
   form.addEventListener('change', function (e) {
     var input = e.target;
     if (!input || (input.type !== 'radio' && input.type !== 'checkbox')) return;
+    if (chatAuto(input)) return;
     if (input.name === 'special') { play('tick'); return; }
     play(input.checked ? 'punto' : 'tick');
     var label = input.closest('label');

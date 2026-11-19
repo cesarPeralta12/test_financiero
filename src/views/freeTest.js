@@ -101,7 +101,7 @@ function questionPage(ctx, o) {
   else if (isGroup) input = optionBlock(q, form, errors);
   else if (q.type === 'money_or_choice') input = moneyBlock(q, form, errors);
   else input = ageBlock(q, form, errors, o.confirmNeeded);
-  return html`<form class="qf" method="post" action="/test/pregunta/${q.ordinal}" data-slot="${q.slot_id}" data-variant="${q.variant_id}" novalidate>
+  return html`<form class="qf${isV4 ? ' qf-chat' : ''}" method="post" action="/test/pregunta/${q.ordinal}" data-slot="${q.slot_id}" data-variant="${q.variant_id}" novalidate>
       ${c.csrfField(ctx)}
       <input type="hidden" name="variant_id" value="${q.variant_id}" />
       <input type="hidden" name="expected_revision" value="${o.session.revision}" />
@@ -119,6 +119,9 @@ function questionPage(ctx, o) {
       </div>
       ${c.errorSummary(errors)}
       ${raw(`<${Tag} class="q-body">`)}
+      ${isV4 && o.chat && o.chat.length
+        ? html`<ol class="chat-log" aria-label="Tus respuestas anteriores">${o.chat.map((m) => html`<li class="chat-pair"><p class="chat-msg chat-msg--bot">${m.text}</p><p class="chat-msg chat-msg--me">${m.display}</p></li>`)}</ol>`
+        : ''}
       ${isV4 && q.config && q.config.intro ? html`<p class="qf-intro">${q.config.intro}</p>` : ''}
       <div class="qf-card">
         ${isGroup ? html`<legend class="q-title">${q.text}</legend>` : html`<h1 class="q-title" id="q-title">${q.text}</h1>`}

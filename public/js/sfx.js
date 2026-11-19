@@ -23,6 +23,10 @@
     coach: { sensacion: 'pop', notas: [{ f: 660, t: 0, d: 0.06, w: 'sine', g: 0.7 }] },
     error: { sensacion: 'aviso suave', notas: [{ f: 220, t: 0, d: 0.06, w: 'sine', g: 0.7 }, { f: 220, t: 0.1, d: 0.06, w: 'sine', g: 0.7 }] },
     punto: { sensacion: 'punto agradable al elegir', notas: [{ f: 988, t: 0, d: 0.1, w: 'sine', g: 0.8 }, { f: 1318.5, t: 0.07, d: 0.2, w: 'triangle', g: 0.75 }] },
+    // Mensaje enviado en el test en forma de chat: «pop» que sube, como en las apps de mensajería.
+    enviar: { sensacion: 'mensaje enviado', notas: [{ f: 600, f2: 1150, t: 0, d: 0.09, w: 'sine', g: 0.75 }, { f: 1400, t: 0.07, d: 0.08, w: 'sine', g: 0.35 }] },
+    // Llega la siguiente pregunta: burbuja suave.
+    recibir: { sensacion: 'mensaje recibido', notas: [{ f: 880, t: 0, d: 0.07, w: 'sine', g: 0.45 }, { f: 1175, t: 0.08, d: 0.1, w: 'sine', g: 0.4 }] },
     tick: { sensacion: 'clic casi imperceptible', notas: [{ f: 1200, t: 0, d: 0.02, w: 'sine', g: 0.4 }] },
 
     // ── Magia ──

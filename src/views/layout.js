@@ -108,16 +108,16 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
         <link rel="preload" href="/fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
         <link rel="stylesheet" href="/css/app.css?v=16" />
         <link rel="stylesheet" href="/css/motion.css?v=15" />
-        <link rel="stylesheet" href="/css/game.css?v=21" />
+        <link rel="stylesheet" href="/css/game.css?v=22" />
         <link rel="stylesheet" href="/css/mi-dinero.css?v=9" />
         <link rel="stylesheet" href="/css/coach-v2.css?v=2" />
         <script src="/js/early.js?v=9"></script>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <script src="/js/app.js?v=14" defer></script>
         <script src="/js/game.js?v=10" defer></script>
-        <script src="/js/sfx.js?v=8" defer></script>
+        <script src="/js/sfx.js?v=9" defer></script>
         <script src="/js/soft-nav.js?v=1" defer></script>
-        <script src="/js/test-fx.js?v=12" defer></script>
+        <script src="/js/test-fx.js?v=13" defer></script>
         <script src="/js/mi-dinero.js?v=3" defer></script>
         <script src="/js/coach-v2.js?v=2" defer></script>
       </head>

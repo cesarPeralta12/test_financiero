@@ -119,10 +119,12 @@ function formFromAnswer(q, a) {
 }
 
 function renderQuestion(req, res, session, question, { form, errors = {}, status = 200, note = null, confirmNeeded = false, answer = null }) {
+  // Test V4 en forma de chat: lo ya respondido antes de esta pregunta se muestra como conversación.
+  const chat = session.version_id === 'FREE_24_V4_ES' ? reviewItems(session).filter((x) => x.answered && !x.skipped && x.display && x.ordinal < question.ordinal) : null;
   return res.status(status).page({
     title: `Test gratuito: pregunta ${question.ordinal}`,
     focus: true,
-    body: ft.questionPage(res.locals.ctx, { q: question, session, progress: engine.progress(engine.activeAnswers(session.id), session), form: form ?? formFromAnswer(question, answer), errors, note, confirmNeeded }),
+    body: ft.questionPage(res.locals.ctx, { q: question, session, progress: engine.progress(engine.activeAnswers(session.id), session), form: form ?? formFromAnswer(question, answer), errors, note, confirmNeeded, chat }),
   });
 }
 
