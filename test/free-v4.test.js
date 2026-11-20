@@ -194,7 +194,7 @@ test('V4: flujo por formularios y resultado en nueve módulos con una sola ofert
     const c = new h.Client();
     await h.consent(c);
     const hello = await c.get('/test');
-    assert.match(hello.text, /Bienvenido a Día Uno/);
+    assert.match(hello.text, /Soy tu asistente financiero/);
     assert.match(hello.text, /href="\/test\?empezar=1"[^>]*>Iniciar|chat-start" href="\/test\?empezar=1"/);
     const first = await c.get('/test?empezar=1');
     assert.match(first.text, /¿En qué país vives\?/);

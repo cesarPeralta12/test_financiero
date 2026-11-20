@@ -83,12 +83,11 @@ function ageBlock(q, form, errors, confirmNeeded) {
 
 /** Test en forma de chat: Día Uno se presenta y, unos segundos después, aparece «Iniciar». */
 function welcomePage(ctx, { name = null } = {}) {
-  const hi = name ? `¡Hola, ${name}! 👋` : '¡Hola! 👋 Bienvenido a Día Uno.';
+  const nice = name ? String(name).trim().split(/\s+/)[0] : '';
   const msgs = [
-    hi,
-    'Soy tu asistente financiero. Te haré unas preguntas cortas para conocer tu situación: cuánto recibes, en qué se va tu dinero y qué te gustaría lograr.',
-    'Puedes responder con tus palabras —por ejemplo «Bolivia» o «gano unos 2.500»— o tocar una opción. Toma unos 5 minutos y no necesitas datos exactos.',
-    'Al final te daré tu primer mapa financiero con 3 consejos para empezar. ¿Listo?',
+    `¡Hola${nice ? `, ${nice.charAt(0).toUpperCase()}${nice.slice(1)}` : ''}! 👋 Soy tu asistente financiero.`,
+    'Te ayudaré en base a tu resultado.',
+    'Responde como te sientas cómodo.',
   ];
   return html`<section class="chat-welcome" aria-labelledby="h-bienvenida">
     <h1 id="h-bienvenida" class="visually-hidden">Test gratuito: bienvenida</h1>

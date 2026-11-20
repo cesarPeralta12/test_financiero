@@ -38,7 +38,7 @@ test('chat: bienvenida, respuestas escritas y sin deudas no vuelve a preguntar p
     const c = new h.Client();
     await h.consent(c);
     const hello = await c.get('/test');
-    assert.match(hello.text, /Bienvenido a Día Uno/);
+    assert.match(hello.text, /Soy tu asistente financiero/);
     assert.match(hello.text, />Iniciar</);
     const q1 = await c.get('/test?empezar=1');
     assert.match(q1.text, /name="texto"/);
