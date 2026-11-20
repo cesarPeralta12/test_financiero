@@ -16,6 +16,7 @@ const c = require('../views/components');
 const ft = require('../views/freeTest');
 const chat4 = require('../domain/free/chat4');
 const chatView = require('../views/chatTest');
+const FREE_CHAT = false;
 
 function chatHelp(help, variant) {
   let t = String(help || '')
@@ -169,7 +170,7 @@ function formFromAnswer(q, a) {
 
 function renderQuestion(req, res, session, question, { form, errors = {}, status = 200, note = null, confirmNeeded = false, answer = null }) {
   // Test V4 en forma de chat: lo ya respondido antes de esta pregunta se muestra como conversación.
-  const chat = session.version_id === 'FREE_24_V4_ES' ? reviewItems(session).filter((x) => x.answered && !x.skipped && x.display && x.ordinal < question.ordinal) : null;
+  const chat = FREE_CHAT && session.version_id === 'FREE_24_V4_ES' ? reviewItems(session).filter((x) => x.answered && !x.skipped && x.display && x.ordinal < question.ordinal) : null;
   return res.status(status).page({
     title: `Test gratuito: pregunta ${question.ordinal}`,
     focus: true,
@@ -205,7 +206,8 @@ router.get('/test', (req, res) => {
   }
   const answers0 = engine.activeAnswers(s.id);
   // Test V4: una sola conversación. Día Uno se presenta, pregunta en el mismo chat y la persona escribe abajo.
-  if (s.version_id === 'FREE_24_V4_ES') {
+  // El chat se reservó para la evaluación profunda: el test gratuito sigue con sus preguntas de botones.
+  if (FREE_CHAT && s.version_id === 'FREE_24_V4_ES') {
     const st = chatState(s);
     const error = req.session.chat_error || null;
     if (error) delete req.session.chat_error;
@@ -221,6 +223,7 @@ router.get('/test', (req, res) => {
 
 // Respuesta escrita en el chat. Con JavaScript responde JSON; sin él, vuelve a /test.
 router.post('/test/chat', (req, res) => {
+  if (!FREE_CHAT) return res.redirect(303, '/test');
   const wantsJson = (req.get('accept') || '').includes('application/json');
   const reply = (status, body) => (wantsJson ? res.status(status).json(body) : (body.error && (req.session.chat_error = body.error), res.redirect(303, '/test')));
   if (!consent.has(owner(req))) return wantsJson ? res.status(403).json({ error: 'Primero acepta el aviso de privacidad.', go: '/consentimiento?siguiente=%2Ftest' }) : res.redirect(303, '/consentimiento?siguiente=%2Ftest');

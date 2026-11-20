@@ -147,7 +147,7 @@ function questionPage(ctx, o) {
       ${isV4 && q.help ? html`<p class="q-sub">${q.help}</p>` : ''}
       ${q.help && !isV4 ? html`<details class="qf-why"><summary>¿Por qué preguntamos?</summary><p class="q-help" id="q-help">${q.help}</p></details>` : ''}
       ${input}
-      ${isV4
+      ${isV4 && o.chat
         ? html`<div class="chat-compose"><label class="visually-hidden" for="texto">Escribe tu respuesta</label>
             <input class="input chat-input" id="texto" name="texto" type="text" maxlength="200" autocomplete="off" placeholder="${require('../domain/free/chat4').placeholder(cat4.VARIANT_BY_ID[q.variant_id] || {})}" value="${form.texto || ''}" />
             <button class="chat-send" type="submit" name="action" value="next" aria-label="Enviar respuesta"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-2-7-8-1z" fill="currentColor"/></svg></button>

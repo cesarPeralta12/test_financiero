@@ -49,11 +49,8 @@ function input(q, form = {}, errors = {}) {
   switch (q.type) {
     case 'locale': {
       const suggest = JSON.stringify(cfg.suggest || {});
-      // Chat: el país se toca o se escribe; la moneda se pone sola y se cambia solo si hace falta.
-      body = html`${buttons('country', cfg.countries, form.country ? [form.country] : [], { pills: true })}
-        <details class="qf-range" data-currency-suggest="${suggest}" ${form.currency && form.country && (cfg.suggest || {})[form.country] !== form.currency ? raw('open') : ''}><summary class="small">Usar otra moneda</summary>
-          ${field('Moneda', c.select({ name: 'currency', options: [{ value: '', label: 'La de mi país' }, ...cfg.currencies.map((x) => ({ value: x.code, label: x.label }))], value: form.currency || '', errors }), 'No convertimos cantidades: escribe los montos en esta moneda.')}
-        </details>`;
+      body = html`${field('País', c.select({ name: 'country', options: [{ value: '', label: 'Elige tu país' }, ...cfg.countries.map((x) => ({ value: x.code, label: x.label }))], value: form.country || '', errors }))}
+        <div data-currency-suggest="${suggest}">${field('Moneda', c.select({ name: 'currency', options: [{ value: '', label: 'Elige tu moneda' }, ...cfg.currencies.map((x) => ({ value: x.code, label: x.label }))], value: form.currency || '', errors }), 'Si cambias la moneda, tendrás que revisar los montos. No convertimos cantidades.')}</div>`;
       break;
     }
     case 'choice': {
@@ -91,7 +88,7 @@ function input(q, form = {}, errors = {}) {
     default:
       body = html`<p class="muted">Pregunta no disponible.</p>`;
   }
-  return html`<div class="v3-input v4-input" data-type="${q.type}">${body}</div>${q.type === 'locale' ? '' : specials(q, form)}${c.errorText(errors, 'value')}`;
+  return html`<div class="v3-input v4-input" data-type="${q.type}">${body}</div>${specials(q, form)}${c.errorText(errors, 'value')}`;
 }
 
 // ───────── Resultado ─────────
