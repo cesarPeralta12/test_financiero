@@ -15,6 +15,54 @@ const { track, content } = require('../lib/services');
 const c = require('../views/components');
 const ft = require('../views/freeTest');
 const chat4 = require('../domain/free/chat4');
+const chatView = require('../views/chatTest');
+
+function chatHelp(help, variant) {
+  let t = String(help || '')
+    .replace(/(Marca una opción|Marca el problema principal|Puedes marcar (varias|las que correspondan|hasta \w+ opciones))\.?\s*/gi, '')
+    .replace(/Toca tu país o escríbelo\.\s*/i, '')
+    .replace(/Primero elige qué actividad quieres mejorar y luego el problema principal\.?/i, 'Cuéntame qué actividad quieres mejorar y qué te frena.')
+    .trim();
+  if (variant.multi && !t) t = 'Puedes nombrar varias.';
+  return t || null;
+}
+
+/** Conversación del test V4: lo ya respondido y la pregunta que sigue (con respuestas rápidas). */
+function chatState(s) {
+  const C = engine.catalogOf(s);
+  const answers = engine.activeAnswers(s.id);
+  const ctx = engine.buildCtx(answers, s);
+  const order = engine.applicableOrder(answers, s);
+  const history = order
+    .filter((id) => answers[id])
+    .map((id) => {
+      let q = '';
+      try {
+        q = engine.publicQuestion(id, ctx, s).text;
+      } catch {
+        q = '';
+      }
+      return { q, a: C.answerText(answers[id].variant_id, answers[id]) };
+    });
+  const next = engine.nextPending(answers, s);
+  let current = null;
+  if (next) {
+    const q = engine.publicQuestion(next, ctx, s);
+    const variant = C.VARIANT_BY_ID[q.variant_id];
+    const list = variant.type === 'locale' ? variant.countries : (variant.options || []).concat(variant.type === 'locale' ? [] : C.specialsFor(variant));
+    current = {
+      slot: next,
+      variant_id: q.variant_id,
+      hash: q.resolved_context_hash,
+      text: q.text,
+      // En el chat no hay «marcar»: se quitan esas instrucciones y queda solo lo que aclara la pregunta.
+      help: chatHelp(q.help, variant),
+      chips: (list || []).filter((x) => !['OTHER'].includes(x.code)).map((x) => x.label).slice(0, 16),
+      placeholder: chat4.placeholder(variant),
+    };
+  }
+  return { history, current, done: !next, progress: { pos: Math.min(history.length + 1, order.length), total: order.length } };
+}
 const { owner, intParam, notFound, wrap } = require('./util');
 const { rateLimit } = require('../lib/security');
 const game = require('../domain/game');
@@ -156,12 +204,48 @@ router.get('/test', (req, res) => {
     s = startSession(req);
   }
   const answers0 = engine.activeAnswers(s.id);
-  // Test en forma de chat: antes de la primera pregunta, Día Uno se presenta y espera «Iniciar».
-  if (s.version_id === 'FREE_24_V4_ES' && !Object.keys(answers0).length && req.query.empezar !== '1') {
-    return res.page({ title: 'Test gratuito: bienvenida', focus: true, body: ft.welcomePage(res.locals.ctx, { name: req.user ? req.user.name : null }) });
+  // Test V4: una sola conversación. Día Uno se presenta, pregunta en el mismo chat y la persona escribe abajo.
+  if (s.version_id === 'FREE_24_V4_ES') {
+    const st = chatState(s);
+    const error = req.session.chat_error || null;
+    if (error) delete req.session.chat_error;
+    return res.page({
+      title: 'Test gratuito',
+      focus: true,
+      body: chatView.chatPage(res.locals.ctx, { name: req.user ? req.user.name : null, started: Object.keys(answers0).length > 0 || req.query.empezar === '1', ...st, error }),
+    });
   }
   const next = engine.nextPending(answers0, s);
   res.redirect(303, next ? `/test/pregunta/${engine.catalogOf(s).SLOT_BY_ID[next].ordinal}` : '/test/revision');
+});
+
+// Respuesta escrita en el chat. Con JavaScript responde JSON; sin él, vuelve a /test.
+router.post('/test/chat', (req, res) => {
+  const wantsJson = (req.get('accept') || '').includes('application/json');
+  const reply = (status, body) => (wantsJson ? res.status(status).json(body) : (body.error && (req.session.chat_error = body.error), res.redirect(303, '/test')));
+  if (!consent.has(owner(req))) return wantsJson ? res.status(403).json({ error: 'Primero acepta el aviso de privacidad.', go: '/consentimiento?siguiente=%2Ftest' }) : res.redirect(303, '/consentimiento?siguiente=%2Ftest');
+  const limit = rateLimit({ key: `answer:${req.session.id}`, limit: 240, windowMs: 60_000 });
+  if (!limit.allowed) return reply(429, { error: 'Vas muy rápido. Espera unos segundos.' });
+  const o = owner(req);
+  const s = engine.findOpen(o, config.freeCatalogVersion) || startSession(req);
+  const st = chatState(s);
+  if (!st.current) return reply(200, { done: true });
+  const texto = typeof req.body.texto === 'string' ? req.body.texto.trim() : '';
+  const C = engine.catalogOf(s);
+  const variant = C.VARIANT_BY_ID[st.current.variant_id];
+  const r = chat4.interpret(variant, texto, s);
+  if (r.error) return reply(422, { error: r.error });
+  const parsed = C.fromForm(variant, r.fields);
+  try {
+    engine.saveAnswer(s.id, st.current.slot, { variant_id: variant.id, expected_revision: s.revision, resolved_context_hash: st.current.hash, value: parsed.value });
+  } catch (err) {
+    if (!(err instanceof FreeError)) throw err;
+    return reply(err.status === 409 ? 409 : 422, { error: err.status === 409 ? 'Se actualizó la conversación. Vuelve a intentarlo.' : err.message });
+  }
+  const fresh = engine.loadSession(s.id);
+  const after = chatState(fresh);
+  const saved = engine.activeAnswers(s.id)[st.current.slot];
+  return reply(200, { me: saved ? C.answerText(saved.variant_id, saved) : texto, next: after.current ? { text: after.current.text, help: after.current.help, chips: after.current.chips, placeholder: after.current.placeholder } : null, done: after.done, progress: after.progress });
 });
 
 router.get('/test/pregunta/:n', (req, res, next) => {

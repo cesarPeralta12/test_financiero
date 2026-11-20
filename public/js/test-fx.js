@@ -97,43 +97,127 @@
     }
   }
 
-  // ── Bienvenida del test en forma de chat: mensajes uno a uno y luego «Iniciar» ──
-  var welcome = document.querySelector('.chat-welcome');
-  if (welcome) {
-    var msgs = welcome.querySelectorAll('.chat-intro .chat-msg');
-    var start = welcome.querySelector('.chat-start');
-    var log = welcome.querySelector('.chat-intro');
+  // ── Test en una sola conversación ──
+  var chat = document.querySelector('.chat-test');
+  if (chat) {
+    var log = chat.querySelector('.chat-log');
     var fast = !motion;
-    welcome.classList.add('is-typing');
-    var t = 300;
-    Array.prototype.forEach.call(msgs, function (m, i) {
-      var typing = document.createElement('li');
-      typing.className = 'chat-typing';
-      typing.innerHTML = '<span></span><span></span><span></span>';
-      window.setTimeout(function () { if (!fast) log.insertBefore(typing, m); }, t);
-      t += fast ? 0 : 650 + Math.min(900, m.textContent.length * 12);
-      window.setTimeout(function () {
-        typing.remove();
-        m.classList.add('is-shown');
-        play('recibir');
-      }, t);
-      t += fast ? 0 : 250;
+    var wait = function (ms) { return new Promise(function (r) { window.setTimeout(r, fast ? 0 : ms); }); };
+    var toBottom = function () { window.scrollTo({ top: document.body.scrollHeight, behavior: fast ? 'auto' : 'smooth' }); };
+    var typing = function () {
+      var t = document.createElement('li');
+      t.className = 'chat-typing';
+      t.innerHTML = '<span></span><span></span><span></span>';
+      log.appendChild(t);
+      toBottom();
+      return t;
+    };
+    var say = function (text, cls) {
+      var li = document.createElement('li');
+      li.className = 'chat-msg ' + (cls || 'chat-msg--bot chat-q') + ' is-shown';
+      li.textContent = text;
+      log.appendChild(li);
+      toBottom();
+      return li;
+    };
+    // Mensajes del asistente uno a uno, con «escribiendo…».
+    var botSay = function (lines) {
+      return lines.reduce(function (p, line) {
+        return p.then(function () {
+          var t = typing();
+          return wait(500 + Math.min(900, line.text.length * 14)).then(function () { t.remove(); say(line.text, line.cls); play('recibir'); });
+        });
+      }, Promise.resolve());
+    };
+
+    if (chat.classList.contains('is-welcome')) {
+      var intro = Array.prototype.slice.call(chat.querySelectorAll('.chat-intro-msg'));
+      var lines = intro.map(function (m) { return { text: m.textContent, cls: 'chat-msg--bot chat-intro-msg' }; });
+      intro.forEach(function (m) { m.remove(); });
+      chat.classList.add('is-typing');
+      botSay(lines).then(function () { return wait(1200); }).then(function () { chat.classList.add('is-ready'); });
+      var startBtn = chat.querySelector('.chat-start');
+      if (startBtn) startBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (startBtn.dataset.go) return;
+        startBtn.dataset.go = '1';
+        startBtn.classList.add('is-pressed');
+        var r = startBtn.getBoundingClientRect();
+        if (window.DiaUnoConfetti) window.DiaUnoConfetti({ x: r.left + r.width / 2, y: r.top + r.height / 2 }, 120);
+        say('¡Bravo! Empecemos 🎉', 'chat-msg--bot chat-q');
+        store.set('du-chat-start', '1');
+        window.setTimeout(function () { window.location.assign('/test?empezar=1'); }, fast ? 200 : 1300);
+      });
+      return;
+    }
+
+    var bar = chat.querySelector('.chat-bar');
+    var input = chat.querySelector('.chat-input');
+    var chipsBox = chat.querySelector('.chat-chips');
+    var progress = chat.querySelector('.chat-progress');
+    // Primera pregunta después de «Iniciar»: llega con «escribiendo…».
+    if (store.get('du-chat-start')) {
+      store.del('du-chat-start');
+      var qs = Array.prototype.slice.call(log.querySelectorAll('.chat-q, .chat-help')).slice(-2).filter(function (m) { return !m.classList.contains('chat-msg--me'); });
+      var pending = qs.map(function (m) { return { text: m.textContent, cls: m.className.replace('chat-msg ', '') }; });
+      qs.forEach(function (m) { m.remove(); });
+      botSay(pending);
+    }
+    toBottom();
+    if (input && !('ontouchstart' in window)) input.focus({ preventScroll: true });
+
+    var setChips = function (list) {
+      if (!chipsBox) return;
+      chipsBox.innerHTML = '';
+      (list || []).forEach(function (x) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chat-chip';
+        b.setAttribute('data-say', x);
+        b.textContent = x;
+        chipsBox.appendChild(b);
+      });
+    };
+    if (chipsBox) chipsBox.addEventListener('click', function (e) {
+      var b = e.target.closest('.chat-chip');
+      if (!b || !input) return;
+      input.value = b.getAttribute('data-say');
+      bar.requestSubmit();
     });
-    // El botón aparece unos segundos después del último mensaje.
-    window.setTimeout(function () { welcome.classList.add('is-ready'); if (start) start.focus({ preventScroll: true }); }, fast ? 0 : t + 1200);
-    if (start) start.addEventListener('click', function (e) {
-      if (start.dataset.go) return;
+
+    var busy = false;
+    if (bar && window.fetch) bar.addEventListener('submit', function (e) {
       e.preventDefault();
-      start.dataset.go = '1';
-      start.classList.add('is-pressed');
-      var r = start.getBoundingClientRect();
-      if (window.DiaUnoConfetti) window.DiaUnoConfetti({ x: r.left + r.width / 2, y: r.top + r.height / 2 }, 120);
-      else play('punto');
-      var msg = document.createElement('li');
-      msg.className = 'chat-msg chat-msg--bot is-shown';
-      msg.textContent = '¡Bravo! Empecemos 🎉';
-      log.appendChild(msg);
-      window.setTimeout(function () { window.location.assign(start.getAttribute('href')); }, fast ? 300 : 1300);
+      var text = (input.value || '').trim();
+      if (!text || busy) return;
+      busy = true;
+      bar.classList.add('is-busy');
+      say(text, 'chat-msg--me is-new');
+      play('enviar');
+      input.value = '';
+      setChips([]);
+      var data = new URLSearchParams(new FormData(bar));
+      data.set('texto', text);
+      var t = typing();
+      fetch('/test/chat', { method: 'POST', body: data, credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          return wait(450).then(function () {
+            t.remove();
+            if (r.go) { window.location.assign(r.go); return; }
+            if (r.error) { say(r.error, 'chat-msg--bot chat-error'); play('error'); return; }
+            if (r.done || !r.next) { say('¡Listo! Ya tengo lo que necesito para preparar tu resultado. 🎉'); window.setTimeout(function () { window.location.assign('/test'); }, fast ? 200 : 1400); return; }
+            if (progress && r.progress) progress.textContent = r.progress.pos + ' de ' + r.progress.total;
+            var next = [{ text: r.next.text, cls: 'chat-msg--bot chat-q' }];
+            if (r.next.help) next.push({ text: r.next.help, cls: 'chat-msg--bot chat-help' });
+            return botSay(next).then(function () {
+              setChips(r.next.chips);
+              if (r.next.placeholder) input.setAttribute('placeholder', r.next.placeholder);
+            });
+          });
+        })
+        .catch(function () { t.remove(); say('No pude enviar tu respuesta. Revisa tu conexión e inténtalo de nuevo.', 'chat-msg--bot chat-error'); })
+        .then(function () { busy = false; bar.classList.remove('is-busy'); if (!('ontouchstart' in window)) input.focus({ preventScroll: true }); });
     });
     return;
   }

@@ -192,7 +192,9 @@ function interpret(variant, text, session) {
         else {
           const top = found[0].score;
           found = found.filter((x) => x.score >= Math.min(3, top));
-          if (found.some((x) => excl.includes(x.code)) && found.length > 1) found = found.filter((x) => !excl.includes(x.code));
+          // Una opción excluyente («Todavía no», «Ninguna») gana si es la más clara; si no, se quitan.
+          if (excl.includes(found[0].code)) found = [found[0]];
+          else found = found.filter((x) => !excl.includes(x.code));
           if (variant.max) found = found.slice(0, variant.max);
         }
         return { fields: { codes: found.map((x) => x.code), ...(focus ? { focus } : {}) } };

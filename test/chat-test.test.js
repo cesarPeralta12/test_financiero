@@ -57,3 +57,38 @@ test('chat: bienvenida, respuestas escritas y sin deudas no vuelve a preguntar p
     config.freeCatalogVersion = prev;
   }
 });
+
+test('chat único: se responde escribiendo, sin deudas no pregunta por deudas y al final se ve el resultado', async () => {
+  const prev = config.freeCatalogVersion;
+  config.freeCatalogVersion = 'FREE_24_V4_ES';
+  try {
+    const c = new h.Client();
+    await h.consent(c);
+    const hello = await c.get('/test');
+    assert.match(hello.text, /Soy tu asistente financiero/);
+    assert.match(hello.text, />Iniciar</);
+    const started = await c.get('/test?empezar=1');
+    assert.match(started.text, /¿En qué país vives\?/);
+    assert.match(started.text, /name="texto"/);
+    const say = async (texto) => {
+      const r = await c.req('POST', '/test/chat', { form: { texto }, headers: { accept: 'application/json' } });
+      return { status: r.status, ...JSON.parse(r.text) };
+    };
+    const asked = [];
+    const answers = ['Bolivia', 'tengo 30', 'ninguna', 'soy empleado', 'ganar más en 1 año', '4000', 'casi lo mismo', '2000', '500', 'no tengo deudas', '300', 'ninguna', 'computadora', '5 horas', 'vender', 'comercio', 'todavía no', 'amigos', 'no veo cómo crecer en mi puesto', 'conservar mi empleo', 'no', 'mejorar en mi empleo'];
+    let r = await say('mmm');
+    assert.equal(r.status, 422, 'no entiende: pide repetir sin avanzar');
+    for (const a of answers) {
+      r = await say(a);
+      assert.equal(r.status, 200, `«${a}»: ${r.error}`);
+      if (r.next) asked.push(r.next.text);
+      if (r.done) break;
+    }
+    assert.ok(r.done, `terminó la conversación; última pregunta: ${asked[asked.length - 1]}`);
+    assert.ok(!asked.some((q) => /¿Qué deudas tienes|¿Cómo vas con tus pagos/.test(q)), 'sin deudas no vuelve a preguntar por deudas');
+    const end = await c.get('/test');
+    assert.match(end.text, /Ver mi resultado/);
+  } finally {
+    config.freeCatalogVersion = prev;
+  }
+});
