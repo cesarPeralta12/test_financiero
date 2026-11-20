@@ -2075,3 +2075,5 @@ table.data td {
 .chat-chips:empty { display: none; }
 .chat-chip { flex: none; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 0.86rem; cursor: pointer; }
 .chat-chip:hover, .chat-chip:focus-visible { border-color: var(--pine); }
+.chat-test .chat-msg.is-leaving, .chat-test .chat-typing.is-leaving { transition: opacity 0.3s, transform 0.3s; opacity: 0; transform: translateY(-10px); }
+.chat-test .chat-q { font-size: 1.15rem; }

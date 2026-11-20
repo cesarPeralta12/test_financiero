@@ -192,6 +192,7 @@
       if (!text || busy) return;
       busy = true;
       bar.classList.add('is-busy');
+      Array.prototype.forEach.call(log.querySelectorAll('.chat-error'), function (x) { x.remove(); });
       say(text, 'chat-msg--me is-new');
       play('enviar');
       input.value = '';
@@ -206,11 +207,13 @@
             t.remove();
             if (r.go) { window.location.assign(r.go); return; }
             if (r.error) { say(r.error, 'chat-msg--bot chat-error'); play('error'); return; }
-            if (r.done || !r.next) { say('¡Listo! Ya tengo lo que necesito para preparar tu resultado. 🎉'); window.setTimeout(function () { window.location.assign('/test'); }, fast ? 200 : 1400); return; }
+            if (r.done || !r.next) { log.innerHTML = ''; say('¡Listo! Ya tengo lo que necesito para preparar tu resultado. 🎉'); window.setTimeout(function () { window.location.assign('/test'); }, fast ? 200 : 1400); return; }
             if (progress && r.progress) progress.textContent = r.progress.pos + ' de ' + r.progress.total;
+            // Una pregunta a la vez: la anterior y su respuesta se desvanecen antes de la siguiente.
+            Array.prototype.forEach.call(log.children, function (li) { li.classList.add('is-leaving'); });
             var next = [{ text: r.next.text, cls: 'chat-msg--bot chat-q' }];
             if (r.next.help) next.push({ text: r.next.help, cls: 'chat-msg--bot chat-help' });
-            return botSay(next).then(function () {
+            return wait(320).then(function () { log.innerHTML = ''; return botSay(next); }).then(function () {
               setChips(r.next.chips);
               if (r.next.placeholder) input.setAttribute('placeholder', r.next.placeholder);
             });

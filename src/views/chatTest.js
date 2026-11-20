@@ -39,9 +39,7 @@ function chatPage(ctx, o) {
       ${o.progress && o.started ? html`<span class="chat-progress small muted" aria-label="Avance">${o.progress.pos} de ${o.progress.total}</span>` : ''}
     </header>
     <ol class="chat-log" aria-live="polite">
-      ${lines.map((l) => bot(l, 'chat-intro-msg'))}
-      ${o.started ? html`<li class="chat-msg chat-msg--me">¡Empecemos!</li>` : ''}
-      ${o.history.map((h) => html`${bot(h.q, 'chat-q')}${me(h.a)}`)}
+      ${o.started ? '' : lines.map((l) => bot(l, 'chat-intro-msg'))}
       ${o.started && o.current ? questionMsgs(o.current) : ''}
       ${o.error ? bot(o.error, 'chat-error') : ''}
       ${o.done ? bot('¡Listo! Ya tengo lo que necesito para preparar tu resultado. 🎉', 'chat-q') : ''}
