@@ -14,6 +14,7 @@ const { FreeError } = require('../domain/free/values');
 const { track, content } = require('../lib/services');
 const c = require('../views/components');
 const ft = require('../views/freeTest');
+const chat4 = require('../domain/free/chat4');
 const { owner, intParam, notFound, wrap } = require('./util');
 const { rateLimit } = require('../lib/security');
 const game = require('../domain/game');
@@ -154,7 +155,12 @@ router.get('/test', (req, res) => {
     if (engine.findLatestResultSession(o) && req.query.nuevo !== '1') return res.redirect(303, '/resultado');
     s = startSession(req);
   }
-  const next = engine.nextPending(engine.activeAnswers(s.id), s);
+  const answers0 = engine.activeAnswers(s.id);
+  // Test en forma de chat: antes de la primera pregunta, Día Uno se presenta y espera «Iniciar».
+  if (s.version_id === 'FREE_24_V4_ES' && !Object.keys(answers0).length && req.query.empezar !== '1') {
+    return res.page({ title: 'Test gratuito: bienvenida', focus: true, body: ft.welcomePage(res.locals.ctx, { name: req.user ? req.user.name : null }) });
+  }
+  const next = engine.nextPending(answers0, s);
   res.redirect(303, next ? `/test/pregunta/${engine.catalogOf(s).SLOT_BY_ID[next].ordinal}` : '/test/revision');
 });
 
@@ -213,7 +219,19 @@ router.post('/test/pregunta/:n', (req, res, next) => {
 
   const variant = C.VARIANT_BY_ID[req.body.variant_id];
   if (!variant || variant.slot_id !== slot.slot_id) return res.redirect(303, '/test');
-  const parsed = C.fromForm ? { ...C.fromForm(variant, req.body), errors: {} } : toValue(variant, req.body, s);
+  // Test en forma de chat: lo escrito con sus palabras se convierte en los mismos campos que los botones.
+  let body = req.body;
+  const typed = C.VERSION_ID === 'FREE_24_V4_ES' && typeof req.body.texto === 'string' ? req.body.texto.trim() : '';
+  if (typed) {
+    const r = chat4.interpret(variant, typed, s);
+    if (r.error) {
+      const q0 = engine.questionAt(s, slot.slot_id).question;
+      if (!q0) return res.redirect(303, '/test');
+      return renderQuestion(req, res, s, q0, { form: { texto: typed }, errors: { value: r.error }, status: 422 });
+    }
+    body = { _csrf: req.body._csrf, variant_id: req.body.variant_id, expected_revision: req.body.expected_revision, resolved_context_hash: req.body.resolved_context_hash, ...r.fields };
+  }
+  const parsed = C.fromForm ? { ...C.fromForm(variant, body), errors: {} } : toValue(variant, body, s);
   const q = (() => {
     const r = engine.questionAt(s, slot.slot_id);
     return r.question || null;

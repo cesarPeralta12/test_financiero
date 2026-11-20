@@ -97,6 +97,47 @@
     }
   }
 
+  // ── Bienvenida del test en forma de chat: mensajes uno a uno y luego «Iniciar» ──
+  var welcome = document.querySelector('.chat-welcome');
+  if (welcome) {
+    var msgs = welcome.querySelectorAll('.chat-intro .chat-msg');
+    var start = welcome.querySelector('.chat-start');
+    var log = welcome.querySelector('.chat-intro');
+    var fast = !motion;
+    welcome.classList.add('is-typing');
+    var t = 300;
+    Array.prototype.forEach.call(msgs, function (m, i) {
+      var typing = document.createElement('li');
+      typing.className = 'chat-typing';
+      typing.innerHTML = '<span></span><span></span><span></span>';
+      window.setTimeout(function () { if (!fast) log.insertBefore(typing, m); }, t);
+      t += fast ? 0 : 650 + Math.min(900, m.textContent.length * 12);
+      window.setTimeout(function () {
+        typing.remove();
+        m.classList.add('is-shown');
+        play('recibir');
+      }, t);
+      t += fast ? 0 : 250;
+    });
+    // El botón aparece unos segundos después del último mensaje.
+    window.setTimeout(function () { welcome.classList.add('is-ready'); if (start) start.focus({ preventScroll: true }); }, fast ? 0 : t + 1200);
+    if (start) start.addEventListener('click', function (e) {
+      if (start.dataset.go) return;
+      e.preventDefault();
+      start.dataset.go = '1';
+      start.classList.add('is-pressed');
+      var r = start.getBoundingClientRect();
+      if (window.DiaUnoConfetti) window.DiaUnoConfetti({ x: r.left + r.width / 2, y: r.top + r.height / 2 }, 120);
+      else play('punto');
+      var msg = document.createElement('li');
+      msg.className = 'chat-msg chat-msg--bot is-shown';
+      msg.textContent = '¡Bravo! Empecemos 🎉';
+      log.appendChild(msg);
+      window.setTimeout(function () { window.location.assign(start.getAttribute('href')); }, fast ? 300 : 1300);
+    });
+    return;
+  }
+
   var form = document.querySelector('form.qf');
   if (!form) return;
 
@@ -169,7 +210,18 @@
   form.addEventListener('submit', function (e) {
     var action = e.submitter && e.submitter.value;
     // Chat: cada respuesta enviada suena como un mensaje (una sola vez por envío).
-    if (isChat && action === 'next' && !sentSound) { sentSound = true; play('enviar'); }
+    if (isChat && action === 'next' && !sentSound) {
+      sentSound = true;
+      play('enviar');
+      var typedEl = form.querySelector('.chat-input');
+      if (typedEl && typedEl.value.trim()) {
+        var b = document.createElement('p');
+        b.className = 'chat-msg chat-msg--me is-new';
+        b.textContent = typedEl.value.trim();
+        var comp = form.querySelector('.chat-compose');
+        if (comp) comp.parentNode.insertBefore(b, comp);
+      }
+    }
     if (action === 'next') store.set('du-qdir', 'next');
     else if (action === 'prev') store.set('du-qdir', 'prev');
   });

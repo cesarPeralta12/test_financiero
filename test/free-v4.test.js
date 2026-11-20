@@ -193,7 +193,10 @@ test('V4: flujo por formularios y resultado en nueve módulos con una sola ofert
   try {
     const c = new h.Client();
     await h.consent(c);
-    const first = await c.get('/test');
+    const hello = await c.get('/test');
+    assert.match(hello.text, /Bienvenido a Día Uno/);
+    assert.match(hello.text, /href="\/test\?empezar=1"[^>]*>Iniciar|chat-start" href="\/test\?empezar=1"/);
+    const first = await c.get('/test?empezar=1');
     assert.match(first.text, /¿En qué país vives\?/);
     assert.match(first.text, /data-currency-suggest/);
     assert.match(first.text, /Pregunta 1 de 24/);
@@ -274,7 +277,7 @@ test('V4: un test V3 sin terminar no se retoma; la persona empieza la versión v
     const old = await c.get('/test');
     assert.match(old.text, /Pregunta 1 de 25/);
     config.freeCatalogVersion = V4;
-    const now = await c.get('/test');
+    const now = await c.get('/test?empezar=1');
     assert.match(now.text, /Pregunta 1 de 24/);
     assert.match(now.text, /¿En qué país vives\?/);
   } finally {

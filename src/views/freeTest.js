@@ -1,4 +1,5 @@
 'use strict';
+const cat4 = require('../domain/free/catalog4');
 // Pantallas del test gratuito de 25 preguntas y de su resultado (12 secciones).
 const { html, raw } = require('../lib/html');
 const money = require('../lib/money');
@@ -80,6 +81,23 @@ function ageBlock(q, form, errors, confirmNeeded) {
     ${choiceBlock(q, form, errors)}`;
 }
 
+/** Test en forma de chat: Día Uno se presenta y, unos segundos después, aparece «Iniciar». */
+function welcomePage(ctx, { name = null } = {}) {
+  const hi = name ? `¡Hola, ${name}! 👋` : '¡Hola! 👋 Bienvenido a Día Uno.';
+  const msgs = [
+    hi,
+    'Soy tu asistente financiero. Te haré unas preguntas cortas para conocer tu situación: cuánto recibes, en qué se va tu dinero y qué te gustaría lograr.',
+    'Puedes responder con tus palabras —por ejemplo «Bolivia» o «gano unos 2.500»— o tocar una opción. Toma unos 5 minutos y no necesitas datos exactos.',
+    'Al final te daré tu primer mapa financiero con 3 consejos para empezar. ¿Listo?',
+  ];
+  return html`<section class="chat-welcome" aria-labelledby="h-bienvenida">
+    <h1 id="h-bienvenida" class="visually-hidden">Test gratuito: bienvenida</h1>
+    <div class="chat-head"><span class="chat-avatar" aria-hidden="true">D1</span><div><strong>Día Uno</strong><span class="small muted">Asistente financiero</span></div></div>
+    <ol class="chat-log chat-intro" aria-live="polite">${msgs.map((m, i) => html`<li class="chat-msg chat-msg--bot" data-i="${i}">${m}</li>`)}</ol>
+    <div class="chat-start-wrap"><a class="btn btn-primary btn-lg chat-start" href="/test?empezar=1">Iniciar</a></div>
+  </section>`;
+}
+
 /** Pantalla de una pregunta. o: { q, session, form, errors, note, confirmNeeded, prevHref } */
 function questionPage(ctx, o) {
   const { q, form = {}, errors = {} } = o;
@@ -130,6 +148,12 @@ function questionPage(ctx, o) {
       ${isV4 && q.help ? html`<p class="q-sub">${q.help}</p>` : ''}
       ${q.help && !isV4 ? html`<details class="qf-why"><summary>¿Por qué preguntamos?</summary><p class="q-help" id="q-help">${q.help}</p></details>` : ''}
       ${input}
+      ${isV4
+        ? html`<div class="chat-compose"><label class="visually-hidden" for="texto">Escribe tu respuesta</label>
+            <input class="input chat-input" id="texto" name="texto" type="text" maxlength="200" autocomplete="off" placeholder="${require('../domain/free/chat4').placeholder(cat4.VARIANT_BY_ID[q.variant_id] || {})}" value="${form.texto || ''}" />
+            <button class="chat-send" type="submit" name="action" value="next" aria-label="Enviar respuesta"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-2-7-8-1z" fill="currentColor"/></svg></button>
+          </div>`
+        : ''}
       ${raw(`</${Tag}>`)}
       <div class="qf-actions">
         <button class="btn btn-primary btn-block" type="submit" name="action" value="next">${isLast ? (isV4 ? 'Revisar mis respuestas' : 'Revisar respuestas') : 'Siguiente'}</button>
@@ -284,4 +308,4 @@ function resultPage(ctx, o) {
     ${reward ? html`<section class="reward-card" aria-label="Recompensa"><div><p><span class="plus">+100 XP</span> y el logro <strong>«Primer paso»</strong>. ${user ? 'Ya cuentan en tu nivel.' : 'Crea tu cuenta para guardarlos.'}</p></div></section>` : ''}`;
 }
 
-module.exports = { questionPage, reviewPage, resultPage, answerText };
+module.exports = { welcomePage, questionPage, reviewPage, resultPage, answerText };
