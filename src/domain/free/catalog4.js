@@ -83,7 +83,7 @@ const one = (id, type, text, help, extra = {}) => [{ id, type, text, help, ...ex
 /** Pregunta de botones: `multi` permite varias; `exclusive` se marcan solas; `other` abre una frase. */
 const choice = (id, text, help, options, extra = {}) => one(id, 'choice', text, help, { options, multi: false, exclusive: [], other: 'OTHER', ...extra });
 
-slot(1, 'locale', one('V4_Q01', 'locale', '¿En qué país vives?', 'Debajo elige tu moneda. Te sugerimos la de tu país y puedes cambiarla. Si cambias la moneda, tendrás que revisar los montos.', { countries: COUNTRIES, currencies: CURRENCIES, suggest: CURRENCY_BY_COUNTRY }));
+slot(1, 'locale', one('V4_Q01', 'locale', '¿En qué país vives?', 'Toca tu país o escríbelo. Usaremos su moneda.', { countries: COUNTRIES, currencies: CURRENCIES, suggest: CURRENCY_BY_COUNTRY }));
 slot(2, 'age_band', choice('V4_Q02', '¿Cuántos años tienes?', 'Marca una opción. No necesitamos tu fecha de nacimiento.', AGE_BANDS, { other: null }));
 slot(3, 'dependents', choice('V4_Q03', '¿Cuántas personas dependen de tu dinero?', 'Por ejemplo, hijos u otras personas cuyos gastos pagas.', DEPENDENTS, { other: null }));
 slot(4, 'activity', choice('V4_Q04', '¿Cómo trabajas actualmente?', 'Marca una opción. No trabajar no significa que no recibas dinero.', ROUTES, { other_label: '¿Cuál es tu situación?' }));
@@ -288,7 +288,8 @@ function fromForm(variant, body) {
   if (typeof body.special === 'string' && STATUS_OF[body.special]) return { value: body.special, form };
   switch (variant.type) {
     case 'locale':
-      return { value: { country: body.country, currency: body.currency }, form };
+      // Sin moneda elegida se usa la de su país.
+      return { value: { country: body.country, currency: body.currency || CURRENCY_BY_COUNTRY[body.country] || (body.country ? 'USD' : body.currency) }, form };
     case 'choice':
       return { value: { codes: form.codes, other: body.other, focus: body.focus, total: variant.with_total ? money(body, 'total_') : undefined }, form };
     case 'goal':

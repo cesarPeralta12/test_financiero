@@ -155,14 +155,18 @@
       if (store.get('du-qdir') === 'next') window.setTimeout(function () { play('recibir'); }, 120);
     }
   }
-  function visible(el) { return !!(el.offsetParent || el.getClientRects().length); }
+  function visible(el) {
+    var d = el.closest('details');
+    if (d && !d.open && !el.closest('summary')) return false; // dentro de un desplegable cerrado
+    return !!(el.offsetParent || el.getClientRects().length);
+  }
   /** Respuesta única sin nada más que completar: se envía sola, como un mensaje. */
   function chatAuto(input) {
     if (!isChat || input.type !== 'radio' || !input.checked || form.dataset.advancing) return false;
     var special = input.name === 'special';
     if (!special) {
       if (Array.prototype.some.call(form.querySelectorAll('input[type=checkbox]'), visible)) return false;
-      if (Array.prototype.some.call(form.querySelectorAll('input[type=text], input[type=number], input:not([type]), select, textarea'), visible)) return false;
+      if (Array.prototype.some.call(form.querySelectorAll('input[type=text]:not(.chat-input), input[type=number], input:not([type]), select, textarea'), visible)) return false;
     }
     var next = form.querySelector('.qf-actions button[value=next]');
     if (!next) return false;
@@ -173,7 +177,7 @@
         var groups = {};
         Array.prototype.forEach.call(form.querySelectorAll('input[type=radio]'), function (r) { if (visible(r) && r.name !== 'special') groups[r.name] = groups[r.name] || r.checked; });
         var pending = Object.keys(groups).some(function (k) { return !groups[k]; });
-        var fields = Array.prototype.some.call(form.querySelectorAll('input[type=text], input[type=number], input:not([type]), select, textarea, input[type=checkbox]'), visible);
+        var fields = Array.prototype.some.call(form.querySelectorAll('input[type=text]:not(.chat-input), input[type=number], input:not([type]), select, textarea, input[type=checkbox]'), visible);
         if (pending || fields) { delete form.dataset.advancing; play('punto'); return; }
       }
       var label = input.closest('label');
