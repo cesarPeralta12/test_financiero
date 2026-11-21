@@ -101,6 +101,8 @@
   var chat = document.querySelector('.chat-test');
   if (chat) {
     var log = chat.querySelector('.chat-log');
+    var chatBase = chat.getAttribute('data-base') || '/test';
+    var chatPost = chat.getAttribute('data-post') || chatBase + '/chat';
     var fast = !motion;
     var wait = function (ms) { return new Promise(function (r) { window.setTimeout(r, fast ? 0 : ms); }); };
     var toBottom = function () { window.scrollTo({ top: document.body.scrollHeight, behavior: fast ? 'auto' : 'smooth' }); };
@@ -146,7 +148,7 @@
         if (window.DiaUnoConfetti) window.DiaUnoConfetti({ x: r.left + r.width / 2, y: r.top + r.height / 2 }, 120);
         say('¡Bravo! Empecemos 🎉', 'chat-msg--bot chat-q');
         store.set('du-chat-start', '1');
-        window.setTimeout(function () { window.location.assign('/test?empezar=1'); }, fast ? 200 : 1300);
+        window.setTimeout(function () { window.location.assign(chatBase + '?empezar=1'); }, fast ? 200 : 1300);
       });
       return;
     }
@@ -166,8 +168,10 @@
     toBottom();
     if (input && !('ontouchstart' in window)) input.focus({ preventScroll: true });
 
+    var lastChips = chipsBox ? Array.prototype.map.call(chipsBox.querySelectorAll('.chat-chip'), function (b) { return b.getAttribute('data-say'); }) : [];
     var setChips = function (list) {
       if (!chipsBox) return;
+      if (list && list.length) lastChips = list;
       chipsBox.innerHTML = '';
       (list || []).forEach(function (x) {
         var b = document.createElement('button');
@@ -200,14 +204,14 @@
       var data = new URLSearchParams(new FormData(bar));
       data.set('texto', text);
       var t = typing();
-      fetch('/test/chat', { method: 'POST', body: data, credentials: 'same-origin', headers: { Accept: 'application/json' } })
+      fetch(chatPost, { method: 'POST', body: data, credentials: 'same-origin', headers: { Accept: 'application/json' } })
         .then(function (r) { return r.json(); })
         .then(function (r) {
           return wait(450).then(function () {
             t.remove();
             if (r.go) { window.location.assign(r.go); return; }
-            if (r.error) { say(r.error, 'chat-msg--bot chat-error'); play('error'); return; }
-            if (r.done || !r.next) { log.innerHTML = ''; say('¡Listo! Ya tengo lo que necesito para preparar tu resultado. 🎉'); window.setTimeout(function () { window.location.assign('/test'); }, fast ? 200 : 1400); return; }
+            if (r.error) { say(r.error, 'chat-msg--bot chat-error'); play('error'); setChips(lastChips); return; }
+            if (r.done || !r.next) { log.innerHTML = ''; say('¡Listo! Ya tengo lo que necesito para preparar tu resultado. 🎉'); window.setTimeout(function () { window.location.assign(chatBase); }, fast ? 200 : 1400); return; }
             if (progress && r.progress) progress.textContent = r.progress.pos + ' de ' + r.progress.total;
             // Una pregunta a la vez: la anterior y su respuesta se desvanecen antes de la siguiente.
             Array.prototype.forEach.call(log.children, function (li) { li.classList.add('is-leaving'); });

@@ -9,6 +9,23 @@ const { questionPage } = require('../views/question');
 const c = require('../views/components');
 const { owner, intParam, notFound, wrap } = require('./util');
 const { rateLimit } = require('../lib/security');
+const deepChat = require('../domain/deepChat');
+const chatView = require('../views/chatTest');
+
+// Estado de la conversación por sesión (pregunta a medias, aviso pendiente, «Iniciar» tocado).
+// Vive en memoria: si el servidor se reinicia, solo se repite la pregunta en curso.
+const chatMem = new Map();
+function chatState(req) {
+  const key = req.session ? req.session.id : null;
+  if (!key) return {};
+  let st = chatMem.get(key);
+  if (!st) {
+    st = {};
+    chatMem.set(key, st);
+    if (chatMem.size > 5000) chatMem.delete(chatMem.keys().next().value);
+  }
+  return st;
+}
 
 /**
  * opts: {
@@ -85,10 +102,114 @@ function createFlow(opts) {
     const qn = qs.load(ev.questionnaire_id);
     const map = qs.answers(ev.id);
     if (opts.beforeQuestions && opts.beforeQuestions(req, res, ev, qn, map)) return;
+    if (opts.chat && opts.chat()) {
+      if (req.query.empezar === '1') chatState(req).started = ev.id;
+      return renderChat(req, res, ev, qn);
+    }
     const pos = qs.firstUnanswered(qn, map);
     if (pos === null) return res.redirect(303, `${opts.base}/revision`);
     res.redirect(303, `${opts.base}/pregunta/${pos}`);
   }));
+
+  // ───────── Conversación (opts.chat): una pregunta a la vez, dividida en mensajes cortos ─────────
+  /** Pregunta y paso actuales. Lo respondido a medias de una pregunta vive en la sesión. */
+  /**
+   * Respuestas que ya se deducen de otra: sin deudas, no hay pagos atrasados ni tarjetas.
+   * (La versión con botones ya oculta esas preguntas; esto cubre cuestionarios anteriores.)
+   */
+  function autoAnswer(q, map) {
+    const debts = map.deudas && !map.deudas.unknown ? map.deudas.value : null;
+    if (!Array.isArray(debts)) return null;
+    const has = (v) => q.options.some((o) => o.value === v);
+    if (q.code === 'atraso_actual' && !debts.length && has('no')) return 'no';
+    if (q.code === 'pago_tarjeta' && !debts.some((d) => d.kind === 'tarjeta') && has('sin_tarjeta')) return 'sin_tarjeta';
+    return null;
+  }
+
+  function chatCurrent(req, ev, qn) {
+    let map = qs.answers(ev.id);
+    let pos = qs.firstUnanswered(qn, map);
+    for (let guard = 0; pos !== null && guard < 5; guard++) {
+      const q0 = qn.questions[pos - 1];
+      const auto = autoAnswer(q0, map);
+      if (auto === null) break;
+      qs.saveAnswer(ev, q0, qs.parseSubmission(q0, { value: auto }, opts.currency(req, ev, map)));
+      map = qs.answers(ev.id);
+      pos = qs.firstUnanswered(qn, map);
+    }
+    if (pos === null) return { done: true, map };
+    const q = qn.questions[pos - 1];
+    const currency = opts.currency(req, ev, map);
+    const saved = chatState(req).partial;
+    const body = saved && saved.ev === ev.id && saved.code === q.code ? saved.body : {};
+    const step = deepChat.nextStep(q, body, currency);
+    const st = qs.status(null, qn, map);
+    const applicable = st.items.filter((i) => i.applicable);
+    return { q, body, step, currency, map, progress: { pos: applicable.filter((i) => i.answered).length + 1, total: applicable.length } };
+  }
+  const stepView = (step) => (step ? { text: step.text, help: step.help, chips: step.chips, placeholder: step.kind === 'amount' ? 'Escribe el monto, por ejemplo «2500»' : 'Escribe tu respuesta con tus palabras' } : null);
+
+  function renderChat(req, res, ev, qn) {
+    const cur = chatCurrent(req, ev, qn);
+    const mem = chatState(req);
+    const error = mem.error || null;
+    delete mem.error;
+    const started = mem.started === ev.id || Object.values(cur.map).some((a) => !a.known);
+    return res.page({
+      title: opts.title,
+      focus: true,
+      body: chatView.chatPage(res.locals.ctx, {
+        base: opts.base,
+        title: opts.title,
+        name: req.user ? req.user.name : null,
+        welcome: opts.chatWelcome ? opts.chatWelcome(req) : null,
+        started,
+        current: stepView(cur.step),
+        done: cur.done,
+        doneText: '¡Listo! Ya tengo todo. Antes de preparar tu diagnóstico, revisa que tus datos estén bien.',
+        finish: html`<div class="chat-finish"><a class="btn btn-primary btn-lg" href="${opts.base}/revision">Revisar y ${opts.finishVerb || 'continuar'}</a></div>`,
+        progress: cur.progress,
+        error,
+      }),
+    });
+  }
+
+  router.post(`${opts.base}/chat`, ...guards, (req, res) => {
+    if (opts.before && opts.before(req, res)) return;
+    const wantsJson = (req.get('accept') || '').includes('application/json');
+    const reply = (status, out) => {
+      if (wantsJson) return res.status(status).json(out);
+      if (out.error) chatState(req).error = out.error;
+      return res.redirect(303, opts.base);
+    };
+    const limit = rateLimit({ key: `answer:${req.session.id}`, limit: 240, windowMs: 60_000 });
+    if (!limit.allowed) return reply(429, { error: 'Vas muy rápido. Espera unos segundos.' });
+    const { ev } = load(req);
+    if (!ev) return reply(409, { go: opts.base });
+    const qn = qs.load(ev.questionnaire_id);
+    const cur = chatCurrent(req, ev, qn);
+    if (cur.done || !cur.step) return reply(200, { done: true });
+    const texto = typeof req.body.texto === 'string' ? req.body.texto.trim().slice(0, 200) : '';
+    if (!texto) return reply(422, { error: 'Escribe tu respuesta o toca una opción.' });
+    const r = cur.step.apply(texto);
+    if (r.error) return reply(422, { error: r.error });
+    const body = r.unknown ? { unknown: '1' } : r.body;
+    const nextStep = r.unknown ? null : deepChat.nextStep(cur.q, body, cur.currency);
+    if (nextStep) {
+      chatState(req).partial = { ev: ev.id, code: cur.q.code, body };
+    } else {
+      const parsed = qs.parseSubmission(cur.q, deepChat.toSubmission(cur.q, body), cur.currency);
+      if (!parsed.ok) {
+        // Algo no cuadró al armar la respuesta completa: se vuelve a empezar esa pregunta.
+        delete chatState(req).partial;
+        return reply(422, { error: `${Object.values(parsed.errors)[0] || 'No pude guardar esa respuesta.'} Empecemos esa pregunta de nuevo.` });
+      }
+      qs.saveAnswer(ev, cur.q, parsed);
+      delete chatState(req).partial;
+    }
+    const after = chatCurrent(req, ev, qn);
+    return reply(200, { next: stepView(after.step), done: after.done, progress: after.progress });
+  });
 
   router.get(`${opts.base}/pregunta/:n`, ...guards, (req, res, next) => {
     if (opts.before && opts.before(req, res)) return;

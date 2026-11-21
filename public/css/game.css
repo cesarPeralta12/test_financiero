@@ -2070,7 +2070,7 @@ table.data td {
 .chat-finish { display: grid; gap: 8px; justify-items: center; text-align: center; }
 .chat-bar .chat-compose { margin-top: 6px; }
 .chat-bar.is-busy .chat-send { opacity: 0.5; pointer-events: none; }
-.chat-chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 4px; scrollbar-width: none; }
+.chat-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 4px; max-height: 40vh; overflow-y: auto; }
 .chat-chips::-webkit-scrollbar { display: none; }
 .chat-chips:empty { display: none; }
 .chat-chip { flex: none; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 0.86rem; cursor: pointer; }

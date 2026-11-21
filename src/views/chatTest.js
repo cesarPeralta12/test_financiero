@@ -29,10 +29,13 @@ function chips(q) {
  *      done, error, csrf, progress: { pos, total } }
  */
 function chatPage(ctx, o) {
-  const lines = welcomeLines(o.name);
+  // Rutas: por defecto las del test gratuito; la evaluación profunda pasa las suyas.
+  const base = o.base || '/test';
+  const post = o.post || `${base}/chat`;
+  const lines = o.welcome || welcomeLines(o.name);
   const showStart = !o.started;
-  return html`<section class="chat-test${showStart ? ' is-welcome' : ''}" aria-labelledby="h-chat" data-state="${showStart ? 'welcome' : o.done ? 'done' : 'asking'}">
-    <h1 id="h-chat" class="visually-hidden">Test gratuito</h1>
+  return html`<section class="chat-test${showStart ? ' is-welcome' : ''}" aria-labelledby="h-chat" data-post="${post}" data-base="${base}" data-state="${showStart ? 'welcome' : o.done ? 'done' : 'asking'}">
+    <h1 id="h-chat" class="visually-hidden">${o.title || 'Test gratuito'}</h1>
     <header class="chat-head">
       <span class="chat-avatar" aria-hidden="true">D1</span>
       <div><strong>Día Uno</strong><span class="small muted">Asistente financiero</span></div>
@@ -42,14 +45,15 @@ function chatPage(ctx, o) {
       ${o.started ? '' : lines.map((l) => bot(l, 'chat-intro-msg'))}
       ${o.started && o.current ? questionMsgs(o.current) : ''}
       ${o.error ? bot(o.error, 'chat-error') : ''}
-      ${o.done ? bot('¡Listo! Ya tengo lo que necesito para preparar tu resultado. 🎉', 'chat-q') : ''}
+      ${o.done ? bot(o.doneText || '¡Listo! Ya tengo lo que necesito para preparar tu resultado. 🎉', 'chat-q') : ''}
     </ol>
     ${showStart
-      ? html`<div class="chat-start-wrap"><form method="get" action="/test"><input type="hidden" name="empezar" value="1" /><button class="btn btn-primary btn-lg chat-start" type="submit">Iniciar</button></form></div>`
+      ? html`<div class="chat-start-wrap"><form method="get" action="${base}"><input type="hidden" name="empezar" value="1" /><button class="btn btn-primary btn-lg chat-start" type="submit">Iniciar</button></form></div>`
       : o.done
-        ? html`<form class="chat-finish" method="post" action="/test/finalizar">${c.csrfField(ctx)}<button class="btn btn-primary btn-lg" type="submit">Ver mi resultado</button>
-            <a class="small muted" href="/test/revision">Revisar mis respuestas</a></form>`
-        : html`<form class="chat-bar" method="post" action="/test/chat" autocomplete="off">
+        ? o.finish ||
+          html`<form class="chat-finish" method="post" action="${base}/finalizar">${c.csrfField(ctx)}<button class="btn btn-primary btn-lg" type="submit">Ver mi resultado</button>
+            <a class="small muted" href="${base}/revision">Revisar mis respuestas</a></form>`
+        : html`<form class="chat-bar" method="post" action="${post}" autocomplete="off">
             ${c.csrfField(ctx)}
             <div class="chat-chips" aria-label="Respuestas rápidas">${chips(o.current)}</div>
             <div class="chat-compose">

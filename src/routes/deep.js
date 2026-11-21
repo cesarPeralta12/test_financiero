@@ -1,4 +1,5 @@
 'use strict';
+const config = require('../config');
 // F06 Evaluación profunda y F07 Diagnóstico detallado.
 const express = require('express');
 const db = require('../db');
@@ -80,6 +81,13 @@ router.use(
     kind: 'profundo',
     base: '/evaluacion',
     title: 'Evaluación profunda',
+    // La evaluación de pago es una conversación: una pregunta a la vez y respuestas escritas.
+    chat: () => config.deepChat,
+    chatWelcome: (req) => {
+      const first = req.user && req.user.name ? String(req.user.name).trim().split(/\s+/)[0] : '';
+      const n = first ? `, ${first.charAt(0).toUpperCase()}${first.slice(1)}` : '';
+      return [`¡Hola${n}! 👋 Soy tu asistente financiero.`, 'Ahora vamos a conocer a fondo tu situación para armar tu Plan Maestro.', 'Responde como te sientas cómodo.'];
+    },
     finishLabel: 'Generar mi diagnóstico',
     finishVerb: 'generar tu diagnóstico',
     doneRedirect: '/diagnostico',
