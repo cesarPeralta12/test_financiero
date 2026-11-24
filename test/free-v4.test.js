@@ -36,7 +36,7 @@ const BASE = {
   Q19: { codes: ['PAID_SIDE'] },
   Q20: { codes: ['PAST_CLIENTS', 'BUSINESSES'] },
   Q21: { codes: ['GROWTH'] },
-  Q22: { codes: ['KEEP_JOB', 'FAMILY'] },
+  Q22: { codes: ['KEEP_JOB'] },
   Q23: { availability: 'MAYBE', amount: '300' },
   Q24: { codes: ['SELL_SERVICE'] },
 };
@@ -217,7 +217,7 @@ test('V4: flujo por formularios y resultado en nueve módulos con una sola ofert
       19: { codes: ['UNPAID'] },
       20: { codes: ['FRIENDS'] },
       21: { codes: 'GROWTH' },
-      22: { codes: ['KEEP_JOB'] },
+      22: { codes: 'KEEP_JOB' },
       23: { availability: 'NO' },
       24: { codes: 'SELL_PRODUCT' },
     };
@@ -315,4 +315,30 @@ test('V4: objetivo y plazo son dos preguntas separadas', async () => {
   } finally {
     config.freeCatalogVersion = prev;
   }
+});
+
+test('V4: el tiempo por semana llega hasta «Más de 40 horas» y «15 horas o más» se sigue leyendo', () => {
+  const q16 = cat.VARIANT_BY_ID.V4_Q16;
+  assert.deepEqual(q16.options.map((x) => x.label), ['Por ahora, nada', 'Menos de 3 horas', 'De 3 a 7 horas', 'De 8 a 14 horas', 'De 15 a 25 horas', 'De 26 a 40 horas', 'Más de 40 horas']);
+  assert.match(q16.help, /168 horas/);
+  // Resultados anteriores: se lee, pero ya no se puede elegir.
+  assert.equal(cat.labelFor('V4_Q16', 'H15'), '15 horas o más');
+  assert.equal(cat.answerText('V4_Q16', { status: 'answered', value: { codes: ['H15'] } }), '15 horas o más');
+  const s = start();
+  for (const q of cat.SLOTS) if (q.ordinal < 16) put(s.id, q.slot_id, BASE[q.slot_id]);
+  assert.throws(() => put(s.id, 'Q16', { codes: ['H15'] }), /Opción no válida/);
+  put(s.id, 'Q16', { codes: ['H41'] });
+  const full = answerAll({ ...BASE, Q16: { codes: ['H26_40'] } });
+  assert.doesNotThrow(() => engine.complete(full));
+});
+
+test('V4: «¿Qué necesitas cuidar?» lleva una sola respuesta y las anteriores con varias se siguen leyendo', () => {
+  const q22 = cat.VARIANT_BY_ID.V4_Q22;
+  assert.equal(q22.multi, false);
+  assert.match(q22.help, /Marca lo más importante/);
+  const s = start();
+  for (const q of cat.SLOTS) if (q.ordinal < 22) put(s.id, q.slot_id, BASE[q.slot_id]);
+  assert.throws(() => put(s.id, 'Q22', { codes: ['KEEP_JOB', 'FAMILY'] }), /Elige solo una opción/);
+  put(s.id, 'Q22', { codes: ['HEALTH'] });
+  assert.equal(cat.answerText('V4_Q22', { status: 'answered', value: { codes: ['KEEP_JOB', 'FAMILY'] } }), 'Conservar mi empleo, Cuidar a mi familia');
 });

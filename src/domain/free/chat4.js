@@ -83,7 +83,7 @@ function ageBand(n) {
   return 'GE65';
 }
 const dependents = (n) => (n <= 0 ? 'D0' : n === 1 ? 'D1' : n === 2 ? 'D2' : n === 3 ? 'D3' : 'D4PLUS');
-const hours = (n) => (n <= 0 ? 'H0' : n < 3 ? 'H_LT3' : n <= 7 ? 'H3_7' : n <= 14 ? 'H8_14' : 'H15');
+const hours = (n) => (n <= 0 ? 'H0' : n < 3 ? 'H_LT3' : n <= 7 ? 'H3_7' : n <= 14 ? 'H8_14' : n <= 25 ? 'H15_25' : n <= 40 ? 'H26_40' : 'H41');
 const NUM_WORDS = { una: 1, uno: 1, un: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
 function smallNumber(text) {
   const t = norm(text);

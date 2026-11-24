@@ -251,12 +251,16 @@
     if (d && !d.open && !el.closest('summary')) return false; // dentro de un desplegable cerrado
     return !!(el.offsetParent || el.getClientRects().length);
   }
-  /** Respuesta única sin nada más que completar: se envía sola, como un mensaje. */
+  /**
+   * Respuesta única sin nada más que completar: se envía sola, como un mensaje. También vale una opción que no se
+   * combina con otras («Ninguna», «No tengo deudas») en una pregunta donde se pueden marcar varias.
+   */
   function chatAuto(input) {
-    if (!isChat || input.type !== 'radio' || !input.checked || form.dataset.advancing) return false;
+    var alone = input.type === 'checkbox' && input.hasAttribute('data-exclusive');
+    if (!isChat || (input.type !== 'radio' && !alone) || !input.checked || form.dataset.advancing) return false;
     var special = input.name === 'special';
     if (!special) {
-      if (Array.prototype.some.call(form.querySelectorAll('input[type=checkbox]'), visible)) return false;
+      if (!alone && Array.prototype.some.call(form.querySelectorAll('input[type=checkbox]'), visible)) return false;
       if (Array.prototype.some.call(form.querySelectorAll('input[type=text]:not(.chat-input), input[type=number], input:not([type]), select, textarea'), visible)) return false;
     }
     var next = form.querySelector('.qf-actions button[value=next]');
@@ -268,8 +272,8 @@
         var groups = {};
         Array.prototype.forEach.call(form.querySelectorAll('input[type=radio]'), function (r) { if (visible(r) && r.name !== 'special') groups[r.name] = groups[r.name] || r.checked; });
         var pending = Object.keys(groups).some(function (k) { return !groups[k]; });
-        var fields = Array.prototype.some.call(form.querySelectorAll('input[type=text]:not(.chat-input), input[type=number], input:not([type]), select, textarea, input[type=checkbox]'), visible);
-        if (pending || fields) { delete form.dataset.advancing; play('punto'); return; }
+        var fields = Array.prototype.some.call(form.querySelectorAll('input[type=text]:not(.chat-input), input[type=number], input:not([type]), select, textarea' + (alone ? '' : ', input[type=checkbox]')), visible);
+        if (pending || fields || !input.checked) { delete form.dataset.advancing; play('punto'); return; }
       }
       var label = input.closest('label');
       var bubble = document.createElement('p');
@@ -341,11 +345,13 @@
       .catch(function () { swapping = false; form.submit(); });
   });
 
-  // ── Elegir una opción: onda desde el toque, brillo y sonido agradable. No avanza solo. ──
+  // ── Elegir una opción: onda desde el toque, brillo y sonido agradable. ──
+  var already = null; // opción única que ya estaba marcada antes del toque (al volver a una pregunta respondida)
   form.addEventListener('pointerdown', function (e) {
-    if (!motion) return;
     var label = e.target.closest && e.target.closest('label.option, label.pill');
-    if (!label) return;
+    var picked = label && label.querySelector('input[type=radio]');
+    already = picked && picked.checked ? picked : null;
+    if (!motion || !label) return;
     var r = label.getBoundingClientRect();
     var d = Math.max(r.width, r.height) * 1.6;
     var ripple = document.createElement('span');
@@ -355,6 +361,13 @@
     ripple.style.top = e.clientY - r.top - d / 2 + 'px';
     label.appendChild(ripple);
     ripple.addEventListener('animationend', function () { ripple.remove(); });
+  });
+  // Tocar otra vez la que ya estaba marcada no dispara «change»: también avanza.
+  form.addEventListener('click', function (e) {
+    if (!already || e.target !== already) return;
+    var again = already;
+    already = null;
+    chatAuto(again);
   });
   form.addEventListener('change', function (e) {
     var input = e.target;

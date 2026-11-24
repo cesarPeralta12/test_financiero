@@ -46,7 +46,9 @@ const DEBT_TYPES = o('CARD = Tarjeta; PERSONAL = Préstamo personal; HOME = Vivi
 const PAYMENT = o('ON_TIME = Estoy al día; MINIMUM = Solo pago el mínimo de la tarjeta; LATE = Tengo pagos atrasados; UNABLE = No puedo pagar lo que vence ahora; NOT_DUE_YET = Aún no vence mi primer pago');
 const BACKUP = o('HOUSEHOLD_INCOME = Otro ingreso en mi hogar; INSURANCE = Un seguro que podría cubrirlo; SUPPORT = Apoyo económico confirmado; NONE = Ninguna');
 const RESOURCES = o('EQUIPMENT = Herramientas o equipos; VEHICLE = Vehículo; SPACE = Espacio o local; INVENTORY = Mercadería; BUSINESS = Negocio funcionando; PRODUCT = Producto propio; COMPUTER = Computadora o programas; PHONE_INTERNET = Teléfono e internet; OTHER = Otro recurso; NONE = No tengo recursos disponibles');
-const HOURS = o('H0 = Por ahora, nada; H_LT3 = Menos de 3 horas; H3_7 = De 3 a 7 horas; H8_14 = De 8 a 14 horas; H15 = 15 horas o más');
+const HOURS = o('H0 = Por ahora, nada; H_LT3 = Menos de 3 horas; H3_7 = De 3 a 7 horas; H8_14 = De 8 a 14 horas; H15_25 = De 15 a 25 horas; H26_40 = De 26 a 40 horas; H41 = Más de 40 horas');
+// Ya no se ofrece, pero los resultados anteriores la conservan y deben seguir leyéndose.
+const HOURS_RETIRED = o('H15 = 15 horas o más');
 const SKILLS = o('SELL = Vender o atender clientes; ORGANIZE = Organizar tareas, cuentas o documentos; DIGITAL = Usar computadoras y herramientas digitales; MANUAL = Reparar, instalar o hacer trabajos manuales; COOK = Cocinar o elaborar productos; TEACH = Enseñar, explicar o asesorar; CREATE = Diseñar, escribir o crear contenido; DRIVE = Conducir, transportar o hacer entregas; OTHER = Otra habilidad; UNSURE = Todavía no lo tengo claro');
 const EXPERIENCE = o('COMMERCE = Comercio y ventas; OFFICE = Atención al cliente y oficina; TECH = Tecnología; BUILD = Construcción y reparaciones; FOOD = Comida; TRANSPORT = Transporte y entregas; TEACHING = Enseñanza; DESIGN = Diseño y comunicación; CARE = Salud y cuidados; FARM = Producción y campo; OTHER = Otra actividad; NONE = Todavía no tengo experiencia');
 const SKILL_USE = o('PAID_JOB = Sí, me pagan por eso en mi trabajo o negocio; PAID_SIDE = Sí, me han pagado por hacerlo aparte; UNPAID = Lo he hecho, pero sin cobrar; NOT_YET = Todavía no; UNKNOWN = No lo sé');
@@ -98,7 +100,7 @@ slot(12, 'payment_status', choice('V4_Q12', '¿Cómo vas con tus pagos?', 'Marca
 slot(13, 'emergency_cash', one('V4_Q13', 'money', '¿Cuánto dinero tienes guardado para una emergencia?', 'No cuentes dinero para pagos próximos ni dinero del negocio. Cero es válido si es tu caso.', { period: 'STOCK' }));
 slot(14, 'backup', choice('V4_Q14', 'Si dejaras de recibir dinero, ¿qué ayuda tendrías?', 'Puedes marcar varias.', BACKUP, { multi: true, exclusive: ['NONE'], other: null }));
 slot(15, 'productive_resources', choice('V4_Q15', '¿Qué tienes que podrías usar para ganar dinero?', 'Puedes marcar varias.', RESOURCES, { multi: true, exclusive: ['NONE'], other_label: '¿Qué otro recurso?' }));
-slot(16, 'available_hours_week', choice('V4_Q16', '¿Cuánto tiempo podrías dedicar por semana a mejorar tus ingresos?', 'Marca una opción.', HOURS, { other: null }));
+slot(16, 'available_hours_week', choice('V4_Q16', '¿Cuánto tiempo podrías dedicar por semana a mejorar tus ingresos?', 'Marca una opción. Una semana tiene 168 horas.', HOURS, { other: null, retired: HOURS_RETIRED }));
 slot(17, 'skills', choice('V4_Q17', '¿Qué se te da mejor?', 'Puedes marcar hasta cinco opciones.', SKILLS, { multi: true, max: 5, exclusive: ['UNSURE'], other_label: '¿Qué otra habilidad?' }));
 slot(18, 'experience', choice('V4_Q18', '¿En qué actividades tienes experiencia?', 'Puedes marcar hasta tres opciones.', EXPERIENCE, { multi: true, max: 3, exclusive: ['NONE'], other_label: '¿Qué otra actividad?' }));
 slot(19, 'skill_use', choice('V4_Q19', '¿Has usado esas habilidades en trabajos reales?', 'Puedes marcar las que correspondan.', SKILL_USE, { multi: true, exclusive: ['NOT_YET', 'UNKNOWN'], other: null, no_dk: true }));
@@ -110,7 +112,7 @@ slot(21, 'income_bottleneck', [
   // Varias actividades u otra situación: primero elige qué actividad quiere mejorar.
   { id: 'V4_Q21_MULTIPLE', type: 'choice', when: (c) => !['INDEPENDENT', 'BUSINESS', 'EMPLOYEE', 'NONE'].includes(c.route), text: '¿Qué te dificulta ganar más?', help: 'Primero elige qué actividad quieres mejorar y luego el problema principal.', focus: FOCUS, focus_options: { EMPLOYEE: BOTTLENECK.EMPLOYEE, OWN: BOTTLENECK.OWN }, options: [...BOTTLENECK.EMPLOYEE, ...BOTTLENECK.OWN].filter((x, i, all) => all.findIndex((y) => y.code === x.code) === i), multi: false, exclusive: [], other: 'OTHER', other_label: '¿Qué otro problema?' },
 ]);
-slot(22, 'constraints', choice('V4_Q22', '¿Qué necesitas cuidar al buscar ganar más?', 'Puedes marcar varias.', CONSTRAINTS, { multi: true, exclusive: ['NONE'], other_label: '¿Qué otra condición?' }));
+slot(22, 'constraints', choice('V4_Q22', '¿Qué necesitas cuidar al buscar ganar más?', 'Marca lo más importante para ti.', CONSTRAINTS, { other_label: '¿Qué otra condición?' }));
 slot(23, 'safe_test_budget', one('V4_Q23', 'budget', '¿Tienes dinero que puedas usar para probar una idea?', 'No uses dinero para comida, pagos o emergencias.', { options: BUDGET }));
 slot(24, 'preferred_path', choice('V4_Q24', '¿Por dónde te gustaría empezar?', 'Marca una opción.', PATHS, { other_label: '¿Qué otro camino?', no_dk: true }));
 
@@ -159,7 +161,7 @@ function labelIn(list, code) {
 }
 function labelFor(variantId, code) {
   const v = VARIANT_BY_ID[variantId];
-  return v ? labelIn([...(v.options || []), ...SPECIAL], code) : code;
+  return v ? labelIn([...(v.options || []), ...(v.retired || []), ...SPECIAL], code) : code;
 }
 
 // ───────── Validación ─────────
@@ -330,7 +332,7 @@ function toForm(variant, a) {
 // ───────── Lectura humana ─────────
 const { fmtMoney, fmtNum } = c3;
 function codesText(variant, v) {
-  const opts = variant.focus && v.focus ? variant.focus_options[v.focus] : variant.options;
+  const opts = [...(variant.focus && v.focus ? variant.focus_options[v.focus] : variant.options), ...(variant.retired || [])];
   return v.codes.map((c) => (c === variant.other && v.other ? `${labelIn(opts, c)}: ${v.other}` : labelIn(opts, c))).join(', ');
 }
 function answerText(variantId, a) {

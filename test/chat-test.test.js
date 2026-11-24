@@ -20,6 +20,9 @@ test('intérprete: entiende respuestas libres comunes', () => {
   assert.deepEqual(chat4.interpret(V.V4_Q06, 'gano unos 2.500').fields, { amount: '2500' });
   assert.deepEqual(chat4.interpret(V.V4_Q10, 'no tengo deudas').fields, { status: 'NO' });
   assert.deepEqual(chat4.interpret(V.V4_Q10, 'sí, pago 400').fields, { status: 'DUE', amount: '400' });
+  for (const [horas, code] of [[2, 'H_LT3'], [7, 'H3_7'], [14, 'H8_14'], [20, 'H15_25'], [26, 'H26_40'], [60, 'H41']]) {
+    assert.deepEqual(chat4.interpret(V.V4_Q16, `unas ${horas} horas`).fields, { codes: [code] });
+  }
   assert.deepEqual(chat4.interpret(V.V4_Q17, 'vender y cocinar').fields, { codes: ['SELL', 'COOK'] });
   assert.deepEqual(chat4.interpret(V.V4_Q07, 'no sé').fields, { special: 'DK' });
   assert.ok(chat4.interpret(V.V4_Q06, 'mucho').error, 'sin cifra no inventa un monto');
