@@ -175,7 +175,7 @@ function renderQuestion(req, res, session, question, { form, errors = {}, status
   let reminder = null;
   if (session.version_id === 'FREE_24_V4_ES' && question.slot_id === 'Q09') {
     const basic = engine.activeAnswers(session.id).Q08;
-    if (basic && basic.status === 'answered') reminder = `Ya anotamos en lo básico: ${engine.catalogOf(session).answerText(basic.variant_id, basic)}.`;
+    if (basic && basic.status === 'answered') reminder = `Ya anotamos en lo básico: ${engine.catalogOf(session).answerText(basic.variant_id, basic).replace(/\.$/, '')}.`;
   }
   return res.status(status).page({
     title: `Test gratuito: pregunta ${question.ordinal}`,
