@@ -269,8 +269,14 @@ function validate(variant, raw, session, ctx) {
     }
     case 'budget': {
       const availability = oneOf(variant.options, r.availability, 'Elige una opción para continuar.');
-      // «No tengo dinero» confirma cero; «Sí» o «Tal vez» piden cuánto (opcional).
-      const amount = availability === 'NO' ? { amount: '0.00', min: null, max: null, currency: session.currency, period: 'STOCK', precision: 'exact' } : hasAmount(r) ? c3.moneyValueFor(r, session, 'STOCK') : null;
+      // «No tengo dinero» confirma cero; «Sí» exige cuánto; «Tal vez» no pide monto.
+      if (availability === 'YES') {
+        if (!hasAmount(r)) fail('Escribe cuánto podrías usar.', 'INVALID_AMOUNT');
+        const m = c3.moneyValueFor(r, session, 'STOCK');
+        if (Number(m.amount !== null ? m.amount : m.max) <= 0) fail('Escribe un monto mayor que cero. Si no tienes, elige «No tengo dinero para esto».', 'INVALID_AMOUNT');
+        return { status: 'answered', value: { availability, money: m } };
+      }
+      const amount = availability === 'NO' ? { amount: '0.00', min: null, max: null, currency: session.currency, period: 'STOCK', precision: 'exact' } : null;
       return { status: 'answered', value: { availability, money: amount } };
     }
     default:

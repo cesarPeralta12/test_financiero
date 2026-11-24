@@ -343,3 +343,14 @@ test('V4: «¿Qué necesitas cuidar?» lleva una sola respuesta y las anteriores
   put(s.id, 'Q22', { codes: ['HEALTH'] });
   assert.equal(cat.answerText('V4_Q22', { status: 'answered', value: { codes: ['KEEP_JOB', 'FAMILY'] } }), 'Conservar mi empleo, Cuidar a mi familia');
 });
+
+test('V4: «Sí, lo tengo disponible» exige el monto; «Tal vez» y «No» no lo piden', () => {
+  const v = cat.VARIANT_BY_ID.V4_Q23;
+  const s = { currency: 'BOB' };
+  assert.throws(() => cat.validate(v, { availability: 'YES' }, s), /Escribe cuánto podrías usar/);
+  assert.throws(() => cat.validate(v, { availability: 'YES', amount: '0' }, s), /mayor que cero/);
+  assert.equal(cat.validate(v, { availability: 'YES', amount: '300' }, s).value.money.amount, '300.00');
+  assert.equal(cat.validate(v, { availability: 'YES', min: '100', max: '300' }, s).value.money.max, '300.00');
+  assert.equal(cat.validate(v, { availability: 'MAYBE' }, s).value.money, null);
+  assert.equal(cat.validate(v, { availability: 'NO' }, s).value.money.amount, '0.00');
+});

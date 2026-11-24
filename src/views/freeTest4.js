@@ -88,7 +88,7 @@ function input(q, form = {}, errors = {}) {
       break;
     case 'budget':
       body = html`${buttons('availability', opts, form.availability)}
-        <div class="qf-if" data-show-if="availability=YES,MAYBE">${moneyFields(form, cur, '', '¿Cuánto podrías usar? (opcional)')}</div>`;
+        <div class="qf-if" data-show-if="availability=YES">${moneyFields(form, cur, '', '¿Cuánto podrías usar?')}</div>`;
       break;
     default:
       body = html`<p class="muted">Pregunta no disponible.</p>`;
