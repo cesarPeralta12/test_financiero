@@ -117,7 +117,7 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
         <script src="/js/game.js?v=10" defer></script>
         <script src="/js/sfx.js?v=9" defer></script>
         <script src="/js/soft-nav.js?v=1" defer></script>
-        <script src="/js/test-fx.js?v=19" defer></script>
+        <script src="/js/test-fx.js?v=20" defer></script>
         <script src="/js/mi-dinero.js?v=3" defer></script>
         <script src="/js/coach-v2.js?v=2" defer></script>
       </head>
