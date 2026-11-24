@@ -103,10 +103,13 @@ function questionPage(ctx, o) {
   const isV4 = q.catalog_version === 'FREE_24_V4_ES';
   // V4: avance real (solo preguntas que aplican); el número de pregunta no salta.
   const prog = o.progress;
-  const total = isV4 && prog ? prog.total : isV4 ? 24 : 25;
+  // La pregunta del objetivo (V4) ocupa dos pantallas: objetivo y plazo. El contador las cuenta por separado.
+  const step2 = isV4 && q.type === 'goal' && form.paso === '2';
+  const total = isV4 && prog ? prog.total + 1 : 25;
   // Posición de esta pregunta entre las que aplican (también al volver a una ya respondida).
   const idx = isV4 && prog && prog.order ? prog.order.indexOf(q.slot_id) : -1;
-  const pos = idx >= 0 ? idx + 1 : isV4 && prog ? Math.min(prog.completed_count + 1, total) : q.ordinal;
+  const goalIdx = isV4 && prog && prog.order ? prog.order.indexOf('Q05') : -1;
+  const pos = idx >= 0 ? idx + 1 + (goalIdx >= 0 && (idx > goalIdx || step2) ? 1 : 0) : isV4 && prog ? Math.min(prog.completed_count + 1, total) : q.ordinal;
   const isLast = isV4 ? q.ordinal === 24 : q.ordinal === total;
   const pct = Math.round(((pos - 1) / total) * 100);
   const isV3 = q.catalog_version === 'FREE_25_V3_ES' || isV4;
@@ -141,10 +144,11 @@ function questionPage(ctx, o) {
         : ''}
       ${isV4 && q.config && q.config.intro ? html`<p class="qf-intro">${q.config.intro}</p>` : ''}
       <div class="qf-card">
-        ${isGroup ? html`<legend class="q-title">${q.text}</legend>` : html`<h1 class="q-title" id="q-title">${q.text}</h1>`}
+        ${isGroup ? html`<legend class="q-title">${q.text}</legend>` : html`<h1 class="q-title" id="q-title">${step2 ? '¿En cuánto tiempo te gustaría avanzar?' : q.text}</h1>`}
       </div>
       ${o.note ? html`<p class="qf-note" role="note">${o.note.text}</p>` : ''}
-      ${isV4 && q.help ? html`<p class="q-sub">${q.help}</p>` : ''}
+      ${o.reminder ? html`<p class="qf-note" role="note">${o.reminder}</p>` : ''}
+      ${isV4 && q.help && !step2 ? html`<p class="q-sub">${q.help}</p>` : ''}
       ${q.help && !isV4 ? html`<details class="qf-why"><summary>¿Por qué preguntamos?</summary><p class="q-help" id="q-help">${q.help}</p></details>` : ''}
       ${input}
       ${isV4 && o.chat

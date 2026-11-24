@@ -69,9 +69,14 @@ function input(q, form = {}, errors = {}) {
       break;
     }
     case 'goal':
+      // Dos pantallas: primero el objetivo y después, solo, el plazo.
+      if (form.paso === '2') {
+        body = html`<input type="hidden" name="paso" value="2" /><input type="hidden" name="code" value="${form.code}" /><input type="hidden" name="other" value="${form.other || ''}" />
+          ${buttons('horizon', cfg.horizons, form.horizon)}`;
+        break;
+      }
       body = html`${buttons('code', opts, form.code)}
-        <div class="qf-if" data-show-if="code=OTHER">${field(cfg.other_label || '¿Cuál?', html`<input class="input" name="other" maxlength="${cat.OTHER_MAX}" placeholder="Una frase corta" value="${form.other || ''}" />`)}</div>
-        ${field('¿En cuánto tiempo te gustaría avanzar?', buttons('horizon', cfg.horizons, form.horizon, { pills: true }))}`;
+        <div class="qf-if" data-show-if="code=OTHER">${field(cfg.other_label || '¿Cuál?', html`<input class="input" name="other" maxlength="${cat.OTHER_MAX}" placeholder="Una frase corta" value="${form.other || ''}" />`)}</div>`;
       break;
     case 'money':
       body = moneyFields(form, cur, '', cfg.period === 'MONTH' ? 'Monto aproximado al mes' : 'Monto aproximado');
@@ -88,7 +93,7 @@ function input(q, form = {}, errors = {}) {
     default:
       body = html`<p class="muted">Pregunta no disponible.</p>`;
   }
-  return html`<div class="v3-input v4-input" data-type="${q.type}">${body}</div>${specials(q, form)}${c.errorText(errors, 'value')}`;
+  return html`<div class="v3-input v4-input" data-type="${q.type}">${body}</div>${q.type === 'goal' && form.paso === '2' ? '' : specials(q, form)}${c.errorText(errors, 'value')}`;
 }
 
 // ───────── Resultado ─────────

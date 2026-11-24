@@ -90,8 +90,8 @@ slot(4, 'activity', choice('V4_Q04', '¿Cómo trabajas actualmente?', 'Marca una
 slot(5, 'goal', one('V4_Q05', 'goal', '¿Qué te gustaría mejorar primero?', 'Al terminar veremos qué primer paso puede acercarte a esa meta.', { options: GOALS, horizons: HORIZONS, other_label: '¿Qué otro objetivo?' }));
 slot(6, 'net_income_month', one('V4_Q06', 'money', '¿Cuánto dinero recibes en un mes normal?', 'Si tienes negocio, cuenta lo que queda para ti después de pagar sus gastos. No pongas el total de ventas.', { period: 'MONTH' }));
 slot(7, 'income_variability', choice('V4_Q07', '¿Recibes más o menos lo mismo cada mes?', 'Marca una opción.', VARIABILITY, { other: null }));
-slot(8, 'essential_expense_month', one('V4_Q08', 'money', '¿Cuánto gastas al mes en lo necesario para vivir?', 'Incluye vivienda, comida, servicios, transporte y salud. No incluyas pagos de deudas.', { period: 'MONTH' }));
-slot(9, 'other_expense_month', one('V4_Q09', 'money', 'Además de lo anterior, ¿cuánto gastas al mes en otras cosas?', 'Por ejemplo, salidas, compras y suscripciones. No repitas los gastos anteriores ni incluyas deudas.', { period: 'MONTH' }));
+slot(8, 'essential_expense_month', one('V4_Q08', 'money', '¿Cuánto gastas al mes en lo básico?', 'Alquiler, comida, luz, agua, transporte y salud. Sin contar deudas.', { period: 'MONTH' }));
+slot(9, 'other_expense_month', one('V4_Q09', 'money', '¿Y cuánto gastas al mes en gustos y extras?', 'Salidas, ropa, antojos, suscripciones. Es lo que podrías recortar si hiciera falta. No cuentes lo básico ni deudas; si no gastas en esto, escribe 0.', { period: 'MONTH' }));
 slot(10, 'debt_due_month', one('V4_Q10', 'debt_status', '¿Tienes deudas?', 'Marca una opción. Si debes pagar este mes, te pediremos cuánto.', { options: DEBT_STATUS }));
 slot(11, 'debt_inventory', choice('V4_Q11', '¿Qué deudas tienes?', 'Puedes marcar varias. El total es opcional: si no lo sabes, puedes continuar.', DEBT_TYPES, { multi: true, exclusive: ['NONE'], other_label: '¿Cuál?', with_total: true }));
 slot(12, 'payment_status', choice('V4_Q12', '¿Cómo vas con tus pagos?', 'Marca una opción.', PAYMENT, { other: null }));

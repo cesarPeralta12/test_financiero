@@ -196,7 +196,7 @@ test('V4: flujo por formularios y resultado en nueve módulos con una sola ofert
     const first = await c.get('/test');
     assert.match(first.text, /¿En qué país vives\?/);
     assert.match(first.text, /data-currency-suggest/);
-    assert.match(first.text, /Pregunta 1 de 24/);
+    assert.match(first.text, /Pregunta 1 de 25/);
     const form = {
       1: { country: 'BO', currency: 'BOB' },
       2: { codes: 'A25_34' },
@@ -223,6 +223,8 @@ test('V4: flujo por formularios y resultado en nueve módulos con una sola ofert
     };
     for (const n of Object.keys(form).map(Number)) {
       const page = await c.get(`/test/pregunta/${n}`);
+      if (n === 9) assert.match(page.text, /Ya anotamos en lo básico: [^<]*3\.500/);
+      else assert.doesNotMatch(page.text, /Ya anotamos/);
       assert.doesNotMatch(page.text, /textarea/, `pregunta ${n} sin cuadros de texto largos`);
       const variant = page.text.match(/name="variant_id" value="([^"]+)"/)[1];
       const rev = page.text.match(/name="expected_revision" value="(\d+)"/)[1];
@@ -275,8 +277,41 @@ test('V4: un test V3 sin terminar no se retoma; la persona empieza la versión v
     assert.match(old.text, /Pregunta 1 de 25/);
     config.freeCatalogVersion = V4;
     const now = await c.get('/test');
-    assert.match(now.text, /Pregunta 1 de 24/);
+    assert.match(now.text, /Pregunta 1 de 25/);
     assert.match(now.text, /¿En qué país vives\?/);
+  } finally {
+    config.freeCatalogVersion = prev;
+  }
+});
+
+test('V4: objetivo y plazo son dos preguntas separadas', async () => {
+  const prev = config.freeCatalogVersion;
+  config.freeCatalogVersion = V4;
+  try {
+    const c = new h.Client();
+    await h.consent(c);
+    await c.get('/test');
+    const meta = (t) => ({ variant_id: t.match(/name="variant_id" value="([^"]+)"/)[1], expected_revision: t.match(/name="expected_revision" value="(\d+)"/)[1], resolved_context_hash: t.match(/name="resolved_context_hash" value="([^"]+)"/)[1] });
+    for (const [n, f] of [[1, { country: 'BO', currency: 'BOB' }], [2, { codes: 'A25_34' }], [3, { codes: 'D1' }], [4, { codes: 'EMPLOYEE' }]]) {
+      await c.post(`/test/pregunta/${n}`, { ...meta((await c.get(`/test/pregunta/${n}`)).text), action: 'next', ...f });
+    }
+    const one = await c.get('/test/pregunta/5');
+    assert.doesNotMatch(one.text, /name="horizon"/);
+    assert.match(one.text, /Pregunta 5 de 25/);
+    const bad = await c.post('/test/pregunta/5', { ...meta(one.text), action: 'next' });
+    assert.equal(bad.status, 422);
+    const two = await c.post('/test/pregunta/5', { ...meta(one.text), action: 'next', code: 'INCOME' });
+    assert.match(two.text, /id="q-title">¿En cuánto tiempo te gustaría avanzar\?/);
+    assert.match(two.text, /Pregunta 6 de 25/);
+    assert.doesNotMatch(two.text, /name="special"/);
+    const back = await c.post('/test/pregunta/5', { ...meta(two.text), action: 'prev', paso: '2', code: 'INCOME' });
+    assert.match(back.text, /value="INCOME" checked/);
+    const empty = await c.post('/test/pregunta/5', { ...meta(two.text), action: 'next', paso: '2', code: 'INCOME' });
+    assert.equal(empty.status, 422);
+    assert.match(empty.text, /Elige un plazo/);
+    const ok = await c.post('/test/pregunta/5', { ...meta(two.text), action: 'next', paso: '2', code: 'INCOME', horizon: 'M6' }, { follow: false });
+    assert.equal(ok.status, 303);
+    assert.match((await c.get('/test/pregunta/6')).text, /Pregunta 7 de 25/);
   } finally {
     config.freeCatalogVersion = prev;
   }

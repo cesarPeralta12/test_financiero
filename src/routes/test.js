@@ -171,10 +171,16 @@ function formFromAnswer(q, a) {
 function renderQuestion(req, res, session, question, { form, errors = {}, status = 200, note = null, confirmNeeded = false, answer = null }) {
   // Test V4 en forma de chat: lo ya respondido antes de esta pregunta se muestra como conversación.
   const chat = FREE_CHAT && session.version_id === 'FREE_24_V4_ES' ? reviewItems(session).filter((x) => x.answered && !x.skipped && x.display && x.ordinal < question.ordinal) : null;
+  // En «gustos y extras» se recuerda lo básico ya anotado, para que no se repita.
+  let reminder = null;
+  if (session.version_id === 'FREE_24_V4_ES' && question.slot_id === 'Q09') {
+    const basic = engine.activeAnswers(session.id).Q08;
+    if (basic && basic.status === 'answered') reminder = `Ya anotamos en lo básico: ${engine.catalogOf(session).answerText(basic.variant_id, basic)}.`;
+  }
   return res.status(status).page({
     title: `Test gratuito: pregunta ${question.ordinal}`,
     focus: true,
-    body: ft.questionPage(res.locals.ctx, { q: question, session, progress: engine.progress(engine.activeAnswers(session.id), session), form: form ?? formFromAnswer(question, answer), errors, note, confirmNeeded, chat }),
+    body: ft.questionPage(res.locals.ctx, { q: question, session, progress: engine.progress(engine.activeAnswers(session.id), session), form: form ?? formFromAnswer(question, answer), errors, note, confirmNeeded, chat, reminder }),
   });
 }
 
@@ -297,6 +303,11 @@ router.post('/test/pregunta/:n', (req, res, next) => {
   const C = engine.catalogOf(s);
   const slot = n && C.SLOTS[n - 1];
   if (!slot) return next(notFound());
+  if (String(req.body.action) === 'prev' && req.body.paso === '2') {
+    // Del plazo se vuelve al objetivo, con lo que ya había elegido.
+    const r = engine.questionAt(s, slot.slot_id);
+    if (r.question && r.question.type === 'goal') return renderQuestion(req, res, s, r.question, { form: { code: req.body.code, other: req.body.other } });
+  }
   if (String(req.body.action) === 'prev') {
     // Pregunta anterior que aplica (V3 omite Q12/Q13 sin deudas).
     const order = engine.applicableOrder(engine.activeAnswers(s.id), s);
@@ -325,6 +336,21 @@ router.post('/test/pregunta/:n', (req, res, next) => {
   })();
   if (!q) return res.redirect(303, '/test');
   if (Object.keys(parsed.errors).length) return renderQuestion(req, res, s, q, { form: parsed.form, errors: parsed.errors, status: 422 });
+
+  // Objetivo y plazo son dos preguntas: al elegir el objetivo se pregunta el plazo y recién ahí se guarda.
+  if (variant.type === 'goal' && C.VERSION_ID === 'FREE_24_V4_ES' && typeof parsed.value === 'object' && !parsed.value.horizon) {
+    const form = { ...parsed.form };
+    if (body.paso === '2') return renderQuestion(req, res, s, q, { form, errors: { value: 'Elige un plazo para continuar.' }, status: 422 });
+    try {
+      C.validate(variant, parsed.value, s);
+    } catch (err) {
+      if (!(err instanceof FreeError)) throw err;
+      return renderQuestion(req, res, s, q, { form, errors: { value: err.message }, status: 422 });
+    }
+    const saved = engine.activeAnswers(s.id)[slot.slot_id];
+    const before = saved && saved.status === 'answered' ? saved.value.horizon : '';
+    return renderQuestion(req, res, s, q, { form: { ...form, paso: '2', horizon: before } });
+  }
 
   const expected = Number.parseInt(req.body.expected_revision, 10);
   const changeCurrency = Boolean(!C.fromForm && s.currency && parsed.value && parsed.value.kind === 'AMOUNT' && parsed.value.currency !== s.currency);
