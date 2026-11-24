@@ -18,7 +18,7 @@ test('el test exige consentimiento antes de guardar datos financieros', async ()
   await h.consent(c);
   const ok = await c.get('/test');
   assert.match(ok.url, /\/test\/pregunta\/1$/);
-  assert.match(ok.text, /Pregunta 1 de 25/);
+  assert.match(ok.text, /action="\/test\/pregunta\/1"/);
   const row = h.db.one("SELECT * FROM consents WHERE kind = 'datos_financieros' ORDER BY id DESC LIMIT 1");
   assert.equal(row.content_version, 1);
   assert.ok(row.accepted_at);

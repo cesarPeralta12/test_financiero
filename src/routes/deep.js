@@ -166,13 +166,12 @@ function conocidoPage(req, res, extra = {}) {
   const qn = qs.load(ev.questionnaire_id);
   const lista = conocido.candidatos(req.user.id, ev, qn);
   if (!lista.length) return res.redirect(303, '/evaluacion');
-  const total = qn.questions.length;
   return res.status(extra.status || 200).page({
     title: 'Evaluación profunda: lo que ya sabemos',
     focus: true,
-    body: html`<div class="q-head"><div class="progress-meta"><span>Antes de empezar</span><span>${total} preguntas en total</span></div></div>
+    body: html`<div class="q-head"><div class="progress-meta"><span>Antes de empezar</span></div></div>
       <h1>Esto ya lo sabemos de ti</h1>
-      <p class="muted">Para no preguntarte dos veces lo mismo, preparamos estas respuestas con lo que ya nos contaste o registraste. Deja marcado lo que sigue siendo correcto y salta esas preguntas: <strong>${lista.filter((x) => x.fresh).length} de ${total}</strong> ya vienen resueltas. Lo desmarcado te lo preguntamos normalmente, y todo se puede cambiar al final.</p>
+      <p class="muted">Para no preguntarte dos veces lo mismo, preparamos estas respuestas con lo que ya nos contaste o registraste. Deja marcado lo que sigue siendo correcto y salta esas preguntas: las marcadas ya vienen resueltas. Lo desmarcado te lo preguntamos normalmente, y todo se puede cambiar al final.</p>
       <form method="post" action="/evaluacion/conocido" class="known">
         ${c.csrfField(res.locals.ctx)}
         <ul class="known-list">

@@ -178,7 +178,7 @@ function renderQuestion(req, res, session, question, { form, errors = {}, status
     if (basic && basic.status === 'answered') reminder = `Ya anotamos en lo básico: ${engine.catalogOf(session).answerText(basic.variant_id, basic).replace(/\.$/, '')}.`;
   }
   return res.status(status).page({
-    title: `Test gratuito: pregunta ${question.ordinal}`,
+    title: 'Test gratuito',
     focus: true,
     body: ft.questionPage(res.locals.ctx, { q: question, session, progress: engine.progress(engine.activeAnswers(session.id), session), form: form ?? formFromAnswer(question, answer), errors, note, confirmNeeded, chat, reminder }),
   });

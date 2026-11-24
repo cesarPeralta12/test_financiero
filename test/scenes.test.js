@@ -64,7 +64,7 @@ test('escenas: tras la pregunta 5 y la 9 hay escena; continuar lleva a la pregun
     assert.match(sceneAfter[5], /^\/test\/escena\/5/);
     assert.match(sceneAfter[9], /^\/test\/escena\/9/);
     const s5 = await c.get('/test/escena/5');
-    assert.match(s5.text, /Bloque 2 de 5 · Tu mes/);
+    assert.match(s5.text, /Tu mes/);
     assert.match(s5.text, /href="\/test\/pregunta\/10"/); // sigue la primera pregunta pendiente
     const s9 = await c.get('/test/escena/9');
     assert.match(s9.text, /data-breath/);

@@ -108,7 +108,7 @@ test('la portada muestra el mapa de mundos y el test usa el modo enfoque por cap
   await h.consent(c);
   const q = await c.get('/test');
   assert.match(q.text, /class="qf-progress"/);
-  assert.match(q.text, /Pregunta 1 de 25/);
+  assert.match(q.text, /action="\/test\/pregunta\/1"/);
   assert.doesNotMatch(q.text, /<header>/, 'las preguntas se muestran en modo enfoque, sin cabecera');
 });
 

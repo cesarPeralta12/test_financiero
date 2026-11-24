@@ -23,7 +23,7 @@ function aura() {
 function scenePage(scene, { continueHref }) {
   const pause = scene.kind === 'pausa';
   return html`<section class="scene scene--${scene.kind}" aria-labelledby="scene-title">
-    <p class="scene-block">Bloque ${scene.block} de ${scene.blockCount} · ${scene.blockName}</p>
+    <p class="scene-block">${scene.blockName}</p>
     ${pause ? aura() : html`<div class="scene-art" aria-hidden="true"><i></i><i></i><i></i></div>`}
     ${pause ? html`<p class="breath-label" data-breath-label aria-live="polite">Cuando quieras</p>` : ''}
     <h1 class="scene-title" id="scene-title">${scene.title}</h1>

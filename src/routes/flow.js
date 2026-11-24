@@ -71,7 +71,7 @@ function createFlow(opts) {
     const st = stateList(qn, map, q.position);
     const lastApplicable = qs.nextApplicable(qn, map, q.position, 1) === null;
     return res.status(status).page({
-      title: `${opts.title}: pregunta ${q.position}`,
+      title: opts.title,
       focus: true,
       body: questionPage(res.locals.ctx, {
         base: opts.base,

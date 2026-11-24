@@ -39,7 +39,6 @@ function chatPage(ctx, o) {
     <header class="chat-head">
       <span class="chat-avatar" aria-hidden="true">D1</span>
       <div><strong>Día Uno</strong><span class="small muted">Asistente financiero</span></div>
-      ${o.progress && o.started ? html`<span class="chat-progress small muted" aria-label="Avance">${o.progress.pos} de ${o.progress.total}</span>` : ''}
     </header>
     <ol class="chat-log" aria-live="polite">
       ${o.started ? '' : lines.map((l) => bot(l, 'chat-intro-msg'))}

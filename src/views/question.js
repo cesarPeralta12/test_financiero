@@ -367,7 +367,7 @@ function questionPage(ctx, o) {
         ${q.position > 1 || o.prevHref
           ? html`<button class="qf-back" type="submit" name="action" value="prev" formnovalidate aria-label="Pregunta anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
           : html`<a class="qf-back" href="/" aria-label="Salir del test"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></a>`}
-        <div class="qf-progress" role="progressbar" aria-label="Avance del cuestionario" aria-valuemin="0" aria-valuemax="${st.total}" aria-valuenow="${q.position - 1}" aria-valuetext="Pregunta ${q.position} de ${st.total}, capítulo ${chapter.name}">
+        <div class="qf-progress" role="progressbar" aria-label="Avance del cuestionario" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-valuetext="${chapter.name}">
           <span class="qf-chapter">${chapter.name}</span>
           <div class="qf-track"><span class="qf-fill" style="width:${pct}%"></span>
             ${CHAPTERS.map((x, i) => {

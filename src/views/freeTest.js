@@ -132,8 +132,7 @@ function questionPage(ctx, o) {
         ${q.ordinal > 1
           ? html`<button class="qf-back" type="submit" name="action" value="prev" formnovalidate aria-label="Pregunta anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
           : html`<a class="qf-back" href="/" aria-label="Salir del test"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></a>`}
-        <div class="qf-progress" role="progressbar" aria-label="Avance del test" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${pos - 1}" aria-valuetext="Pregunta ${pos} de ${total}">
-          <span class="qf-chapter">Pregunta ${pos} de ${total}</span>
+        <div class="qf-progress" role="progressbar" aria-label="Avance del test" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-valuetext="Test en curso">
           <div class="qf-track"><span class="qf-fill" style="width:${pct}%"></span></div>
         </div>
       </div>

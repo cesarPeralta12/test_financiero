@@ -196,7 +196,7 @@ test('V4: flujo por formularios y resultado en nueve módulos con una sola ofert
     const first = await c.get('/test');
     assert.match(first.text, /¿En qué país vives\?/);
     assert.match(first.text, /data-currency-suggest/);
-    assert.match(first.text, /Pregunta 1 de 25/);
+    assert.match(first.text, /action="\/test\/pregunta\/1"/);
     const form = {
       1: { country: 'BO', currency: 'BOB' },
       2: { codes: 'A25_34' },
@@ -223,6 +223,7 @@ test('V4: flujo por formularios y resultado en nueve módulos con una sola ofert
     };
     for (const n of Object.keys(form).map(Number)) {
       const page = await c.get(`/test/pregunta/${n}`);
+      assert.doesNotMatch(page.text, /Pregunta \d+ de \d+|pregunta \d+ \|/, 'sin contador de preguntas');
       if (n === 9) assert.match(page.text, /Ya anotamos en lo básico: [^<]*3\.500/);
       else assert.doesNotMatch(page.text, /Ya anotamos/);
       assert.doesNotMatch(page.text, /textarea/, `pregunta ${n} sin cuadros de texto largos`);
@@ -274,10 +275,10 @@ test('V4: un test V3 sin terminar no se retoma; la persona empieza la versión v
     await h.consent(c);
     config.freeCatalogVersion = 'FREE_25_V3_ES';
     const old = await c.get('/test');
-    assert.match(old.text, /Pregunta 1 de 25/);
+    assert.match(old.text, /action="\/test\/pregunta\/1"/);
     config.freeCatalogVersion = V4;
     const now = await c.get('/test');
-    assert.match(now.text, /Pregunta 1 de 25/);
+    assert.match(now.text, /action="\/test\/pregunta\/1"/);
     assert.match(now.text, /¿En qué país vives\?/);
   } finally {
     config.freeCatalogVersion = prev;
@@ -297,12 +298,12 @@ test('V4: objetivo y plazo son dos preguntas separadas', async () => {
     }
     const one = await c.get('/test/pregunta/5');
     assert.doesNotMatch(one.text, /name="horizon"/);
-    assert.match(one.text, /Pregunta 5 de 25/);
+    assert.match(one.text, /action="\/test\/pregunta\/5"/);
     const bad = await c.post('/test/pregunta/5', { ...meta(one.text), action: 'next' });
     assert.equal(bad.status, 422);
     const two = await c.post('/test/pregunta/5', { ...meta(one.text), action: 'next', code: 'INCOME' });
     assert.match(two.text, /id="q-title">¿En cuánto tiempo te gustaría avanzar\?/);
-    assert.match(two.text, /Pregunta 6 de 25/);
+    assert.match(two.text, /action="\/test\/pregunta\/5"/);
     assert.doesNotMatch(two.text, /name="special"/);
     const back = await c.post('/test/pregunta/5', { ...meta(two.text), action: 'prev', paso: '2', code: 'INCOME' });
     assert.match(back.text, /value="INCOME" checked/);
@@ -311,7 +312,7 @@ test('V4: objetivo y plazo son dos preguntas separadas', async () => {
     assert.match(empty.text, /Elige un plazo/);
     const ok = await c.post('/test/pregunta/5', { ...meta(two.text), action: 'next', paso: '2', code: 'INCOME', horizon: 'M6' }, { follow: false });
     assert.equal(ok.status, 303);
-    assert.match((await c.get('/test/pregunta/6')).text, /Pregunta 7 de 25/);
+    assert.match((await c.get('/test/pregunta/6')).text, /action="\/test\/pregunta\/6"/);
   } finally {
     config.freeCatalogVersion = prev;
   }

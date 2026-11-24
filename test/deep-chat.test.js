@@ -68,6 +68,7 @@ test('evaluación de pago como chat: se responde escribiendo y no pregunta por d
     assert.match(page.text, />Iniciar</);
     page = await c.get('/evaluacion?empezar=1');
     assert.match(page.text, /name="texto"/);
+    assert.doesNotMatch(page.text, /\d+ de \d+|chat-progress/, 'sin contador de preguntas');
     let text = (page.text.match(/chat-msg--bot chat-q">([^<]+)</) || [])[1];
     const asked = [text];
     let r;
