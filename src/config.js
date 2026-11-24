@@ -126,6 +126,8 @@ const config = {
   deepQuestionnaireVersion: env.DEEP_QUESTIONNAIRE_VERSION === '1' ? 1 : 2,
   // Evaluación profunda en forma de conversación (DEEP_CHAT=0 vuelve a las pantallas de una pregunta).
   deepChat: env.DEEP_CHAT !== '0',
+  // El análisis gratuito se entrega a quien tiene cuenta (RESULT_REQUIRES_ACCOUNT=0 lo desactiva).
+  resultRequiresAccount: env.RESULT_REQUIRES_ACCOUNT !== '0',
   freeCatalogVersion: ['FREE_25_V2_ES', 'FREE_25_V3_ES', 'FREE_24_V4_ES'].includes(env.FREE_CATALOG_VERSION) ? env.FREE_CATALOG_VERSION : 'FREE_24_V4_ES',
 
   mail: {

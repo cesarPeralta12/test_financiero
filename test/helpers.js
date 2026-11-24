@@ -28,6 +28,8 @@ async function start() {
   if (server) return base;
   // Las pruebas históricas recorren las pantallas clásicas; el chat tiene sus propias pruebas.
   require('../src/config').deepChat = false;
+  // Y ven el resultado sin cuenta; el registro obligatorio se prueba en account-gate.test.js.
+  require('../src/config').resultRequiresAccount = false;
   const app = createApp();
   await new Promise((resolve) => {
     server = app.listen(0, '127.0.0.1', resolve);

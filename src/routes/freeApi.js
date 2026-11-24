@@ -21,6 +21,9 @@ const { owner } = require('./util');
 
 const router = express.Router();
 
+/** El análisis solo se entrega con cuenta, igual que en la web. */
+const needsAccount = (req) => !req.user && require('../config').resultRequiresAccount;
+
 function bearer(req) {
   const m = (req.get('authorization') || '').match(/^Bearer\s+(\S+)$/i);
   return m ? m[1] : null;
@@ -85,16 +88,19 @@ router.put('/:id/answers/:slot', wrap((req, res) => {
 
 router.post('/:id/complete', wrap((req, res) => {
   const session = authorized(req);
-  res.json(engine.complete(session.id));
+  const out = engine.complete(session.id);
+  res.json(needsAccount(req) ? { status: 'account_required' } : out);
 }));
 
 router.get('/:id/diagnostic', wrap((req, res) => {
   const session = authorized(req);
+  if (needsAccount(req)) throw new FreeError(403, 'ACCOUNT_REQUIRED', 'Crea una cuenta o entra para recibir tu análisis.');
   res.json(engine.getDiagnostic(session.id));
 }));
 
 router.post('/:id/diagnostic/retry', wrap((req, res) => {
   const session = authorized(req);
+  if (needsAccount(req)) throw new FreeError(403, 'ACCOUNT_REQUIRED', 'Crea una cuenta o entra para recibir tu análisis.');
   res.json(engine.retryDiagnostic(session.id));
 }));
 

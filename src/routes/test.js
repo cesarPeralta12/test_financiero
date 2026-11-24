@@ -460,6 +460,10 @@ function showResult(req, res, s, pastDate) {
         <div class="actions"><a class="btn btn-primary" href="/test">Continuar mi test</a><a class="btn btn-quiet" href="/test/revision">Revisar mis respuestas</a></div>`,
     });
   }
+  // Sin cuenta no se entrega el análisis: las respuestas quedan guardadas y se vinculan al registrarse o entrar.
+  if (!req.user && config.resultRequiresAccount) {
+    return res.page({ title: 'Recibe tu análisis gratuito', narrow: true, body: ft.accountGate() });
+  }
   if (diag.status !== 'ready') {
     return res.page({
       title: 'Tu diagnóstico',

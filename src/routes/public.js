@@ -47,13 +47,13 @@ router.get('/', (req, res) => {
           ${inProgress
             ? html`<a class="btn btn-primary" href="/test">Continuar el test</a>`
             : finished
-              ? html`<a class="btn btn-primary" href="/resultado">Ver mi resultado</a>`
+              ? html`<a class="btn btn-primary" href="/resultado">${!req.user && require('../config').resultRequiresAccount ? 'Recibir mi análisis' : 'Ver mi resultado'}</a>`
               : html`<a class="btn btn-primary btn-shine" href="/test">Comenzar el test gratuito</a>`}
           ${req.user ? html`<a class="btn btn-secondary" href="/inicio">Ir a mi cuenta</a>` : html`<a class="btn btn-secondary" href="/entrar">Ya tengo cuenta</a>`}
         </div>
         <div class="hero-ticks">
           ${c.ticks(states)}
-          <div class="progress-meta"><span>25 preguntas, una por pantalla. Sin tarjeta y sin crear cuenta.</span></div>
+          <div class="progress-meta"><span>25 preguntas, una por pantalla. Sin tarjeta. Al final creas tu cuenta gratis para recibir tu análisis.</span></div>
         </div>
       </section>
 

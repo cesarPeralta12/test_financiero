@@ -311,4 +311,22 @@ function resultPage(ctx, o) {
     ${reward ? html`<section class="reward-card" aria-label="Recompensa"><div><p><span class="plus">+100 XP</span> y el logro <strong>«Primer paso»</strong>. ${user ? 'Ya cuentan en tu nivel.' : 'Crea tu cuenta para guardarlos.'}</p></div></section>` : ''}`;
 }
 
-module.exports = { welcomePage, questionPage, reviewPage, resultPage, answerText };
+/** Fin del test sin cuenta: invita a registrarse o entrar antes de entregar el análisis. */
+function accountGate() {
+  const next = encodeURIComponent('/resultado');
+  return html`<section class="section" aria-labelledby="h-cuenta">
+    <p class="kicker">¡Terminaste el test!</p>
+    <h1 id="h-cuenta">Regístrate para recibir tu análisis gratuito</h1>
+    <p class="lead">Tus respuestas ya están guardadas. Crea tu cuenta gratis o entra con la que ya tienes y te mostramos tu análisis enseguida.</p>
+    <ul class="ticklist">
+      <li>Tu primer mapa financiero con 3 consejos según tus cifras</li>
+      <li>Tus diagnósticos guardados para ver cómo avanzas</li>
+      <li>Es gratis y no necesitas tarjeta</li>
+    </ul>
+    <div class="actions"><a class="btn btn-primary btn-lg btn-block" href="/registro?siguiente=${next}">Crear mi cuenta gratis</a></div>
+    <div class="actions"><a class="btn btn-secondary btn-block" href="/entrar?siguiente=${next}">Ya tengo cuenta</a></div>
+    <p class="small muted center"><a href="/test/revision">Revisar mis respuestas</a></p>
+  </section>`;
+}
+
+module.exports = { accountGate, welcomePage, questionPage, reviewPage, resultPage, answerText };
