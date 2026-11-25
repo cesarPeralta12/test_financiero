@@ -108,7 +108,7 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
         <link rel="preload" href="/fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
         <link rel="stylesheet" href="/css/app.css?v=16" />
         <link rel="stylesheet" href="/css/motion.css?v=15" />
-        <link rel="stylesheet" href="/css/game.css?v=28" />
+        <link rel="stylesheet" href="/css/game.css?v=30" />
         <link rel="stylesheet" href="/css/mi-dinero.css?v=9" />
         <link rel="stylesheet" href="/css/coach-v2.css?v=3" />
         <script src="/js/early.js?v=9"></script>

@@ -7,6 +7,7 @@ const { migrate } = require('./migrate');
 const { hashPassword } = require('../lib/security');
 const { DEEP, RULES, PRODUCTS, CONTENTS } = require('./content-v1');
 const { DEEP_V2 } = require('./content-deep-v2');
+const { DEEP_V3 } = require('./content-deep-v3');
 
 /**
  * Publica la versión `version` del cuestionario si todavía no existe y retira la anterior.
@@ -52,6 +53,7 @@ function seed({ quiet = false } = {}) {
   db.tx(() => {
     if (seedQuestionnaire('profundo', DEEP)) log('Cuestionario profundo v1 publicado.');
     if (config.deepQuestionnaireVersion >= 2 && seedQuestionnaire('profundo', DEEP_V2, 2)) log('Cuestionario profundo v2 (botones) publicado.');
+    if (config.deepQuestionnaireVersion >= 3 && seedQuestionnaire('profundo', DEEP_V3, 3)) log('Cuestionario profundo v3 (perfil del Plan Maestro) publicado.');
 
     if (!db.value("SELECT COUNT(*) FROM rule_sets WHERE kind = 'diagnostico'")) {
       db.run(

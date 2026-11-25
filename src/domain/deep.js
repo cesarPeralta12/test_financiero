@@ -207,6 +207,7 @@ function diagnose(map, rules) {
       payment: s(d.payment),
       rate: d.rate,
       rateType: d.rate_type,
+      term: d.term || null,
       fees: d.fees === null ? null : s(d.fees),
       monthlyRate: i === null ? null : i.toFixed(8),
       effectiveAnnual: i === null ? null : calc.effectiveAnnual(i).toFixed(6),
@@ -355,6 +356,7 @@ function diagnose(map, rules) {
     preference: pref,
     adjustment: val(map, 'ajuste_gasto') || 'nada',
     dependents: f.dependents,
+    profile: require('./maestro').profile(map),
   };
 }
 

@@ -185,6 +185,8 @@ function simpleDebts(q, form, errors, currency) {
           ${c.errorText(errors, key('rate'))}
           <div class="pills">${pill(name('rate_unknown'), '1', 'No sé el interés', r.rate_unknown === '1' || r.rate_unknown === 'on', { type: 'checkbox' })}</div>
         </div>
+        <div class="field"><label for="${c.fieldId(key('term'))}">¿Cuántos meses te faltan? (opcional)</label>
+          <input class="input input--num input--short" id="${c.fieldId(key('term'))}" name="${name('term')}" inputmode="numeric" value="${r.term || ''}" placeholder="Ej. 18" ${c.invalid(errors, key('term'))} />${c.errorText(errors, key('term'))}</div>
       </div>`;
     })}`;
 }
@@ -210,12 +212,12 @@ function simpleGoals(q, form, errors, currency) {
 }
 function pickBreakdown(q, form, errors, currency) {
   const picked = form.pick || [];
-  return html`<p class="small muted qf-hint">Marca en qué gastas cada mes. Solo te pediremos el monto de lo que marques.</p>
-    ${buttons('pick', q.config.fields.map((f) => ({ value: f.key, label: f.label })), picked, { multi: true })}
+  return html`<p class="small muted qf-hint">${q.config.hint || 'Marca en qué gastas cada mes. Solo te pediremos el monto de lo que marques.'}</p>
+    ${buttons('pick', [...q.config.fields.map((f) => ({ value: f.key, label: f.label })), ...(q.config.none ? [{ value: 'ninguno', label: q.config.none }] : [])], picked, { multi: true })}
     ${c.errorText(errors, 'value')}
     <div class="breakdown">${q.config.fields.map(
       (f) => html`<div class="qf-if field" data-show-if="pick=${f.key}">
-        <label for="${c.fieldId('f.' + f.key)}">${f.label} al mes</label>
+        <label for="${c.fieldId('f.' + f.key)}">${f.label}${q.config.suffix === undefined ? ' al mes' : q.config.suffix}</label>
         ${c.moneyInput({ name: `f[${f.key}]`, errorKey: `f.${f.key}`, value: (form.f || {})[f.key], currency, errors })}
       </div>`
     )}</div>`;

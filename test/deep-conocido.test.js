@@ -214,3 +214,74 @@ test('otra cuenta nunca ve ni usa lo conocido de ésta, y sin sesión no abre', 
   const anon = new h.Client();
   assert.doesNotMatch((await anon.get('/evaluacion/conocido')).text, /Esto ya lo sabemos/);
 });
+
+// ───────── Del test gratuito a la evaluación en chat ─────────
+async function conTest({ deuda, varia }) {
+  const engine = require('../src/domain/free/engine');
+  const cat = require('../src/domain/free/catalog4');
+  const { c, u } = await cuenta();
+  const A = { Q01: { country: 'BO', currency: 'BOB' }, Q02: { codes: ['A25_34'] }, Q03: { codes: ['D1'] }, Q04: { codes: ['EMPLOYEE'] }, Q05: { code: 'INCOME', horizon: 'M6' }, Q06: { amount: '2500' }, Q07: { codes: [varia] }, Q08: { amount: '900' }, Q09: { amount: '150' }, Q10: deuda, Q11: { codes: ['CARD'] }, Q12: { codes: ['ON_TIME'] }, Q13: { amount: '2000' }, Q14: { codes: ['NONE'] }, Q15: { codes: ['EQUIPMENT'] }, Q16: { codes: ['H3_7'] }, Q17: { codes: ['SELL'] }, Q18: { codes: ['COMMERCE'] }, Q19: { codes: ['UNPAID'] }, Q20: { codes: ['FRIENDS'] }, Q21: { codes: ['GROWTH'] }, Q22: { codes: ['KEEP_JOB'] }, Q23: { availability: 'NO' }, Q24: { codes: ['SELL_SERVICE'] } };
+  const s = engine.createSession({ userId: u.id, consent: true, versionId: 'FREE_24_V4_ES' }).session;
+  for (const q of cat.SLOTS) {
+    const cur = engine.loadSession(s.id);
+    const r = engine.questionAt(cur, q.slot_id);
+    if (r.question) engine.saveAnswer(s.id, q.slot_id, { variant_id: r.question.variant_id, expected_revision: cur.revision, value: A[q.slot_id] });
+  }
+  engine.complete(s.id);
+  return { c, u };
+}
+/** Preguntas que hace el chat hasta `max`, respondiendo algo razonable. */
+async function preguntas(c, max = 14) {
+  const out = [];
+  let texto = ((await c.get('/evaluacion?empezar=1')).text.match(/chat-msg--bot chat-q">([^<]+)</) || [])[1];
+  for (let i = 0; i < max && texto; i++) {
+    out.push(texto);
+    const di = /neta/.test(texto) ? 'sí' : /total, sin contar/.test(texto) ? '1050' : /en qué gastas/i.test(texto) ? 'comida' : /cuánto (gastas|pagas)|fuente principal|apartas para/i.test(texto) ? '900' : /mes malo/.test(texto) ? '20 %' : 'no';
+    const r = JSON.parse((await c.req('POST', '/evaluacion/chat', { form: { texto: di }, headers: { accept: 'application/json' } })).text);
+    if (r.error) throw new Error(`«${texto}» → «${di}»: ${r.error}`);
+    out.ayudas = [...(out.ayudas || []), r.next && r.next.help];
+    texto = r.next && r.next.text;
+  }
+  return out;
+}
+
+test('test gratuito: «no tengo deudas» e ingreso fijo se proponen y, si se aceptan, no se vuelven a preguntar', async () => {
+  const config = require('../src/config');
+  const { c, u } = await conTest({ deuda: { status: 'NO' }, varia: 'FIXED' });
+  config.deepChat = true;
+  try {
+    const p = await c.get('/evaluacion');
+    assert.match(p.url, /conocido$/);
+    assert.match(p.text, /No tengo deudas/);
+    const { ev, qn } = nueva(u);
+    const codes = conocido.candidatos(u.id, ev, qn).map((x) => x.code);
+    for (const k of ['moneda_base', 'ingreso_principal', 'deudas', 'caida_ingreso', 'ahorro_disponible', 'dependientes']) assert.ok(codes.includes(k), k);
+    await c.post('/evaluacion/conocido', { action: 'usar', ok: codes });
+    const hechas = await preguntas(c);
+    assert.ok(!hechas.some((q) => /tienes deudas\?|debes|atrasado|tarjetas|mes malo|fuente principal|dependen económicamente|disponible de inmediato/i.test(q)), hechas.join(' | '));
+    assert.match(hechas[0], /neta/);
+    assert.match((await c.get('/evaluacion/revision')).text, /No tengo deudas/);
+    assert.ok(hechas.ayudas.some((a) => /En tu test dijiste .*900.*150/.test(a || '')), 'recuerda los gastos del test al pedir el detalle');
+  } finally {
+    config.deepChat = false;
+  }
+});
+
+test('test gratuito: si no se usan esos datos, se pregunta todo; y si dijo que tiene deudas, siempre se preguntan', async () => {
+  const config = require('../src/config');
+  const a = await conTest({ deuda: { status: 'NO' }, varia: 'FIXED' });
+  config.deepChat = true;
+  try {
+    await a.c.get('/evaluacion');
+    await a.c.post('/evaluacion/conocido', { action: 'ninguno' });
+    const { ev, qn } = nueva(a.u);
+    assert.equal(Object.keys(qs.answers(ev.id)).length, 0, 'no se guardó nada');
+    assert.equal(qs.firstUnanswered(qn, {}), 1);
+    const b = await conTest({ deuda: { status: 'DUE', monthly_due: { amount: '400' } }, varia: 'HIGH' });
+    const n = nueva(b.u);
+    const codes = conocido.candidatos(b.u.id, n.ev, n.qn).map((x) => x.code);
+    assert.ok(!codes.includes('deudas') && !codes.includes('caida_ingreso'), codes.join());
+  } finally {
+    config.deepChat = false;
+  }
+});

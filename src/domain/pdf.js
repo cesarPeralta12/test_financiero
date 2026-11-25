@@ -55,7 +55,27 @@ function planPdf({ user, plan, content, narrative }) {
   doc.moveDown(0.3);
   p(`${user.name ? user.name + ', ' : ''}versión ${plan.version_number}. Tu Día Uno: ${dateEs(content.startDate)}. Generado el ${dateEs(plan.completed_at || plan.created_at)}.`, INK3, 10);
 
-  h2('Diagnóstico');
+  // Los 14 puntos, con los mismos bloques de la pantalla.
+  if (content.maestro) {
+    const by = Object.fromEntries(content.maestro.sections.map((x) => [x.id, x]));
+    for (const id of require('../views/maestro').ORDER) {
+      const sec = by[id];
+      if (!sec) continue;
+      h2(sec.title);
+      p(sec.intro, INK3, 10);
+      for (const b of sec.blocks) {
+        doc.moveDown(0.4);
+        if (b.title) p(b.title, INK, 11);
+        if (b.type === 'figures') for (const x of b.items) row(x.k, x.v, { bold: Boolean(x.total) });
+        else if (b.type === 'list') b.items.forEach((x) => p(`• ${x}`));
+        else if (b.type === 'text') p(b.text);
+        else if (b.type === 'table') b.rows.forEach((r) => { p(r[0], INK, 10.5); p(r.slice(1).map((x, i) => `${b.head[i + 1]}: ${x}`).join('  |  '), INK2, 9.5); doc.moveDown(0.2); });
+        else if (b.type === 'cards') b.items.forEach((x) => { if (doc.y > doc.page.height - 130) doc.addPage(); p(`${x.title}${x.tag ? ` (${x.tag})` : ''}`, PINE, 10.5); x.lines.forEach(([k, v]) => p(k ? `${k}: ${v}` : `• ${v}`, INK2, 9.5)); doc.moveDown(0.3); });
+      }
+    }
+  }
+
+  h2('Tus números en detalle');
   if (narrative) p(narrative.diagnostico);
   doc.moveDown(0.6);
   for (const x of content.diagnostico.situacion) row(x.label, f(x.value));

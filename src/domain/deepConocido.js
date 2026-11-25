@@ -99,7 +99,7 @@ function desdeCuenta(userId, hoy) {
   return out;
 }
 
-/** Test gratuito V4: ingreso del mes, dinero guardado, personas a cargo y moneda. Solo montos exactos. */
+/** Test gratuito V4: moneda, ingreso, dinero guardado, personas a cargo, «no tengo deudas» e ingreso fijo. Solo montos exactos. */
 function desdeTestGratuito(userId, currency) {
   const s = db.one("SELECT id, currency, completed_at FROM ft_sessions WHERE user_id = ? AND version_id = 'FREE_24_V4_ES' AND completed_revision IS NOT NULL ORDER BY completed_at DESC LIMIT 1", userId);
   const out = {};
@@ -117,6 +117,26 @@ function desdeTestGratuito(userId, currency) {
   if (exacto(ah)) out.ahorro_disponible = { value: ah.amount, source: 'test_gratuito', date: fecha };
   const dep = slot('Q03');
   if (dep && dep.codes && DEPENDENTS[dep.codes[0]] !== undefined) out.dependientes = { value: DEPENDENTS[dep.codes[0]], source: 'test_gratuito', date: fecha };
+  // Perfil: los códigos son los mismos que en la evaluación.
+  const uno = (id, code) => {
+    const v = slot(id);
+    if (v && v.codes && v.codes.length) out[code] = { value: v.codes[0], source: 'test_gratuito', date: fecha };
+  };
+  const varios = (id, code) => {
+    const v = slot(id);
+    if (v && v.codes && v.codes.length) out[code] = { value: v.codes, source: 'test_gratuito', date: fecha };
+  };
+  uno('Q04', 'actividad');
+  if (slot('Q16') && slot('Q16').codes && slot('Q16').codes[0] !== 'H15') uno('Q16', 'horas_semana');
+  varios('Q17', 'habilidades');
+  varios('Q20', 'a_quien_ofrecer');
+  // «No tengo deudas» (si dijo que sí tiene, hay que preguntar: faltan el saldo y la cuota de cada una).
+  const deuda = slot('Q10');
+  const tipos = slot('Q11');
+  if ((deuda && deuda.status === 'NO') || (tipos && tipos.codes && tipos.codes.includes('NONE'))) out.deudas = { value: [], source: 'test_gratuito', date: fecha };
+  // Siempre recibe el mismo monto: en un mes malo no baja.
+  const varia = slot('Q07');
+  if (varia && varia.codes && varia.codes[0] === 'FIXED') out.caida_ingreso = { value: '0', source: 'test_gratuito', date: fecha, estable: true };
   return out;
 }
 
@@ -131,6 +151,20 @@ function desdeEvaluacionAnterior(userId, evId, currency) {
     if (code === 'moneda_base' || !currency || !prev.base_currency || prev.base_currency === currency) out[code] = { value: a.value, source: 'evaluacion_anterior', date: fecha };
   }
   return out;
+}
+
+/** Gastos declarados en el test gratuito, para recordarlos al pedir el detalle por categoría (null si no hay o es otra moneda). */
+function gastosDelTest(userId, currency) {
+  const s = db.one("SELECT id FROM ft_sessions WHERE user_id = ? AND version_id = 'FREE_24_V4_ES' AND completed_revision IS NOT NULL ORDER BY completed_at DESC LIMIT 1", userId);
+  if (!s) return null;
+  const monto = (id) => {
+    const row = db.one("SELECT value_json FROM ft_answers WHERE session_id = ? AND slot_id = ? AND active = 1 AND response_status = 'answered'", s.id, id);
+    const v = row ? db.parse(row.value_json, null) : null;
+    return v && v.amount && v.currency === currency && Number(v.amount) > 0 ? money.format(v.amount, currency) : null;
+  };
+  const basicos = monto('Q08');
+  const extras = monto('Q09');
+  return basicos || extras ? { basicos, extras } : null;
 }
 
 /**
@@ -159,7 +193,7 @@ function candidatos(userId, ev, qn, { hoy = hoyIso(), incluirVolatiles = false }
   const out = [];
   for (const q of qn.questions) {
     const c = mejor[q.code];
-    if (!c || (!incluirVolatiles && NO_PRELLENAR.has(q.code))) continue;
+    if (!c || (!incluirVolatiles && NO_PRELLENAR.has(q.code) && !c.estable)) continue;
     if (!qs.isApplicable(q, { ...actuales, ...Object.fromEntries(Object.entries(mejor).map(([k, v]) => [k, { value: v.value }])) })) continue;
     const ya = actuales[q.code];
     if (ya && !ya.unknown && JSON.stringify(ya.value) === JSON.stringify(c.value)) continue;
@@ -185,4 +219,4 @@ function paraPregunta(userId, ev, qn, code, opts = {}) {
   return candidatos(userId, ev, qn, { ...opts, incluirVolatiles: true }).find((c) => c.code === code) || null;
 }
 
-module.exports = { candidatos, paraPregunta, ORIGEN, NO_PRELLENAR, DIAS_FRESCO };
+module.exports = { gastosDelTest, candidatos, paraPregunta, ORIGEN, NO_PRELLENAR, DIAS_FRESCO };

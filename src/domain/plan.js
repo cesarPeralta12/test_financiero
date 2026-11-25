@@ -215,7 +215,7 @@ function buildContent(diag, rules, startDate) {
     `Cada ${R.plan.revision_meses} meses, aunque todo vaya bien.`,
   ];
 
-  return {
+  const content = {
     currency: cur,
     startDate,
     diagnostico: {
@@ -271,6 +271,9 @@ function buildContent(diag, rules, startDate) {
     hoja12: roadmap,
     review,
   };
+  // Los 14 puntos del Plan Maestro, calculados con reglas (sin IA).
+  content.maestro = require('./maestro').build(diag, content, R);
+  return content;
 }
 
 // ───────── Redacción (IA) ─────────
@@ -474,6 +477,11 @@ function activate(userId, planId, content, diag) {
       db.now(),
       db.now()
     );
+  }
+  // Bienes declarados: punto de partida del patrimonio en la calculadora.
+  if (diag.profile && diag.profile.assets && !db.value('SELECT 1 FROM assets WHERE user_id = ? LIMIT 1', userId)) {
+    const { ASSET } = require('./maestro');
+    for (const [k, v] of Object.entries(diag.profile.assets)) if (dec(v).gt(0)) db.run("INSERT INTO assets (user_id, name, kind, value, source, created_at, updated_at) VALUES (?, ?, ?, ?, 'plan', ?, ?)", userId, ASSET[k] || 'Otros bienes', k, v, db.now(), db.now());
   }
   if (!db.value('SELECT 1 FROM debts WHERE user_id = ? LIMIT 1', userId)) {
     for (const d of diag.debts) {

@@ -163,7 +163,8 @@ function figures(r, answers) {
   ];
   if (f.dues) tiles.push(['Cuotas de deuda al mes', money(cur, f.dues)]);
   return html`<div class="dx-figures">${tiles.map(([k, v]) => html`<div class="dx-figure"><span class="small muted">${k}</span><strong>${v}</strong></div>`)}</div>
-    <p class="small muted">Cifras calculadas con lo que declaraste. <a href="#como-calculamos">Ver cómo lo calculamos</a></p>`;
+    <p class="small muted">Cifras calculadas con lo que declaraste.</p>
+    ${howCalculated(r, answers)}`;
 }
 
 /** «Ver cómo lo calculamos»: tabla con cada monto y las fórmulas, plegada. */
@@ -320,8 +321,6 @@ function resultPage(ctx, { result: r, answers, user, products, owned, completedA
     ${offerBlock(r, { products, owned, user })}
 
     <section class="section dx-trust" aria-label="Más opciones">
-      ${howCalculated(r, answers)}
-      ${openDetail ? '' : ''}
       ${!user ? html`<p class="small muted"><strong>Guarda tu resultado.</strong> Con una cuenta no lo pierdes; sin cuenta, tus respuestas se conservan unos días desde tu última actividad. <a href="/registro">Crear mi cuenta</a> · <a href="/entrar?siguiente=/resultado">Ya tengo cuenta</a></p>` : ''}
       <p class="small muted">¿Algo no coincide? <a href="/test/revision">Corrige tus respuestas</a> y generaremos un resultado nuevo. · <a href="/privacidad">Privacidad</a> · <a href="/condiciones">Condiciones</a></p>
     </section>

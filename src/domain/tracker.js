@@ -525,6 +525,40 @@ function deleteDebt(userId, debtId) {
 
 // ───────── Metas ─────────
 
+/** Bienes y patrimonio neto: bienes + lo ahorrado en metas y reserva − deudas. Nunca por debajo de lo declarado ni con rendimientos. */
+const ASSET_KINDS = { inmuebles: 'Casa o departamento', terrenos: 'Terreno', vehiculos: 'Auto o moto', inversiones: 'Inversión', negocio: 'Parte de un negocio', equipos: 'Equipos o mercadería', otros: 'Otro bien' };
+function assets(userId) {
+  return db.all('SELECT * FROM assets WHERE user_id = ? ORDER BY created_at, id', userId);
+}
+function validateAsset(userId, body) {
+  const errors = {};
+  const name = String(body.name || '').trim().slice(0, 60);
+  if (!name) errors.name = 'Ponle un nombre, por ejemplo «Moto».';
+  const kind = ASSET_KINDS[body.kind] ? body.kind : null;
+  if (!kind) errors.kind = 'Elige qué tipo de bien es.';
+  const v = money.parseAmount(body.value, baseCurrency(userId));
+  if (v.empty) errors.value = 'Escribe un valor aproximado.';
+  else if (!v.ok) errors.value = v.error;
+  else if (new D(v.value).lte(0)) errors.value = 'El valor debe ser mayor que 0.';
+  const ok = !Object.keys(errors).length;
+  return { ok, errors, value: ok ? { name, kind, value: v.value } : null };
+}
+function createAsset(userId, v) {
+  return db.run("INSERT INTO assets (user_id, name, kind, value, source, created_at, updated_at) VALUES (?, ?, ?, ?, 'usuario', ?, ?)", userId, v.name, v.kind, v.value, db.now(), db.now()).lastId;
+}
+function updateAssetValue(userId, id, value) {
+  return db.run('UPDATE assets SET value = ?, updated_at = ? WHERE id = ? AND user_id = ?', value, db.now(), id, userId).changes > 0;
+}
+function deleteAsset(userId, id) {
+  return db.run('DELETE FROM assets WHERE id = ? AND user_id = ?', id, userId).changes > 0;
+}
+function netWorth(userId) {
+  const owned = assets(userId).reduce((a, x) => a.plus(x.value), ZERO);
+  const saved = goals(userId).reduce((a, g) => a.plus(D.max(new D(g.saved), ZERO)), ZERO);
+  const debt = debts(userId).reduce((a, d) => a.plus(d.balance), ZERO);
+  return { owned, saved, debt, net: owned.plus(saved).minus(debt) };
+}
+
 function goals(userId, { includeArchived = false } = {}) {
   const rows = db.all(`SELECT * FROM goals WHERE user_id = ? ${includeArchived ? '' : "AND status <> 'archivada'"} ORDER BY kind = 'reserva' DESC, created_at`, userId);
   const now = new Date();
@@ -729,6 +763,13 @@ function lastDataChange(userId) {
 }
 
 module.exports = {
+  ASSET_KINDS,
+  assets,
+  validateAsset,
+  createAsset,
+  updateAssetValue,
+  deleteAsset,
+  netWorth,
   KINDS,
   CATEGORIES,
   BUDGET_KINDS,

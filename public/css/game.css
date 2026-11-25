@@ -2091,3 +2091,23 @@ table.data td {
 .calc-list li > div { display: grid; overflow-wrap: anywhere; }
 .calc-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin: 10px 0 18px; }
 .calc-links a { display: grid; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); text-decoration: none; }
+
+/* Plan Maestro: 14 puntos plegables */
+.pm-section { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); margin: 10px 0; }
+.pm-section > summary { cursor: pointer; padding: 14px 16px; font-size: 1.05rem; }
+.pm-section[open] > summary { border-bottom: 1px solid var(--line); }
+.pm-body { padding: 12px 16px 16px; display: grid; gap: 10px; min-width: 0; }
+.pm-body > * { min-width: 0; }
+.pm-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px; }
+.pm-card { border: 1px solid var(--line-2, var(--line)); border-radius: 12px; padding: 12px 14px; overflow-wrap: anywhere; }
+.pm-card h4 { margin: 0 0 6px; }
+.pm-card p { margin: 4px 0; font-size: 0.93rem; }
+@media print { .pm-section > .pm-body { display: grid; } }
+.calc-list li.calc-asset { grid-template-columns: 1fr; }
+.calc-asset form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pm-body .table-wrap { overflow-x: auto; margin: 0; max-width: 100%; }
+.pm-body .table-wrap table { width: 100%; min-width: 0; }
+@media (max-width: 720px) { .pm-body .table-wrap { overflow: visible; } .pm-body td { white-space: normal; padding-right: 0; } }
+.ctx .figures .v, .pm-body .figures .v { white-space: normal; overflow-wrap: anywhere; text-align: right; min-width: 0; flex: 0 1 62%; }
+.ctx .figures .k, .pm-body .figures .k { flex: 1 1 38%; min-width: 0; }
+.ctx h3 { margin-top: 1.2rem; }

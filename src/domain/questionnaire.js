@@ -285,8 +285,16 @@ function parseSubmission(q, body, currency) {
         const keys = q.config.fields.map((x) => x.key);
         const picked = bodyArray(body.pick).filter((k) => keys.includes(k));
         form.pick = picked;
+        if (q.config.none && bodyArray(body.pick).includes('ninguno')) {
+          form.pick = ['ninguno'];
+          if (picked.length) {
+            errors.value = `«${q.config.none}» no se puede combinar con otras opciones.`;
+            return result(null);
+          }
+          return result(Object.fromEntries(keys.map((k) => [k, '0.00'])));
+        }
         if (!picked.length) {
-          errors.value = 'Marca al menos un gasto o elige «No lo sé».';
+          errors.value = q.config.none ? `Marca lo que tengas o «${q.config.none}».` : 'Marca al menos un gasto o elige «No lo sé».';
           return result(null);
         }
         for (const field of q.config.fields) {
@@ -296,7 +304,7 @@ function parseSubmission(q, body, currency) {
             continue;
           }
           const p = money.parseAmount(f[field.key], currency);
-          if (p.empty) errors[`f.${field.key}`] = `Escribe cuánto gastas en ${field.label.toLowerCase().replace(/ \(.*\)$/, '')}.`;
+          if (p.empty) errors[`f.${field.key}`] = q.config.none ? `Escribe un valor aproximado de ${field.label.toLowerCase()}.` : `Escribe cuánto gastas en ${field.label.toLowerCase().replace(/ \(.*\)$/, '')}.`;
           else if (!p.ok) errors[`f.${field.key}`] = p.error;
           else value[field.key] = p.value;
         }
@@ -454,7 +462,10 @@ function parseSubmission(q, body, currency) {
           rateType = r.rate_period === 'mensual' ? 'mensual' : 'nominal_anual';
         }
       }
-      out.push({ name: def.label, kind, balance: bal.value, payment: pay.value, rate, rate_type: rateType, fees: null });
+      const termRaw = String(r.term ?? '').trim();
+      const termOk = /^\d{1,3}$/.test(termRaw) && Number(termRaw) >= 1 && Number(termRaw) <= 600;
+      if (termRaw && !termOk) e('term', 'Escribe los meses que faltan, entre 1 y 600.');
+      out.push({ name: def.label, kind, balance: bal.value, payment: pay.value, rate, rate_type: rateType, fees: null, ...(termOk ? { term: Number(termRaw) } : {}) });
     }
     return result(out);
   }
@@ -519,12 +530,15 @@ function toForm(q, a) {
       if (asksPresence(q) && v && Number(v.amount) === 0) return { has: 'no' };
       return { amount: v && v.amount, period: v && v.period, ...(asksPresence(q) && v ? { has: 'si' } : {}) };
     case 'breakdown':
-      if (q.config.pick && v) return { f: v, pick: Object.keys(v).filter((k) => Number(v[k]) > 0) };
+      if (q.config.pick && v) {
+        const pick = Object.keys(v).filter((k) => Number(v[k]) > 0);
+        return { f: v, pick: !pick.length && q.config.none ? ['ninguno'] : pick };
+      }
       return { f: v || {} };
     case 'debts':
       if (q.config.simple && Array.isArray(v)) {
         if (!v.length) return { kinds: ['ninguna'], k: {} };
-        return { kinds: v.map((d) => d.kind), k: Object.fromEntries(v.map((d) => [d.kind, { balance: d.balance, payment: d.payment, rate: d.rate || '', rate_unknown: d.rate === null ? '1' : '', rate_period: d.rate_type === 'mensual' ? 'mensual' : 'anual' }])) };
+        return { kinds: v.map((d) => d.kind), k: Object.fromEntries(v.map((d) => [d.kind, { balance: d.balance, payment: d.payment, rate: d.rate || '', rate_unknown: d.rate === null ? '1' : '', rate_period: d.rate_type === 'mensual' ? 'mensual' : 'anual', term: d.term || '' }])) };
       }
     // falls through
     case 'goals':
@@ -567,10 +581,10 @@ function display(q, a, currency) {
       return ch ? ch.label : `${String(v).replace('.', ',')} %`;
     }
     case 'breakdown':
-      return q.config.fields.filter((f) => !q.config.pick || Number(v[f.key]) > 0).map((f) => `${f.label}: ${money.format(v[f.key], currency)}`).join('; ') || 'Sin gastos marcados';
+      return q.config.fields.filter((f) => !q.config.pick || Number(v[f.key]) > 0).map((f) => `${f.label}: ${money.format(v[f.key], currency)}`).join('; ') || q.config.none || 'Sin gastos marcados';
     case 'debts':
       if (!v.length) return 'No tengo deudas';
-      return v.map((d) => `${d.name}: saldo ${money.format(d.balance, currency)}, cuota ${money.format(d.payment, currency)}`).join('; ');
+      return v.map((d) => `${d.name}: saldo ${money.format(d.balance, currency)}, cuota ${money.format(d.payment, currency)}${d.rate !== null && d.rate !== undefined ? `, interés ${String(Number(d.rate)).replace('.', ',')} % ${d.rate_type === 'mensual' ? 'al mes' : 'al año'}` : ''}${d.term ? `, faltan ${d.term} ${d.term === 1 ? 'mes' : 'meses'}` : ''}`).join('; ');
     case 'goals':
       if (!v.length) return 'Aún no tengo metas';
       return v.map((g) => `${g.name}: ${money.format(g.target, currency)}`).join('; ');

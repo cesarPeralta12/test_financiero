@@ -105,6 +105,9 @@ function nextStep(q, body, currency) {
       const startsWith = (word) => list.filter((o) => new RegExp(`^${word}(\\s|,|$)`).test(norm(o.label)));
       const yn = YES.test(n) ? startsWith('si') : NO.test(n) ? startsWith('no') : [];
       if (!exact && yn.length === 1 && n.split(' ').length <= 3) return set({ [key]: yn[0].code });
+      // «15 clientes» cae en su rango.
+      const cant = cfg.ranges && !exact && n.match(/^(?:unos |como |mas o menos )?(\d+)(?: clientes?)?(?: al mes)?$/);
+      if (cant) return set({ [key]: cfg.ranges.find(([max]) => Number(cant[1]) <= max)[1] });
       const hit = exact || chat4.matchOptions(list, t)[0];
       if (!hit) return { error: 'No te entendí. Escríbelo con otras palabras o toca una opción.' };
       return set({ [key]: hit.code });
@@ -118,8 +121,8 @@ function nextStep(q, body, currency) {
     kind: 'multi',
     apply: (t) => {
       const n = norm(t);
+      if (unknownOk(t)) return { unknown: true }; // «no lo sé» no es «ninguno»
       if (noneCode && NO.test(n) && n.split(' ').length <= 4) return set({ [key]: [noneCode] });
-      if (unknownOk(t)) return { unknown: true };
       let found = chat4.matchOptions(list.filter((o) => o.code !== noneCode), t);
       if (!found.length) {
         const none = noneCode && chat4.matchOptions(list.filter((o) => o.code === noneCode), t)[0];
@@ -222,10 +225,20 @@ function nextStep(q, body, currency) {
     case 'breakdown': {
       const fields = cfg.fields.map((f) => ({ code: f.key, label: f.label }));
       if (!body.pick) {
-        const step = pickMany('pick', cfg.pick ? q.prompt : '¿En qué gastas cada mes?', 'Nombra en qué gastas cada mes, por ejemplo «vivienda, comida y transporte». Sin pagos de deudas.', fields, 'pick', null);
+        const opciones = cfg.none ? [...fields, { code: 'ninguno', label: cfg.none }] : fields;
+        const step = pickMany('pick', cfg.pick ? q.prompt : '¿En qué gastas cada mes?', cfg.none ? q.help : 'Nombra en qué gastas cada mes, por ejemplo «vivienda, comida y transporte». Sin pagos de deudas.', opciones, 'pick', cfg.none ? 'ninguno' : null);
         const base = step.apply;
         step.apply = (t) => {
           const n = norm(t);
+          if (cfg.none) {
+            // Bienes: «casa y moto», «ninguno», «no lo sé».
+            const r = base(t);
+            if (r.unknown) return r;
+            const propios = [[/casa|departamento|depa\b/, 'inmuebles'], [/terreno|lote/, 'terrenos'], [/auto|moto|carro|coche|camion|vehiculo/, 'vehiculos'], [/inversi|acciones|fondo/, 'inversiones'], [/negocio|empresa|tienda/, 'negocio'], [/equipo|herramienta|mercader|maquina|computadora/, 'equipos']].filter(([re, k]) => re.test(n) && fields.some((f) => f.code === k)).map(([, k]) => k);
+            const elegidos = [...new Set([...(r.body ? r.body.pick : []), ...propios])];
+            if (propios.length) return set({ pick: elegidos.filter((k) => k !== 'ninguno'), f: {} });
+            return r.body ? set({ pick: elegidos, f: {} }) : { error: `No te entendí. Nombra lo que tengas, por ejemplo «casa y moto», o escribe «ninguno».` };
+          }
           const extra = [
             [/comida|supermercado|mercado|aliment/, 'alimentacion'],
             [/alquiler|renta|casa|vivienda|anticretico/, 'vivienda'],
@@ -242,11 +255,12 @@ function nextStep(q, body, currency) {
         };
         return step;
       }
+      if (body.pick.includes('ninguno')) return null;
       const f = body.f || {};
       const key = body.pick.find((k) => f[k] === undefined);
       if (!key) return null;
       const label = cfg.fields.find((x) => x.key === key).label;
-      const step = amountStep(`f.${key}`, `¿Cuánto gastas al mes en ${lc(label)}?`, 'x');
+      const step = amountStep(`f.${key}`, cfg.ask ? cfg.ask.replace('{campo}', lc(label)) : `¿Cuánto gastas al mes en ${lc(label)}?`, 'x');
       step.apply = (t) => {
         const a = amountFor(t, currency);
         if (a === null) return { error: 'No encontré un monto. Escribe solo la cifra, por ejemplo «800».' };
@@ -297,9 +311,69 @@ function nextStep(q, body, currency) {
           const s = amountStep(`k.${kind}.payment`, `¿Y cuánto pagas al mes de ${lc(label)}?`, 'x', { help: 'Si hoy no pagas nada, escribe 0.' });
           s.apply = (t) => {
             const a = NO.test(norm(t)) ? '0' : amountFor(t, currency);
-            return a === null ? { error: 'No encontré un monto. Escribe solo la cifra, por ejemplo «400».' } : set({ k: { ...k, [kind]: { ...r, payment: a, rate_unknown: '1' } } });
+            return a === null ? { error: 'No encontré un monto. Escribe solo la cifra, por ejemplo «400».' } : set({ k: { ...k, [kind]: { ...r, payment: a, ...(cfg.simple ? {} : { rate_unknown: '1' }) } } });
           };
           return s;
+        }
+        if (!cfg.simple) continue;
+        const put = (patch) => set({ k: { ...k, [kind]: { ...r, ...patch } } });
+        const noInterest = /sin interes|no (me )?cobra|no (tiene|pago|genera) interes|^(0|cero|nada|ninguno|no)( ?%)?$/;
+        if (r.rate === undefined && r.rate_unknown === undefined) {
+          return {
+            id: `k.${kind}.rate`,
+            text: `¿Qué interés te cobran en ${lc(label)}?`,
+            help: 'Por ejemplo «24 % al año» o «2 % al mes». Está en tu contrato o estado de cuenta.',
+            chips: ['No me cobran interés', 'No lo sé'],
+            kind: 'text',
+            apply: (t) => {
+              const n = norm(t);
+              if (DK.test(n)) return put({ rate_unknown: '1' });
+              if (noInterest.test(n)) return put({ rate: '0', rate_period: 'anual' });
+              const m = n.match(/(\d+(?:[.,]\d+)?)/);
+              if (!m || Number(m[1].replace(',', '.')) > 500 || /-\s*\d/.test(n)) return { error: 'Escribe el interés en porcentaje, por ejemplo «24 % al año», o «no lo sé».' };
+              const per = periodOf(t);
+              if (per && per !== 'anual' && per !== 'mensual') return { error: 'Dímelo al mes o al año, por ejemplo «2 % al mes».' };
+              return put({ rate: m[1].replace(',', '.'), ...(Number(m[1].replace(',', '.')) === 0 ? { rate_period: 'anual' } : per ? { rate_period: per } : {}) });
+            },
+          };
+        }
+        if (r.rate !== undefined && r.rate_period === undefined) {
+          return {
+            id: `k.${kind}.rate_period`,
+            text: `¿Ese ${String(r.rate).replace('.', ',')} % es al mes o al año?`,
+            help: null,
+            chips: ['Al mes', 'Al año', 'No lo sé'],
+            kind: 'choice',
+            apply: (t) => {
+              if (DK.test(norm(t))) {
+                const { rate, ...rest } = r;
+                return set({ k: { ...k, [kind]: { ...rest, rate_unknown: '1' } } });
+              }
+              const per = periodOf(t);
+              return per === 'mensual' || per === 'anual' ? put({ rate_period: per }) : { error: 'Responde «al mes» o «al año».' };
+            },
+          };
+        }
+        if (r.term === undefined) {
+          return {
+            id: `k.${kind}.term`,
+            text: `¿Cuánto tiempo te falta para terminar de pagar ${lc(label)}?`,
+            help: 'Por ejemplo «18 meses» o «2 años». Si no tiene fecha, escribe «no lo sé».',
+            chips: ['No lo sé'],
+            kind: 'text',
+            apply: (t) => {
+              const n = norm(t);
+              if (DK.test(n) || /no tiene (fecha|plazo)|sin (fecha|plazo)/.test(n)) return put({ term: '' });
+              const a = n.match(/(\d+(?:[.,]\d+)?|\bun) ?anos?\b/);
+              const me = n.match(/(\d+|\bun) ?mes(es)?\b/);
+              const num = (x) => (x === 'un' ? 1 : Number(x.replace(',', '.')));
+              let months = (a ? num(a[1]) * 12 : 0) + (me ? num(me[1]) : 0);
+              if (!a && !me && /^\d+$/.test(n)) months = Number(n);
+              if (a && /y medio/.test(n)) months += 6;
+              months = Math.round(months);
+              return months >= 1 && months <= 600 ? put({ term: String(months) }) : { error: 'Escribe cuántos meses te faltan, por ejemplo «18 meses», o «no lo sé».' };
+            },
+          };
         }
       }
       return null;

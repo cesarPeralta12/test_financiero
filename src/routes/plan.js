@@ -11,6 +11,8 @@ const c = require('../views/components');
 const { requireEntitlement } = require('./guards');
 const { intParam, notFound } = require('./util');
 
+const { maestroView } = require('../views/maestro');
+
 const router = express.Router();
 const guard = requireEntitlement('plan_maestro');
 
@@ -92,8 +94,10 @@ function planView(ctx, { plan, content, narrative, versions, pendingPlan, dataCh
       ${c.ticks(dayStates, { days: true, label: `Día ${day} de ${totalDays}` })}
     </div>
 
+    ${maestroView(content.maestro)}
+
     <section class="plan-block" aria-labelledby="b1">
-      <h2 id="b1">Diagnóstico</h2>
+      <h2 id="b1">Tus números en detalle</h2>
       ${N('diagnostico')}
       <ul class="figures">${content.diagnostico.situacion.map((x) => html`<li><span class="k">${x.label} ${c.src(x.src)}</span><span class="v num ${Number(x.value) < 0 ? 'neg' : ''}">${f(x.value)}</span></li>`)}</ul>
       <h3 class="section">Prioridades</h3>
@@ -205,7 +209,7 @@ router.get('/plan', guard, (req, res) => {
       body: html`<h1>Tu Plan Maestro</h1>
         ${statusBanner(res.locals.ctx, pend)}
         ${!pend || pend.status === 'fallido'
-          ? html`<p class="lead">Con tu diagnóstico del ${c.dateEs(diag.created_at)} prepararemos un presupuesto, una estrategia de deuda, tus metas y escenarios, un plan de 90 días y una hoja de ruta de 12 meses.</p>
+          ? html`<p class="lead">Con tu diagnóstico del ${c.dateEs(diag.created_at)} prepararemos los 14 puntos de tu Plan Maestro: diagnóstico, acciones, oportunidades, ingresos, activos, planes de 30 y 90 días, uno y tres años, y tus cinco decisiones.</p>
               ${!pend ? startForm(res.locals.ctx, { action: '/plan/generar', label: 'Generar mi Plan Maestro' }) : ''}`
           : ''}`,
     });

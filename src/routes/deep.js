@@ -14,6 +14,8 @@ const { track, content } = require('../lib/services');
 const c = require('../views/components');
 const { createFlow } = require('./flow');
 const conocido = require('../domain/deepConocido');
+const contexto = require('../domain/contexto');
+const { contextoView } = require('../views/contexto');
 const { rateLimit } = require('../lib/security');
 const { requireEntitlement, requireUser } = require('./guards');
 const { intParam, notFound } = require('./util');
@@ -83,6 +85,14 @@ router.use(
     title: 'Evaluación profunda',
     // La evaluación de pago es una conversación: una pregunta a la vez y respuestas escritas.
     chat: () => config.deepChat,
+    chatNote: (req, q, currency, map, qn) => {
+      // La pregunta del ingreso se saltó: se aclara de qué cifra se habla.
+      if (q.code === 'ingreso_es_neto' && map.ingreso_principal && map.ingreso_principal.known) return `Hablamos de lo que recibes: ${qs.display(qn.questions.find((x) => x.code === 'ingreso_principal'), map.ingreso_principal, currency)}.`;
+      const g = q.code === 'gastos_desglose' && req.user ? conocido.gastosDelTest(req.user.id, currency) : null;
+      return g ? `En tu test dijiste ${[g.basicos && `${g.basicos} en lo básico`, g.extras && `${g.extras} en gustos y extras`].filter(Boolean).join(' y ')}. Ahora veamos cómo se reparten.` : null;
+    },
+    // Lo que pudo cambiar no se da por sabido: se propone en el chat y la persona lo confirma.
+    chatPropose: (q) => conocido.NO_PRELLENAR.has(q.code),
     chatWelcome: (req) => {
       const first = req.user && req.user.name ? String(req.user.name).trim().split(/\s+/)[0] : '';
       const n = first ? `, ${first.charAt(0).toUpperCase()}${first.slice(1)}` : '';
@@ -106,13 +116,14 @@ router.use(
       return true;
     },
     savedNote: 'Cada respuesta se guarda al avanzar. Puedes continuar desde cualquier dispositivo con tu cuenta.',
-    reviewExtra(req, ev, qn, map) {
+    reviewExtra(req, ev, qn, map, currency) {
+      const ctx = contexto.applies(qn) && qs.status(ev, qn, map).complete ? contexto.build(req.user.id, qn, map, currency) : null;
       const list = checksFor(ev, qn, map);
       const blocking = list.filter((x) => x.level === 'bloqueo');
       const warnings = list.filter((x) => x.level === 'aviso');
       return {
         blocking: blocking.length > 0,
-        html: html`${blocking.length
+        html: html`${ctx ? contextoView(ctx) : ''}${blocking.length
           ? html`<section class="section" aria-labelledby="h-contra">
               <h2 id="h-contra">Contradicciones por corregir</h2>
               ${blocking.map(
@@ -131,18 +142,19 @@ router.use(
               )}
             </section>`
           : ''}`,
-        ackFields: warnings.length
+        ackFields: html`${ctx ? html`<label class="check field"><input type="checkbox" name="ack" value="contexto" /> <span>Estos datos representan mi situación actual.</span></label>` : ''}${warnings.length
           ? html`<fieldset class="section"><legend class="label">Confirmaciones</legend>
               ${warnings.map(
                 (w) => html`<label class="check field"><input type="checkbox" name="ack" value="${w.code}" /> <span>Confirmo que es correcto: ${w.text.split('.')[0]}.</span></label>`
               )}</fieldset>`
-          : '',
+          : ''}`,
       };
     },
     validateFinish(req, ev, qn, map) {
       const list = checksFor(ev, qn, map);
       const errs = [];
       const acks = [].concat(req.body.ack || []);
+      if (contexto.applies(qn) && !acks.includes('contexto')) errs.push('Confirma que el resumen representa tu situación actual.');
       for (const x of list) {
         if (x.level === 'bloqueo') errs.push(x.text);
         else if (!acks.includes(x.code)) errs.push(`Confirma o corrige: ${x.text}`);

@@ -143,10 +143,28 @@ function createFlow(opts) {
     const saved = chatState(req).partial;
     const body = saved && saved.ev === ev.id && saved.code === q.code ? saved.body : {};
     const step = deepChat.nextStep(q, body, currency);
+    // Recordatorio de algo ya dicho (por ejemplo, los gastos del test gratuito) al empezar la pregunta.
+    const nota = step && !Object.keys(body).length && opts.chatNote ? opts.chatNote(req, q, currency, map, qn) : null;
+    if (nota) step.help = [nota, step.help].filter(Boolean).join(' ');
+    const prev = step && !Object.keys(body).length ? proposal(req, q, ev, currency) : null;
+    if (prev) {
+      step.help = [`Antes dijiste: «${prev.text}». ¿Sigue igual? Si cambió, elige otra respuesta.`, step.help].filter(Boolean).join(' ');
+      step.chips = [SAME, ...(step.chips || [])];
+    }
     const st = qs.status(null, qn, map);
     const applicable = st.items.filter((i) => i.applicable);
-    return { q, body, step, currency, map, progress: { pos: applicable.filter((i) => i.answered).length + 1, total: applicable.length } };
+    return { q, body, step, prev, currency, map, progress: { pos: applicable.filter((i) => i.answered).length + 1, total: applicable.length } };
   }
+  /** «Sí, sigue igual»: en el chat se propone lo que la persona dijo antes y ella lo confirma. */
+  function proposal(req, q, ev, currency) {
+    if (!opts.chatPropose || !opts.previous || !opts.chatPropose(q)) return null;
+    const prev = opts.previous(req, q, ev, currency);
+    if (!prev || !['single', 'multi'].includes(q.type)) return null;
+    const valid = [].concat(prev.value).every((v) => q.options.some((o) => String(o.value) === String(v)));
+    return valid ? prev : null;
+  }
+  const SAME = 'Sí, sigue igual';
+
   const stepView = (step) => (step ? { text: step.text, help: step.help, chips: step.chips, placeholder: step.kind === 'amount' ? 'Escribe el monto, por ejemplo «2500»' : 'Escribe tu respuesta con tus palabras' } : null);
 
   function renderChat(req, res, ev, qn) {
@@ -191,6 +209,12 @@ function createFlow(opts) {
     if (cur.done || !cur.step) return reply(200, { done: true });
     const texto = typeof req.body.texto === 'string' ? req.body.texto.trim().slice(0, 200) : '';
     if (!texto) return reply(422, { error: 'Escribe tu respuesta o toca una opción.' });
+    if (cur.prev && /^(s[ií],? ?)?(sigue |sigo )?igual\.?$/i.test(texto)) {
+      qs.saveAnswer(ev, cur.q, { ok: true, unknown: false, value: cur.prev.value }, { fromPrevious: true });
+      delete chatState(req).partial;
+      const sig = chatCurrent(req, ev, qn);
+      return reply(200, { next: stepView(sig.step), done: sig.done, progress: sig.progress });
+    }
     const r = cur.step.apply(texto);
     if (r.error) return reply(422, { error: r.error });
     const body = r.unknown ? { unknown: '1' } : r.body;

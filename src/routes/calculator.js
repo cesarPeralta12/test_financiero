@@ -19,6 +19,7 @@ const MORE = [
   ['presupuesto', 'Presupuesto', 'Cuánto prevés gastar este mes'],
   ['deudas', 'Deudas', 'Cuánto debes y cómo baja'],
   ['metas', 'Metas', 'Para qué estás ahorrando'],
+  ['patrimonio', 'Patrimonio', 'Lo que tienes menos lo que debes'],
   ['simulador', 'Simulador', 'Qué pasaría si cambias algo'],
   ['movimientos/otro', 'Pago de deuda o ahorro', 'También retiros y pases entre tus ahorros'],
 ];
@@ -203,6 +204,57 @@ router.post('/calculadora/movimientos/:id/eliminar', guard, (req, res, next) => 
   if (!m) return next(notFound());
   tracker.deleteMovement(req.user.id, id);
   res.redirect(303, `/calculadora/movimientos?mes=${m.date.slice(0, 7)}&aviso=eliminado`);
+});
+
+// ───────── Patrimonio ─────────
+function renderWealth(req, res, { form = {}, errors = {} } = {}) {
+  const userId = req.user.id;
+  const cur = tracker.baseCurrency(userId);
+  const f = (v) => money.format(v, cur);
+  const w = tracker.netWorth(userId);
+  const list = tracker.assets(userId);
+  const ctx = res.locals.ctx;
+  page(res, 'patrimonio', 'Patrimonio', html`<div class="calc-simple">
+    <ul class="figures"><li><span class="k">Tus bienes</span><span class="v num">${f(w.owned)}</span></li><li><span class="k">Ahorrado en tus metas y reserva</span><span class="v num">${f(w.saved)}</span></li><li><span class="k">Tus deudas</span><span class="v num">− ${f(w.debt)}</span></li><li class="total"><span class="k">Patrimonio neto</span><span class="v num ${w.net.lt(0) ? 'neg' : ''}">${f(w.net)}</span></li></ul>
+    <p class="small muted">Valores que tú declaras. Las deudas y las metas se toman de sus apartados.</p>
+    <section class="section"><h2>Tus bienes</h2>
+      ${list.length
+        ? html`<ul class="calc-list">${list.map((a) => html`<li class="calc-asset"><div><strong>${a.name}</strong><span class="small muted">${tracker.ASSET_KINDS[a.kind] || 'Otro bien'}</span></div>
+            <form method="post" action="/calculadora/patrimonio/${a.id}" novalidate>${c.csrfField(ctx)}${c.moneyInput({ name: 'value', id: `a-${a.id}`, value: money.formatNumber(a.value, cur), currency: cur, ariaLabel: `Valor de ${a.name}` })}<button class="btn btn-secondary btn-small" type="submit">Actualizar</button></form>
+            <form method="post" action="/calculadora/patrimonio/${a.id}/eliminar" data-confirm="¿Quitar este bien?">${c.csrfField(ctx)}<button class="btn btn-danger btn-small" type="submit">Quitar</button></form></li>`)}</ul>`
+        : html`<p class="muted">Todavía no anotaste bienes.</p>`}
+    </section>
+    <section class="section"><h2>Agregar un bien</h2>
+      <form method="post" action="/calculadora/patrimonio" novalidate>${c.csrfField(ctx)}${c.errorSummary(errors)}
+        ${c.textField({ name: 'name', label: 'Nombre', value: form.name, maxlength: 60, errors })}
+        <div class="field"><label for="f-kind">Tipo</label>${c.select({ name: 'kind', options: Object.entries(tracker.ASSET_KINDS).map(([value, label]) => ({ value, label })), value: form.kind || '', errors, placeholder: 'Elige el tipo' })}</div>
+        <div class="field"><label for="f-value">Valor aproximado</label>${c.moneyInput({ name: 'value', value: form.value, currency: cur, errors })}</div>
+        <div class="actions"><button class="btn btn-primary" type="submit">Agregar</button></div>
+      </form></section>
+  </div>`);
+}
+router.get('/calculadora/patrimonio', guard, (req, res) => renderWealth(req, res));
+router.post('/calculadora/patrimonio', guard, (req, res) => {
+  const v = tracker.validateAsset(req.user.id, req.body);
+  if (!v.ok) {
+    res.status(422);
+    return renderWealth(req, res, { form: req.body, errors: v.errors });
+  }
+  tracker.createAsset(req.user.id, v.value);
+  res.redirect(303, '/calculadora/patrimonio?aviso=guardado');
+});
+router.post('/calculadora/patrimonio/:id', guard, (req, res, next) => {
+  const p = money.parseAmount(req.body.value, tracker.baseCurrency(req.user.id));
+  if (p.empty || !p.ok || Number(p.value) <= 0) {
+    res.status(422);
+    return renderWealth(req, res, { errors: { value: p.error || 'Escribe un valor mayor que 0.' } });
+  }
+  if (!tracker.updateAssetValue(req.user.id, intParam(req.params.id), p.value)) return next(notFound());
+  res.redirect(303, '/calculadora/patrimonio?aviso=guardado');
+});
+router.post('/calculadora/patrimonio/:id/eliminar', guard, (req, res, next) => {
+  if (!tracker.deleteAsset(req.user.id, intParam(req.params.id))) return next(notFound());
+  res.redirect(303, '/calculadora/patrimonio?aviso=eliminado');
 });
 
 // ───────── Presupuesto ─────────

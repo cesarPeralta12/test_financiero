@@ -44,6 +44,7 @@ function exportUser(userId) {
     tareas: db.all('SELECT id, title, reason, done_criteria, status, due_date, postponed_until, completed_at, source FROM tasks WHERE user_id = ?', userId),
     historial_tareas: db.all('SELECT task_id, from_status, to_status, note, created_at FROM task_events WHERE user_id = ?', userId),
     hitos: db.all('SELECT month, title, status, reached_at FROM milestones WHERE user_id = ?', userId),
+    bienes: db.all('SELECT name, kind, value, source, created_at, updated_at FROM assets WHERE user_id = ?', userId),
     metas: db.all('SELECT id, name, kind, target_amount, initial_saved, target_months, status, created_at FROM goals WHERE user_id = ?', userId),
     deudas: db.all('SELECT id, name, kind, rate, rate_type, payment, fees, status FROM debts WHERE user_id = ?', userId).map((d) => ({ ...d, saldos: db.all('SELECT date, balance FROM debt_balances WHERE debt_id = ?', d.id) })),
     movimientos: db.all('SELECT date, kind, category, subcategory, amount, currency, note, source, debt_id, goal_id, to_goal_id, created_at FROM movements WHERE user_id = ? AND deleted_at IS NULL', userId),
