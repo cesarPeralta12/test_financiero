@@ -110,7 +110,7 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
         <link rel="stylesheet" href="/css/motion.css?v=15" />
         <link rel="stylesheet" href="/css/game.css?v=28" />
         <link rel="stylesheet" href="/css/mi-dinero.css?v=9" />
-        <link rel="stylesheet" href="/css/coach-v2.css?v=2" />
+        <link rel="stylesheet" href="/css/coach-v2.css?v=3" />
         <script src="/js/early.js?v=9"></script>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <script src="/js/app.js?v=14" defer></script>
@@ -119,7 +119,7 @@ function layout(ctx, { title, body, wide = false, narrow = false, description = 
         <script src="/js/soft-nav.js?v=1" defer></script>
         <script src="/js/test-fx.js?v=20" defer></script>
         <script src="/js/mi-dinero.js?v=3" defer></script>
-        <script src="/js/coach-v2.js?v=2" defer></script>
+        <script src="/js/coach-v2.js?v=3" defer></script>
       </head>
       <body
         data-flash="${ctx.flash || ''}"

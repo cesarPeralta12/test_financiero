@@ -10,10 +10,11 @@ const { getSetting } = require('../../lib/services');
 const parser = require('./parser');
 const { INTENCIONES } = require('./datos');
 const { FORMATOS } = require('./mensajes');
-const base = require('./insights/base');
+const conversacion = require('./conversacion');
+const coach = require('../coach');
 const router = require('./ia/router');
 const limites = require('./ia/limites');
-const { responder } = require('./respuesta');
+const { responder, esperaDato } = require('./respuesta');
 
 const today = () => new Date().toISOString().slice(0, 10);
 const MIN_CONFIANZA = 0.7;
@@ -26,17 +27,8 @@ function estadoIA(userId) {
   return { disponible, limiteAlcanzado: disponible && !lim.ok, usadas: u.consultas_usadas, limite: u.consultas_limite };
 }
 
-/** Hechos del mes para el consejo: solo cifras ya calculadas, nunca correo, nombre ni notas. */
-function hechosConsejo(userId, hoy) {
-  const c = base.contexto(userId, { hoy });
-  const f = (v) => money.format(v, c.cur);
-  const hechos = { mes: c.month, ingresos: f(c.I.toFixed(2)), gastos: f(c.G.toFixed(2)), saldo: f(c.B.toFixed(2)), dias_restantes: c.N - c.d, movimientos_del_mes: c.n };
-  const top = c.gastoPorCategoria[0];
-  if (top) Object.assign(hechos, { mayor_categoria: top.etiqueta, mayor_categoria_monto: f(top.monto), mayor_categoria_pct: top.pct_del_total === null ? undefined : `${Math.round(top.pct_del_total)} %` });
-  const deudas = tracker.debts(userId).filter((d) => Number(d.balance) > 0);
-  if (deudas.length) Object.assign(hechos, { deudas_activas: deudas.length, deudas_saldo_total: f(deudas.reduce((a, d) => a + Number(d.balance), 0).toFixed(2)) });
-  return hechos;
-}
+/** Hechos para el consejo: el mes, el diagnóstico, el plan, las metas y las deudas; nunca correo, nombre ni notas. */
+const hechosConsejo = (userId, hoy) => conversacion.hechos(userId, hoy);
 
 /** Variables de un mensaje del catálogo → pares legibles («monto»: «Bs 250,00») según el tipo declarado de cada variable. */
 function formatearHechos(intencion, vars, cur) {
@@ -64,8 +56,10 @@ async function resolverBoton(userId, sol, hoy) {
   const origen = sol.mensaje_id ? db.one("SELECT id, conversation_id, intent, payload_json FROM messages WHERE id = ? AND user_id = ? AND role = 'coach'", Number(sol.mensaje_id), userId) : null;
   if (!origen) return { ok: false, motivo: 'IA_NO_DISPONIBLE' };
   if (sol.accion === 'pedir_ia') {
-    const pregunta = db.value("SELECT content FROM messages WHERE conversation_id = ? AND user_id = ? AND role = 'usuario' AND id < ? ORDER BY id DESC LIMIT 1", origen.conversation_id, userId, origen.id) || '';
-    const r = await router.ejecutar({ userId, tarea: 'consejo', texto: pregunta, hechos: hechosConsejo(userId, hoy), tema: 'consejo', tono: tonoDe(userId), hoy });
+    const previa = db.one("SELECT id, content FROM messages WHERE conversation_id = ? AND user_id = ? AND role = 'usuario' AND id < ? ORDER BY id DESC LIMIT 1", origen.conversation_id, userId, origen.id);
+    const pregunta = previa ? previa.content : '';
+    const historial = previa ? conversacion.memoria(userId, origen.conversation_id, previa.id) : [];
+    const r = await router.ejecutar({ userId, tarea: 'consejo', texto: pregunta, hechos: hechosConsejo(userId, hoy), tema: 'consejo', tono: tonoDe(userId), historial, hoy });
     return { ...r, tarea: 'consejo', texto: r.datos && r.datos.texto };
   }
   const payload = db.parse(origen.payload_json, {}) || {};
@@ -94,12 +88,32 @@ async function resolverAutomatica(userId, texto, hoy) {
   return { clasificacion: k.datos, extraccion: null, runIds };
 }
 
+/**
+ * Pregunta abierta: se responde directamente. Si la IA no está, falla o se agotó el cupo, queda el consejo calculado
+ * por reglas: la persona nunca recibe solo un mensaje de error.
+ */
+async function resolverConsejo(userId, texto, hoy) {
+  if (getSetting('coach_v2_ia_directa') !== true || esperaDato(userId, texto)) return null;
+  const r = parser.parsear(texto, { hoy: hoy || today(), moneda: tracker.baseCurrency(userId) });
+  const abierta = r.respuesta === 'ia_ofrecer' || (r.respuesta === 'no_entendi' && texto.split(/\s+/).length >= 4);
+  if (!abierta) return null;
+  const respaldo = conversacion.respaldo(userId, texto, hoy);
+  if (conversacion.sinIA(texto)) return { ok: false, motivo: 'REGLAS', respaldo };
+  if (!router.disponible()) return { ok: false, motivo: 'IA_NO_DISPONIBLE', respaldo };
+  const k = await router.ejecutar({ userId, tarea: 'consejo', texto, hechos: hechosConsejo(userId, hoy), tema: 'consejo', tono: tonoDe(userId), historial: conversacion.memoria(userId, coach.conversation(userId).id), hoy });
+  return { ...k, tarea: 'consejo', texto: k.datos && k.datos.texto, respaldo };
+}
+
 /** Punto de entrada asíncrono: igual que `responder`, pero primero resuelve lo que necesita IA. */
 async function responderConIA(userId, sol, { hoy } = {}) {
-  const opts = { hoy, ia: null, iaEstado: estadoIA(userId) };
+  const opts = { hoy, ia: null, consejo: null, iaEstado: estadoIA(userId) };
   try {
     if (sol.accion === 'pedir_ia' || sol.accion === 'pedir_redaccion') opts.ia = await resolverBoton(userId, sol, hoy);
-    else if (!sol.accion && sol.texto) opts.ia = await resolverAutomatica(userId, String(sol.texto).trim().slice(0, 500), hoy);
+    else if (!sol.accion && sol.texto) {
+      const texto = String(sol.texto).trim().slice(0, 500);
+      opts.ia = await resolverAutomatica(userId, texto, hoy);
+      if (!opts.ia) opts.consejo = await resolverConsejo(userId, texto, hoy);
+    }
   } catch (e) {
     log.error('IA del Coach: falló la resolución previa', { motivo: String(e && e.message).slice(0, 120) });
     opts.ia = sol.accion ? { ok: false, motivo: 'IA_NO_DISPONIBLE' } : null; // las reglas siguen funcionando

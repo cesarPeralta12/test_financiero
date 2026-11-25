@@ -47,10 +47,10 @@ test('página de tarjetas: bienvenida, sugerencias según el contexto y campo ac
   const page = await c.get('/coach');
   assert.equal(page.status, 200);
   assert.match(page.text, /data-cv/);
-  assert.match(page.text, /Hola, soy tu Coach/);
+  assert.match(page.text, /Hola, Prueba\. Soy tu Coach/);
   assert.match(page.text, /role="log"[^>]*aria-live="polite"/, 'la conversación se anuncia a los lectores de pantalla');
   assert.match(page.text, /<label class="visually-hidden" for="cv-msg">Mensaje para el Coach<\/label>/);
-  assert.match(page.text, /Registrar mi primer gasto/, 'cuenta nueva: sugiere registrar');
+  assert.match(page.text, /Anotar mi primer gasto/, 'cuenta nueva: sugiere registrar');
   assert.doesNotMatch(page.text, /Resumen del mes/);
   // Con datos suficientes: sugerencias de consulta; sin registro hace días: registrar primero.
   mov(u, 'ingreso', 'sueldo', 1000);
@@ -71,7 +71,7 @@ test('un mensaje devuelve un fragmento con tu texto, la tarjeta (origen, texto, 
   assert.match(r.headers.get('content-type'), /text\/html/);
   assert.match(r.text, /cv-msg--usuario[^>]*>.*en qué gasto más/s);
   assert.match(r.text, /cv-msg--coach/);
-  assert.match(r.text, /Respuesta calculada/, 'el origen se dice con texto, no solo con un icono');
+  assert.match(r.text, /Con tus cifras/, 'el origen se dice con texto, no solo con un icono');
   assert.match(r.text, /Tu mayor gasto en .* es Alimentación/);
   assert.match(r.text, /<div class="cv-card"><h4>Gastos por categoría<\/h4><table>/);
   assert.match(r.text, /<figure class="gr gr--barras_categorias">/);

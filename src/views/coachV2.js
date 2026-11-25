@@ -10,9 +10,9 @@ const c = require('./components');
 
 const ACCION_ETIQUETA = { confirmar: 'Confirmar', cancelar: 'Cancelar', deshacer: 'Deshacer', consulta: 'Consulta', corregir: 'Corregir', repetir_ultimo: 'Repetir el último', proponer_tarea: 'Crear tarea', proponer_completar_tarea: 'Marcar como hecha' };
 const SEV = { alerta: 'Alerta', atencion: 'Atención', logro: 'Logro' };
-const ORIGEN = { regla: 'Respuesta calculada', plantilla: 'Respuesta calculada', boton: 'Respuesta calculada', cache: 'Respuesta calculada', ia: 'Redactada con IA' };
-const ENVIAN = ['confirmar', 'cancelar', 'deshacer', 'consulta', 'repetir_ultimo', 'proponer_tarea', 'proponer_completar_tarea'];
-const ENLACES = { abrir_ranking: '/mi-dinero/analisis', abrir_grafico: '/mi-dinero/analisis', abrir_insights: '/mi-dinero/analisis', abrir_detalle: '/mi-dinero/analisis', abrir_registro: '/mi-dinero/nuevo', simular: '/calculadora/simulador', cambiar_estrategia: '/calculadora/deudas', editar: '/mi-dinero/movimientos' };
+const ORIGEN = { regla: 'Con tus cifras', plantilla: 'Con tus cifras', boton: 'Con tus cifras', cache: 'Con tus cifras', ia: 'Con ayuda de IA' };
+const ENVIAN = ['iniciar_registro', 'confirmar', 'cancelar', 'deshacer', 'consulta', 'repetir_ultimo', 'proponer_tarea', 'proponer_completar_tarea'];
+const ENLACES = { abrir_ranking: '/mi-dinero/analisis', abrir_grafico: '/mi-dinero/analisis', abrir_insights: '/mi-dinero/analisis', abrir_detalle: '/mi-dinero/analisis', simular: '/calculadora/simulador', cambiar_estrategia: '/calculadora/deudas', editar: '/mi-dinero/movimientos' };
 
 const iconoCalculo = raw('<svg viewBox="0 0 24 24" aria-hidden="true" class="cv-ico"><rect x="4" y="3" width="16" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 8h8M8 12h2m4 0h2M8 16h2m4 0h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>');
 
@@ -39,6 +39,7 @@ function corregir(ctx, b, m) {
 
 function boton(ctx, b, m) {
   if (b.accion === 'corregir') return corregir(ctx, b, m);
+  if (b.accion === 'abrir_registro') return formAccion(ctx, { accion: 'iniciar_registro', valor: (b.params && b.params.tipo) || 'gasto' }, b.etiqueta);
   if (ENVIAN.includes(b.accion)) {
     const p = b.params || {};
     const campos = { accion: b.accion, mensaje_id: p.mensaje_id, intencion: b.intencion };
@@ -59,7 +60,12 @@ function tarjetaDatos(t, cur) {
 /** Tarjeta del Coach. `m`: { id, intencion, origen, mensaje:{texto,severidad}, tarjetas, graficos, botones, pendiente }. */
 function tarjeta(ctx, m, { activa = false, cur = 'USD' } = {}) {
   const sev = m.mensaje.severidad;
-  const botones = activa ? (m.botones || []).map((b) => boton(ctx, b, m)) : [];
+  const lista = activa ? m.botones || [] : [];
+  // Confirmar, Corregir y Cancelar: las correcciones van juntas para no llenar la pantalla de botones.
+  const arreglos = lista.filter((b) => b.accion === 'corregir');
+  const juntos = arreglos.length > 1;
+  const botones = lista.filter((b) => !(juntos && b.accion === 'corregir')).map((b) => boton(ctx, b, m));
+  if (juntos) botones.splice(1, 0, html`<details class="cv-fix cv-fix--grupo"><summary>Corregir</summary><div class="cv-fix-body">${arreglos.map((b) => boton(ctx, b, m))}</div></details>`);
   return html`<div class="cv-msg cv-msg--coach" role="listitem" data-id="${m.id}" data-intent="${m.intencion || ''}">
     <div class="cv-meta"><span class="cv-origin">${iconoCalculo}${ORIGEN[m.origen] || ORIGEN.regla}</span>${SEV[sev] ? html`<span class="cv-sev cv-sev--${sev}">${SEV[sev]}</span>` : ''}</div>
     <div class="cv-bubble">
@@ -77,6 +83,8 @@ const errorTarjeta = (mensaje) => html`<div class="cv-msg cv-msg--error" role="a
 
 function chips(ctx, lista) {
   return html`<div class="cv-chips" data-chips role="group" aria-label="Sugerencias">${lista.map((s) => {
+    if (s.accion === 'texto') return html`<form class="cv-act" method="post" action="/coach/enviar" data-cv-form>${c.csrfField(ctx)}<input type="hidden" name="texto" value="${s.texto}" /><button class="cv-sugerencia" type="submit">${s.etiqueta}</button></form>`;
+    if (s.accion === 'iniciar_registro') return formAccion(ctx, { accion: 'iniciar_registro', valor: s.valor }, s.etiqueta, { clase: 'cv-sugerencia' });
     if (s.accion === 'ir') return html`<a class="cv-sugerencia" href="${s.destino}">${s.etiqueta}</a>`;
     return html`<form class="cv-act" method="post" action="/coach/enviar" data-cv-form>${c.csrfField(ctx)}<input type="hidden" name="accion" value="consulta" /><input type="hidden" name="intencion" value="${s.intencion}" /><input type="hidden" name="etiqueta" value="${s.etiqueta}" /><button class="cv-sugerencia" type="submit">${s.etiqueta}</button></form>`;
   })}</div>`;
@@ -98,13 +106,14 @@ function historial(ctx, filas, cur) {
 }
 
 function pagina(ctx, d) {
-  const { filas, sugerencias, cur, vacia } = d;
+  const { filas, sugerencias, cur, vacia, nombre, tarea } = d;
+  const n = nombre ? String(nombre).trim().split(/\s+/)[0] : '';
   return html`<div class="cv" data-cv>
-    <div class="cv-head"><h1>Coach</h1><span class="status-pill">Calcula con tus cifras</span></div>
-    <p class="muted small">Responde con lo que calculó Día Uno con tus movimientos, sin inventar números. No sustituye a un profesional y no guarda cambios sin tu confirmación.</p>
+    <div class="cv-head"><h1>Coach</h1><span class="status-pill">Asistente con IA</span></div>
+    <p class="muted small">Conversa contigo usando tus cifras y tu plan. Puede equivocarse, no sustituye a un profesional y no guarda nada sin tu confirmación.</p>
     <div class="cv-chat" id="cv-chat" role="log" aria-live="polite" aria-label="Conversación con el Coach" data-chat>
       ${vacia
-        ? html`<div class="cv-welcome"><div class="cv-welcome-art" aria-hidden="true">🧭</div><h2>Hola, soy tu Coach</h2><p>Puedo registrar un gasto con una frase («café 8,50»), decirte en qué se va tu dinero y qué podrías ajustar. Pregúntame o elige una sugerencia.</p></div>`
+        ? html`<div class="cv-welcome"><div class="cv-welcome-art" aria-hidden="true">🧭</div><h2>Hola${n ? `, ${n.charAt(0).toUpperCase()}${n.slice(1)}` : ''}. Soy tu Coach</h2><p>Cuéntame con tus palabras qué te preocupa o qué quieres lograr con tu dinero. También puedo anotar lo que gastas: «gasté 50 en comida».</p>${tarea ? html`<p><strong>Para hoy:</strong> ${tarea}</p>` : ''}</div>`
         : historial(ctx, filas, cur)}
       <div id="cv-fin" tabindex="-1"></div>
     </div>
@@ -113,7 +122,7 @@ function pagina(ctx, d) {
       <form class="cv-form" method="post" action="/coach/enviar" data-cv-form data-cv-texto>
         ${c.csrfField(ctx)}
         <label class="visually-hidden" for="cv-msg">Mensaje para el Coach</label>
-        <input class="input" id="cv-msg" name="texto" maxlength="500" autocomplete="off" placeholder="Escribe: 250 súper, cobré 800, ¿en qué gasto más?" required />
+        <input class="input" id="cv-msg" name="texto" maxlength="500" autocomplete="off" placeholder="Escríbeme lo que quieras" required />
         <button class="btn btn-primary" type="submit">Enviar</button>
       </form>
     </div>

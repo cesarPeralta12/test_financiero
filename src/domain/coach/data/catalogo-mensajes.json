@@ -3313,6 +3313,8 @@
         }
       ]
     },
+    {"id": "consejo_ia", "grupo": "ia", "origen": "plantilla", "descripcion": "Respuesta conversada con ayuda de IA, ya validada contra los hechos.", "vars": {"texto": "texto"}, "botones": [], "variantes": [{"id": "consejo_ia.1", "tono": "cercano", "texto": "{texto}"}, {"id": "consejo_ia.2", "tono": "neutral", "texto": "{texto}"}]},
+    {"id": "consejo_calculado", "grupo": "ia", "origen": "plantilla", "descripcion": "Consejo calculado por reglas cuando la IA no respondió.", "vars": {"texto": "texto"}, "botones": [], "variantes": [{"id": "consejo_calculado.1", "tono": "cercano", "texto": "{texto}"}, {"id": "consejo_calculado.2", "tono": "neutral", "texto": "{texto}"}]},
     {
       "id": "ia_ofrecer",
       "grupo": "ia",
@@ -3386,7 +3388,7 @@
           "id": "ia_no_disponible.2",
           "tono": "neutral",
           "severidad": "atencion",
-          "texto": "Proveedor de IA no disponible. Funciones por reglas activas."
+          "texto": "Ahora no pude consultar la IA. Puedo seguir ayudándote con tus cifras y tus registros."
         }
       ]
     },

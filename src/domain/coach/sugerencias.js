@@ -9,22 +9,24 @@ const acciones = require('./insights/acciones');
 const estado = require('./insights/estado');
 const recurrentes = require('./recurrentes');
 const plantillas = require('./plantillas');
+const { SUGERIDAS } = require('./conversacion');
 
 const consulta = (intencion, etiqueta) => ({ etiqueta, accion: 'consulta', intencion });
-const ir = (destino, etiqueta) => ({ etiqueta, accion: 'ir', destino });
+const anotar = (valor, etiqueta) => ({ etiqueta, accion: 'iniciar_registro', valor });
+const di = (texto) => ({ etiqueta: texto, accion: 'texto', texto });
 
 function sugerencias(userId, { hoy } = {}) {
   const hayMovs = db.value("SELECT 1 FROM movements WHERE user_id = ? AND deleted_at IS NULL LIMIT 1", userId);
-  if (!hayMovs) return [ir('/mi-dinero/nuevo', 'Registrar mi primer gasto'), ir('/mi-dinero/nuevo', 'Registrar un ingreso'), consulta('ayuda_menu', '¿Qué puedes hacer?')];
+  if (!hayMovs) return [di(SUGERIDAS.ahorro), di(SUGERIDAS.ingreso), anotar('gasto', 'Anotar mi primer gasto'), anotar('ingreso', 'Anotar un ingreso'), consulta('ayuda_menu', '¿Qué puedes hacer?')];
   const ctx = base.contexto(userId, { hoy });
-  if (ctx.n < base.U.minMovs) return [ir('/mi-dinero/nuevo', 'Registrar un gasto'), consulta('ayuda_menu', '¿Qué puedes hacer?'), consulta('resumen_mes', 'Resumen del mes')];
+  if (ctx.n < base.U.minMovs) return [anotar('gasto', 'Anotar un gasto'), di(SUGERIDAS.ahorro), consulta('ayuda_menu', '¿Qué puedes hacer?'), consulta('resumen_mes', 'Resumen del mes')];
   const out = [];
   // Pulido (S7): lo que toca este mes y lo que ya se repite, antes que lo genérico.
   const toca = recurrentes.sugeridosDelMes(userId, hoy)[0];
   if (toca) out.push(consulta('recurrente_sugerido_mes', `Toca: ${toca.note}`));
   if (!toca && recurrentes.detectar(userId, hoy).length) out.push(consulta('recurrente_propuesto', 'Programar un recurrente'));
   else if (!toca && plantillas.candidatas(userId, hoy).length) out.push(consulta('plantilla_sugerida', 'Crear un atajo'));
-  if (estado.sinRegistro(ctx)) out.push(ir('/mi-dinero/nuevo', 'Registrar un gasto'));
+  if (estado.sinRegistro(ctx)) out.push(anotar('gasto', 'Anotar un gasto'));
   out.push(consulta('resumen_mes', 'Resumen del mes'), consulta('mayor_gasto', 'En qué gasto más'), consulta('recortar_rapido', 'Qué puedo recortar'));
   const deuda = acciones.deudaLiquidable(ctx);
   if (deuda) out.push(deuda.intencion_mensaje === 'deuda_liquidable' ? consulta('deuda_liquidable', 'Puedo liquidar una deuda') : consulta('deuda_pagar_primero', 'Qué deuda pago primero'));

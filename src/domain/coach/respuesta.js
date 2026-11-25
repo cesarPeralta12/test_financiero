@@ -19,11 +19,12 @@ const { propuestaTarea } = require('./tareas');
 const { catalogo, INTENCIONES, CATALOG_VERSION } = require('./datos');
 const { elegirVariante, renderizar } = require('./mensajes');
 const I = require('./intenciones');
+const conversacion = require('./conversacion');
 
 const { D } = money;
 const MAX_TEXTO = 500;
 const VENTANA_DESHACER_MS = 10 * 60 * 1000; // «deshacer» por texto alcanza al último registro reciente
-const ACCIONES = ['confirmar', 'cancelar', 'corregir', 'deshacer', 'consulta', 'repetir_ultimo', 'proponer_tarea', 'proponer_completar_tarea', 'pedir_ia', 'pedir_redaccion', 'crear_recurrente', 'descartar_recurrente', 'crear_plantilla'];
+const ACCIONES = ['iniciar_registro', 'confirmar', 'cancelar', 'corregir', 'deshacer', 'consulta', 'repetir_ultimo', 'proponer_tarea', 'proponer_completar_tarea', 'pedir_ia', 'pedir_redaccion', 'crear_recurrente', 'descartar_recurrente', 'crear_plantilla'];
 const KIND_OK_INTENT = { gasto: 'registrar_gasto_ok', ingreso: 'registrar_ingreso_ok', pago_deuda: 'registrar_pago_deuda_ok', ahorro: 'registrar_ahorro_ok', retiro_ahorro: 'registrar_retiro_ok' };
 const CON_MENSAJE = ['confirmar', 'cancelar', 'corregir', 'deshacer', 'editar', 'proponer_tarea', 'proponer_completar_tarea', 'pedir_ia', 'pedir_redaccion', 'crear_recurrente', 'descartar_recurrente', 'crear_plantilla'];
 
@@ -68,6 +69,42 @@ function ultimaPendiente(userId, convId) {
     if (p.pendiente && p.pendiente.estado === 'pendiente') return { id: r.id, payload: p };
   }
   return null;
+}
+
+// ───────── Anotar conversando ─────────
+const incompleta = (pd) => Boolean(pd && pd.estado === 'pendiente' && (!pd.tipo || pd.tipo === 'registro') && (!pd.propuesta.tipo || !pd.propuesta.importe || !pd.propuesta.categoria));
+
+/** ¿El Coach preguntó un dato de un registro («¿cuánto fue?») y este texto corto parece contestarlo? */
+function esperaDato(userId, texto) {
+  if (/\?/.test(texto) || String(texto).trim().split(/\s+/).length > 5) return false;
+  const pend = ultimaPendiente(userId, coach.conversation(userId).id);
+  return Boolean(pend && incompleta(pend.payload.pendiente));
+}
+
+/** Completa el registro a medias con lo que la persona acaba de escribir. Devuelve la propuesta o null. */
+function completar(c, r, texto, conv) {
+  if (!esperaDato(c.userId, texto)) return null;
+  const pd = ultimaPendiente(c.userId, conv.id).payload.pendiente;
+  const p = { ...pd.propuesta };
+  const e = r.entidades || {};
+  if (p.tipo && e.tipo && p.tipo !== e.tipo) return null; // habla de otra cosa: registro nuevo
+  if (p.importe && e.importe) return null; // trae otro importe: es un registro nuevo
+  let cambio = false;
+  const pon = (k, v) => {
+    if (!p[k] && v) {
+      p[k] = v;
+      cambio = true;
+    }
+  };
+  const t = normalizar(texto);
+  pon('importe', e.importe);
+  pon('tipo', e.tipo || (/^(gasto|gaste|fue gasto|un gasto)\b/.test(t) ? 'gasto' : /^(ingreso|un ingreso|recibi|cobre)\b/.test(t) ? 'ingreso' : null));
+  if (p.tipo && !p.categoria) {
+    const cats = tracker.CATEGORIES[p.tipo] || {};
+    const porNombre = Object.keys(cats).find((k) => t === k || normalizar(cats[k]).split(' ').some((w) => w.length > 3 && t.split(' ').includes(w)));
+    pon('categoria', (e.categoria && cats[e.categoria] && e.categoria) || porNombre);
+  }
+  return cambio ? proponer(c, p, pd.avisos || []) : null;
 }
 
 // ───────── Construcción del mensaje ─────────
@@ -193,6 +230,14 @@ function accionar(c, sol, conv) {
     const out = h(c);
     return { ...out, intencion: out.intencion || sol.intencion };
   }
+  if (accion === 'iniciar_registro') {
+    const tipo = ['gasto', 'ingreso'].includes(sol.valor) ? sol.valor : 'gasto';
+    const previa = ultimaPendiente(c.userId, conv.id);
+    const pd0 = previa && previa.payload.pendiente;
+    // «¿Es un gasto o un ingreso?» → se conserva lo que ya se sabía.
+    const p = incompleta(pd0) && !pd0.propuesta.tipo ? { ...pd0.propuesta, tipo, categoria: null, subcategoria: null } : { tipo, categoria: null, subcategoria: null, importe: null, fecha: c.hoy, nota: null };
+    return proponer(c, p, []);
+  }
   if (accion === 'deshacer') return deshacer(c);
   if (accion === 'repetir_ultimo') {
     const last = tracker.lastMovement(c.userId);
@@ -292,6 +337,13 @@ function resultadoIA(ia) {
   return I.msg('ia_no_disponible');
 }
 
+/** Respuesta a una pregunta abierta: la de la IA o, si no hubo, el consejo calculado por reglas. */
+function resultadoConsejo(k) {
+  if (k.ok) return { ...I.msg('consejo_ia', { texto: k.texto }), ayudaIA: true, usoIA: { tarea: 'consejo', origen: k.origen, run_id: k.runId || null } };
+  const nota = k.motivo === 'LIMITE_MENSUAL' ? ` (Ya usaste tus ${k.limite} respuestas con IA de este mes; sigo ayudándote con tus cifras.)` : '';
+  return I.msg('consejo_calculado', { texto: `${k.respaldo}${nota}` });
+}
+
 /** Cuando el parser no entendió y la IA barata sí: la intención sale de la IA, pero el cálculo y el texto, de las reglas. */
 function aplicarIA(c) {
   const k = c.ia && c.ia.clasificacion;
@@ -369,6 +421,8 @@ function corregirUltimo(c, r, conv) {
 function porTexto(c, texto, conv) {
   const r = parser.parsear(texto, { hoy: c.hoy, moneda: c.cur });
   const out = { parser: r };
+  const seguido = completar(c, r, texto, conv);
+  if (seguido) return { ...seguido, ...out };
   if (String(r.intencion || '').startsWith('registrar_') || ['registro_vista_previa', 'aclarar_categoria', 'aclarar_tipo', 'aclarar_importe', 'aclarar_fecha', 'moneda_info'].includes(r.respuesta)) {
     if (r.respuesta === 'moneda_info') return { ...I.msg('moneda_info', { moneda: c.cur }), ...out };
     const p = propuestaDe(c, r.entidades);
@@ -383,6 +437,7 @@ function porTexto(c, texto, conv) {
     const viaIA = aplicarIA(c);
     if (viaIA) return { ...viaIA, ...out };
   }
+  if (c.consejo) return { ...resultadoConsejo(c.consejo), ...out };
   if (id && I.HANDLERS[id]) {
     c.ent = r.entidades;
     const h = I.HANDLERS[id](c);
@@ -399,12 +454,13 @@ function porTexto(c, texto, conv) {
  * Responde a un mensaje de texto o a un botón. `sol`: { texto } o { accion, mensaje_id?, campo?, valor?, intencion? }.
  * Devuelve la RespuestaCoach (docs/coach-v2/04 §2.4).
  */
-function responder(userId, sol, { hoy, ia = null, iaEstado = null } = {}) {
+function responder(userId, sol, { hoy, ia = null, consejo = null, iaEstado = null } = {}) {
   const texto = sol.texto === undefined || sol.texto === null ? '' : String(sol.texto).trim().slice(0, MAX_TEXTO);
   if (!sol.accion && !texto) throw new CoachError(422, 'DATOS_INVALIDOS', 'Escribe un mensaje.');
   const conv = coach.conversation(userId);
   const c = I.contexto(userId, { hoy, texto });
   c.ia = ia;
+  c.consejo = consejo;
   c.iaEstado = iaEstado || { disponible: false };
   const userMsgId = guardar(userId, conv.id, { rol: 'usuario', contenido: texto || `[${sol.accion}]`, origen: sol.accion ? 'boton' : null });
 
@@ -416,8 +472,10 @@ function responder(userId, sol, { hoy, ia = null, iaEstado = null } = {}) {
   if (res.textoIA) {
     textoFinal = `${m.texto} ${res.textoIA}`;
     origen = res.origenIA === 'cache' ? 'cache' : 'ia';
-  } else if (res.ayudaIA) origen = 'ia';
-  if (m.it.id === 'no_entendi' && !sol.accion) mejora.registrar(texto); // mejora continua: frase anonimizada, sin cuenta
+  } else if (res.ayudaIA) origen = res.usoIA && res.usoIA.origen === 'cache' ? 'cache' : 'ia';
+  // Si al anotar algo cuenta que le preocupa, se reconoce antes de seguir.
+  if (texto && res.pendiente && conversacion.hayEmocion(texto)) textoFinal = `Entiendo que te preocupe; lo vemos juntos. ${textoFinal}`;
+  if (!sol.accion && (m.it.id === 'no_entendi' || (res.parser && res.parser.respuesta === 'no_entendi' && !res.pendiente))) mejora.registrar(texto); // mejora continua: frase anonimizada, sin cuenta
   const tarjetas = res.tarjetas || [];
   const graficos = res.grafico ? [res.grafico] : [];
   const payload = { tarjetas, graficos, vars: res.vars || {}, pendiente: res.pendiente || undefined };
@@ -451,4 +509,4 @@ function responder(userId, sol, { hoy, ia = null, iaEstado = null } = {}) {
   };
 }
 
-module.exports = { responder, CoachError, ACCIONES };
+module.exports = { responder, esperaDato, CoachError, ACCIONES };

@@ -50,6 +50,7 @@
     return t;
   }
 
+  var mia = false;
   function insertar(htmlText) {
     var tpl = document.createElement('template');
     tpl.innerHTML = htmlText;
@@ -64,8 +65,10 @@
     var bienvenida = chat.querySelector('.cv-welcome');
     if (bienvenida) bienvenida.remove();
     var intent = (tpl.content.querySelector('.cv-msg--coach') || {}).dataset;
+    // Tu mensaje ya se mostró al enviarlo.
+    if (mia) tpl.content.querySelectorAll('.cv-msg--usuario').forEach(function (n) { n.remove(); });
     chat.insertBefore(tpl.content, fin);
-    play((intent && SONIDO[intent.intent]) || (tpl.content.querySelector && 'coach'));
+    play((intent && SONIDO[intent.intent]) || 'recibir');
     scrollEnd();
   }
 
@@ -77,8 +80,20 @@
     var botones = form.querySelectorAll('button, input');
     botones.forEach(function (b) { if (b.type !== 'hidden') b.disabled = true; });
     var t0 = Date.now();
+    var dicho = (cuerpo.get('texto') || cuerpo.get('etiqueta') || '').trim();
+    mia = Boolean(dicho);
+    if (dicho) {
+      var bienvenida = chat.querySelector('.cv-welcome');
+      if (bienvenida) bienvenida.remove();
+      var yo = document.createElement('div');
+      yo.className = 'cv-msg cv-msg--usuario';
+      yo.setAttribute('role', 'listitem');
+      yo.textContent = dicho;
+      chat.insertBefore(yo, fin);
+      if (form.hasAttribute('data-cv-texto')) form.querySelector('input[name=texto]').value = '';
+    }
     var ind = typing();
-    play('tick');
+    play('enviar');
     window.fetch(form.action, { method: 'POST', credentials: 'same-origin', headers: { 'X-Fragment': '1', 'Content-Type': 'application/x-www-form-urlencoded' }, body: cuerpo.toString() })
       .then(function (r) { return r.text(); })
       .then(function (txt) {
@@ -87,13 +102,14 @@
         window.setTimeout(function () {
           ind.remove();
           insertar(txt);
-          if (form.hasAttribute('data-cv-texto')) { form.reset(); var inp = form.querySelector('input[name=texto]'); if (inp) inp.focus(); }
+          if (form.hasAttribute('data-cv-texto')) { var inp = form.querySelector('input[name=texto]'); if (inp) inp.focus(); }
           busy = false;
           botones.forEach(function (b) { b.disabled = false; });
         }, espera);
       })
       .catch(function () {
         ind.remove();
+        if (form.hasAttribute('data-cv-texto')) form.querySelector('input[name=texto]').value = dicho;
         var e = document.createElement('div');
         e.className = 'cv-msg cv-msg--error';
         e.setAttribute('role', 'alert');

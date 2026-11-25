@@ -698,6 +698,7 @@ router.get('/coach', (req, res) => {
       <label class="check"><input type="checkbox" name="enabled" value="1" ${m.ajustes.coach_v2_enabled ? raw('checked') : ''} /> <span>Coach v2 abierto (apagado: Coach anterior para todos, salvo el equipo)</span></label>
       <div class="field"><label for="f-pct">Porcentaje de cuentas (0 a 100)</label><input class="input" id="f-pct" name="pct" inputmode="numeric" value="${m.despliegue.pct}" /></div>
       <div class="field"><label for="f-equipo">Cuentas del equipo (ids separados por coma; siempre ven el Coach v2)</label><input class="input" id="f-equipo" name="equipo" value="${m.despliegue.equipo.join(', ')}" /></div>
+      <label class="check"><input type="checkbox" name="ia_directa" value="1" ${m.ajustes.coach_v2_ia_directa ? raw('checked') : ''} /> <span>Responder con IA las preguntas abiertas, sin botón (usa el cupo mensual de cada cuenta)</span></label>
       <label class="check"><input type="checkbox" name="ia_auto" value="1" ${m.ajustes.coach_v2_ia_automatica ? raw('checked') : ''} /> <span>IA barata automática cuando el parser duda</span></label>
       <label class="check"><input type="checkbox" name="resumen" value="1" ${m.ajustes.coach_v2_resumen_semanal ? raw('checked') : ''} /> <span>Resumen semanal los lunes</span></label>
       <button class="btn btn-primary" type="submit">Guardar despliegue</button>
@@ -714,6 +715,7 @@ router.post('/coach/despliegue', (req, res) => {
   setSetting('coach_v2_enabled', req.body.enabled === '1', req.user.id);
   setSetting('coach_v2_rollout_pct', pct, req.user.id);
   setSetting('coach_v2_equipo', equipo, req.user.id);
+  setSetting('coach_v2_ia_directa', req.body.ia_directa === '1', req.user.id);
   setSetting('coach_v2_ia_automatica', req.body.ia_auto === '1', req.user.id);
   setSetting('coach_v2_resumen_semanal', req.body.resumen === '1', req.user.id);
   audit(req.user.id, 'coach.despliegue', { meta: { enabled: req.body.enabled === '1', pct, equipo: equipo.length, ia_auto: req.body.ia_auto === '1', resumen: req.body.resumen === '1' } });

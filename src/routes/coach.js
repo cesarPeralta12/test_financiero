@@ -74,7 +74,7 @@ function paginaV2(req, res) {
   const vacia = !filas.some((f) => f.origin);
   res.active('coach').page({
     title: 'Coach',
-    body: v2view.pagina(res.locals.ctx, { filas, cur: tracker.baseCurrency(req.user.id), vacia, sugerencias: sugerencias(req.user.id) }),
+    body: v2view.pagina(res.locals.ctx, { filas, cur: tracker.baseCurrency(req.user.id), vacia, sugerencias: sugerencias(req.user.id), nombre: req.user.name, tarea: (require('../domain/tasks').next(req.user.id) || {}).title }),
   });
 }
 

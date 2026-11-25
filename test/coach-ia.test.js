@@ -25,7 +25,10 @@ test.beforeEach(() => {
   setSetting('ai_coach_daily_auto_limit', 30);
   setSetting('ai_coach_monthly_limit', 20);
 });
-test.afterEach(() => setSetting('coach_v2_enabled', false));
+test.afterEach(() => {
+  setSetting('coach_v2_enabled', false);
+  setSetting('coach_v2_ia_directa', true);
+});
 
 let seq = 0;
 async function user() {
@@ -200,6 +203,7 @@ test('pipeline: con el interruptor, la IA clasifica lo dudoso y el cálculo sigu
 
 test('pipeline: «Preguntarle a la IA» y «Explícamelo mejor» (con límite y sin IA)', async () => {
   const { c, u } = await user();
+  setSetting('coach_v2_ia_directa', false);
   const abierta = await say(c, '¿me conviene mudarme de ciudad por trabajo?');
   assert.equal(abierta.intencion, 'ia_ofrecer');
   assert.ok(btn(abierta, 'preguntar_ia'));

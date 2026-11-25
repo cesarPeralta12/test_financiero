@@ -90,6 +90,7 @@ function autorizados(hechos) {
 }
 
 /** `redactar` y `consejo`: texto corto, sin términos prohibidos y sin una sola cifra que no estuviera en los hechos. */
+/** `hechos` puede llegar como { hechos, dicho }: en un consejo también vale repetir cifras de la pregunta o de lo hablado. */
 function texto(salida, hechos, { maxPalabras = MAX_PALABRAS } = {}) {
   if (!salida || typeof salida !== 'object' || Object.keys(salida).join(',') !== 'texto' || typeof salida.texto !== 'string') return { ok: false, motivo: 'forma_invalida' };
   const t = salida.texto.trim();

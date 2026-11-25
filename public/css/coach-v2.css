@@ -105,7 +105,7 @@
   padding: 10px 0 max(10px, env(safe-area-inset-bottom));
   background: linear-gradient(180deg, transparent, var(--paper) 22%);
 }
-.cv-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.cv-chips { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 2px; }
 .cv-chips::-webkit-scrollbar { display: none; }
 .cv-chips .cv-act { flex: none; }
 .cv-sugerencia {
@@ -135,3 +135,6 @@
 @media (prefers-reduced-motion: reduce) {
   .cv-typing i { animation: none; }
 }
+
+.cv-fix--grupo > .cv-fix-body { display: grid; gap: 8px; }
+#cv-fin { scroll-margin-bottom: 240px; }
