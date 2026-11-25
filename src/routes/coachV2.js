@@ -1,22 +1,16 @@
 'use strict';
-// POST /api/v1/coach/mensajes (Coach v2, sin IA) y GET /api/v1/coach/conversacion.
-// Activo con la bandera `coach_v2_enabled`; con la bandera apagada responde el Coach anterior.
+// POST /api/v1/coach/mensajes y GET /api/v1/coach/conversacion.
 const db = require('../db');
 const { sha256, rateLimit } = require('../lib/security');
 const { CoachError } = require('../domain/coach/respuesta');
 const { responderConIA } = require('../domain/coach/respuestaIA');
 const coach = require('../domain/coach');
-const { getSetting } = require('../lib/services');
 const { wrap } = require('./util');
 
 const KEY = /^[A-Za-z0-9._:-]{8,64}$/;
 const fail = (res, status, codigo, mensaje) => res.status(status).json({ error: { codigo, mensaje } });
 
-const enabled = (user) => require('../domain/coach/rollout').activoPara(user && user.id);
-
-/** Middleware: si la bandera está abierta atiende aquí; si no, deja pasar al Coach anterior. */
-const post = wrap(async (req, res, next) => {
-  if (!enabled(req.user)) return next();
+const post = wrap(async (req, res) => {
   const rl = rateLimit({ key: `coachv2:${req.user.id}`, limit: 20, windowMs: 60_000 });
   if (!rl.allowed) return fail(res, 429, 'LIMITE_POR_MINUTO', 'Vas muy rápido. Espera un momento.');
   const body = req.body || {};
@@ -57,4 +51,4 @@ function conversacion(req, res) {
   });
 }
 
-module.exports = { post, conversacion, enabled };
+module.exports = { post, conversacion };

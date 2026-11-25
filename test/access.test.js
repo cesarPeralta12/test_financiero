@@ -24,7 +24,7 @@ async function fullUser(email) {
   await c.post('/plan/generar', { start_date: new Date().toISOString().slice(0, 10) });
   await h.queue.drain({ ignoreSchedule: true });
   await c.get('/coach');
-  await c.post('/coach/mensajes', { mensaje: 'gasté 250 en el super' });
+  await c.post('/coach/enviar', { texto: 'gasté 250 en el super' });
   await c.get('/calculadora/movimientos');
   await c.post('/calculadora/movimientos', { date: new Date().toISOString().slice(0, 10), kindcat: 'gasto:alimentacion', amount: '300' });
   await c.post('/calculadora/simulador/guardar', { name: 'Mi escenario', ahorro_extra: '500', cambio_gasto: '0', pago_extra_deuda: '0', ingreso_extra: '0' });
@@ -44,7 +44,7 @@ test('una cuenta sin permiso no abre evaluación, plan ni coach por URL ni por A
     assert.equal(r.status, 403, `${method} ${path} debería responder 403`);
     assert.equal(JSON.parse(r.text).error, 'sin_permiso');
   }
-  const posts = await c.post('/coach/mensajes', { mensaje: 'hola' }, { follow: false });
+  const posts = await c.post('/coach/enviar', { texto: 'hola' }, { follow: false });
   assert.equal(posts.status, 403);
   const gen = await c.post('/plan/generar', { start_date: '2026-11-07' }, { follow: false });
   assert.equal(gen.status, 403);
@@ -76,7 +76,7 @@ test('la persona A no accede a respuestas, planes, archivos ni conversaciones de
   const bPlan = h.db.one('SELECT id FROM plan_versions WHERE user_id = ?', B.user.id);
   const bMov = h.db.one('SELECT id FROM movements WHERE user_id = ?', B.user.id);
   const bTask = h.db.one('SELECT id FROM tasks WHERE user_id = ?', B.user.id);
-  const bMsg = h.db.one("SELECT id FROM messages WHERE user_id = ? AND proposal_status = 'pendiente'", B.user.id);
+  const bMsg = h.db.one("SELECT id, payload_json FROM messages WHERE user_id = ? AND role = 'coach' AND payload_json LIKE '%pendiente%' ORDER BY id DESC", B.user.id);
   const bMilestone = h.db.one('SELECT id FROM milestones WHERE user_id = ?', B.user.id);
 
   const gets = [`/diagnostico/${bDiag.id}`, `/plan/version/${bPlan.id}`, `/plan/version/${bPlan.id}/pdf`, `/calculadora/movimientos/${bMov.id}/editar`, `/api/v1/diagnosticos/${bDiag.id}`, `/api/v1/planes/${bPlan.id}`];
@@ -87,7 +87,6 @@ test('la persona A no accede a respuestas, planes, archivos ni conversaciones de
   const posts = [
     `/calculadora/movimientos/${bMov.id}/eliminar`,
     `/tareas/${bTask.id}/completar`,
-    `/coach/propuesta/${bMsg.id}/confirmar`,
     `/hitos/${bMilestone.id}/alcanzado`,
     `/plan/${bPlan.id}/dia-uno`,
   ];
@@ -96,7 +95,9 @@ test('la persona A no accede a respuestas, planes, archivos ni conversaciones de
     assert.equal(r.status, 404, `POST ${p} debería ser 404 para A`);
   }
   assert.ok(h.db.one('SELECT id FROM movements WHERE id = ?', bMov.id), 'el movimiento de B sigue existiendo');
-  assert.equal(h.db.one('SELECT proposal_status FROM messages WHERE id = ?', bMsg.id).proposal_status, 'pendiente');
+  const ajeno = await A.c.req('POST', '/coach/enviar', { form: { accion: 'confirmar', mensaje_id: bMsg.id }, headers: { 'x-fragment': '1' }, follow: false });
+  assert.match(ajeno.text, /cv-msg--error/);
+  assert.equal(h.db.one('SELECT payload_json FROM messages WHERE id = ?', bMsg.id).payload_json, bMsg.payload_json);
   // Las listas de A no incluyen nada de B.
   const coachA = await A.c.get('/api/v1/coach/mensajes');
   assert.ok(JSON.parse(coachA.text).every((m) => !String(m.contenido).includes('b@ejemplo')));

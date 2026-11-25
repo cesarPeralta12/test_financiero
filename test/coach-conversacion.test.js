@@ -19,7 +19,6 @@ test.before(() => h.start());
 test.after(() => h.stop());
 test.beforeEach(() => {
   h.resetRateLimits();
-  setSetting('coach_v2_enabled', true);
   setSetting('coach_v2_ia_directa', true);
   setSetting('ai_coach_monthly_limit', 20);
   enviado = [];
@@ -33,7 +32,6 @@ test.beforeEach(() => {
 });
 test.afterEach(() => {
   adaptadores.local = original;
-  setSetting('coach_v2_enabled', false);
 });
 
 let seq = 0;
@@ -144,6 +142,13 @@ test('reconoce la preocupación al anotar y las tarjetas salen con Confirmar, Co
   assert.match(r.text, /<summary>Corregir<\/summary>/);
   assert.match(r.text, />Confirmar</);
   assert.match(r.text, />Cancelar</);
+});
+
+test('una frase larga no se queda en una regla sin respuesta', async () => {
+  const { c } = await user();
+  assert.equal((await say(c, 'quiero comprar la moto, ¿por dónde empiezo?')).intencion, 'consejo_ia');
+  assert.equal((await say(c, 'qué pasa si pago 200 más a mi tarjeta')).intencion, 'consejo_ia');
+  assert.notEqual((await say(c, 'qué sigue')).intencion, 'consejo_ia', 'lo corto sigue con reglas, sin gastar IA');
 });
 
 test('ahorro de IA: las preguntas sugeridas se contestan con reglas y la memoria enviada es corta', async () => {

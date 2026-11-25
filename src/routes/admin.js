@@ -693,32 +693,23 @@ router.get('/coach', (req, res) => {
     <h2 class="section">Mejora continua del parser</h2>
     <p class="small muted">Frases que el Coach no entendió, anonimizadas (sin cuenta ni números). Nuevas: ${rv.nuevo} · incorporadas: ${rv.incorporado} · descartadas: ${rv.descartado}. Revisión semanal: pasa las repetidas al diccionario o al banco de casos.</p>
     ${lote.length ? html`<table class="data stack-sm"><thead><tr><th>Frase</th><th class="r">Veces</th><th>Última vez</th><th>Acción</th></tr></thead><tbody>${lote.map((f) => html`<tr><td data-label="Frase">${f.phrase}</td><td data-label="Veces" class="r">${f.hits}</td><td data-label="Última vez">${String(f.last_seen).slice(0, 10)}</td><td data-label="Acción"><form method="post" action="/admin/coach/frases/${f.id}" class="inline">${c.csrfField(res.locals.ctx)}<button class="btn btn-secondary btn-small" name="estado" value="incorporado">Incorporada</button> <button class="btn btn-secondary btn-small" name="estado" value="descartado">Descartar</button></form></td></tr>`)}</tbody></table>` : html`<p class="muted">Nada por revisar.</p>`}
-    <h2 class="section">Despliegue</h2>
-    <form method="post" action="/admin/coach/despliegue" class="stack" novalidate style="max-width:40rem">${c.csrfField(res.locals.ctx)}
-      <label class="check"><input type="checkbox" name="enabled" value="1" ${m.ajustes.coach_v2_enabled ? raw('checked') : ''} /> <span>Coach v2 abierto (apagado: Coach anterior para todos, salvo el equipo)</span></label>
-      <div class="field"><label for="f-pct">Porcentaje de cuentas (0 a 100)</label><input class="input" id="f-pct" name="pct" inputmode="numeric" value="${m.despliegue.pct}" /></div>
-      <div class="field"><label for="f-equipo">Cuentas del equipo (ids separados por coma; siempre ven el Coach v2)</label><input class="input" id="f-equipo" name="equipo" value="${m.despliegue.equipo.join(', ')}" /></div>
+    <h2 class="section">Ajustes del Coach</h2>
+    <form method="post" action="/admin/coach/ajustes" class="stack" novalidate style="max-width:40rem">${c.csrfField(res.locals.ctx)}
       <label class="check"><input type="checkbox" name="ia_directa" value="1" ${m.ajustes.coach_v2_ia_directa ? raw('checked') : ''} /> <span>Responder con IA las preguntas abiertas, sin botón (usa el cupo mensual de cada cuenta)</span></label>
       <label class="check"><input type="checkbox" name="ia_auto" value="1" ${m.ajustes.coach_v2_ia_automatica ? raw('checked') : ''} /> <span>IA barata automática cuando el parser duda</span></label>
       <label class="check"><input type="checkbox" name="resumen" value="1" ${m.ajustes.coach_v2_resumen_semanal ? raw('checked') : ''} /> <span>Resumen semanal los lunes</span></label>
-      <button class="btn btn-primary" type="submit">Guardar despliegue</button>
+      <button class="btn btn-primary" type="submit">Guardar</button>
     </form>
-    <p class="small faint">Pasos sugeridos: equipo → 10 % → 50 % → 100 %, con 14 días sin regresiones antes de retirar el Coach anterior. Para revertir basta apagar la bandera.</p>
     <h2 class="section">Interruptores y límites</h2>
     <ul class="figures">${Object.entries(m.ajustes).map(([k, v]) => html`<li><span class="k"><code>${k}</code></span><span class="v">${String(v)}</span></li>`)}</ul>
     <p class="small faint">Se muestran solo agregados; ningún texto de las personas. Los límites se editan en «Límites de IA».</p>`);
 });
 
-router.post('/coach/despliegue', (req, res) => {
-  const pct = Math.max(0, Math.min(100, Math.round(Number(String(req.body.pct || '').replace(',', '.')) || 0)));
-  const equipo = String(req.body.equipo || '').split(/[\s,;]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 100);
-  setSetting('coach_v2_enabled', req.body.enabled === '1', req.user.id);
-  setSetting('coach_v2_rollout_pct', pct, req.user.id);
-  setSetting('coach_v2_equipo', equipo, req.user.id);
+router.post('/coach/ajustes', (req, res) => {
   setSetting('coach_v2_ia_directa', req.body.ia_directa === '1', req.user.id);
   setSetting('coach_v2_ia_automatica', req.body.ia_auto === '1', req.user.id);
   setSetting('coach_v2_resumen_semanal', req.body.resumen === '1', req.user.id);
-  audit(req.user.id, 'coach.despliegue', { meta: { enabled: req.body.enabled === '1', pct, equipo: equipo.length, ia_auto: req.body.ia_auto === '1', resumen: req.body.resumen === '1' } });
+  audit(req.user.id, 'coach.ajustes', { meta: { ia_directa: req.body.ia_directa === '1', ia_auto: req.body.ia_auto === '1', resumen: req.body.resumen === '1' } });
   res.redirect(303, '/admin/coach?aviso=guardado');
 });
 

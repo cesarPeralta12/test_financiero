@@ -35,66 +35,19 @@ test('preparación: cuenta con paquete, diagnóstico y plan', async () => {
   assert.ok(h.db.one("SELECT id FROM plan_versions WHERE user_id = ? AND status = 'completo'", user.id));
 });
 
-test('el coach se identifica como IA, conoce el contexto propio y retoma la conversación', async () => {
-  const page = await c.get('/coach');
-  assert.match(page.text, /asistente de inteligencia artificial/);
-  await c.post('/coach/mensajes', { mensaje: '¿Eres una persona?' });
-  await c.post('/coach/mensajes', { mensaje: '¿Cuál es mi siguiente paso?' });
-  const again = await c.get('/coach');
-  assert.match(again.text, /no una persona/);
-  assert.match(again.text, /Tu siguiente paso: Arma tu presupuesto del mes/);
-  // Otro dispositivo: la conversación se retoma.
+test('el coach se identifica como IA, conoce el diagnóstico y retoma la conversación', async () => {
+  assert.match((await c.get('/coach')).text, /Asistente con IA/);
+  await c.post('/coach/enviar', { texto: '¿eres una persona?' });
+  await c.post('/coach/enviar', { texto: 'cuál es mi siguiente paso' });
   const other = new h.Client();
   await h.login(other, 'coach@ejemplo.test', 'Clave-segura-123');
   const resumed = await other.get('/coach');
-  assert.match(resumed.text, /¿Eres una persona\?/);
-  const ctx = require('../src/domain/coach').context(user.id);
-  assert.equal(ctx.plan.version, 1);
-  assert.ok(ctx.tareas_pendientes.length > 0);
-  assert.equal(ctx.diagnostico.saldo_disponible.replace(/\D/g, ''), '500000');
-});
-
-test('una consulta hipotética no cambia datos; un registro solo se guarda al confirmar', async () => {
-  const movBefore = h.db.value('SELECT COUNT(*) FROM movements WHERE user_id = ?', user.id);
-  await c.post('/coach/mensajes', { mensaje: '¿Qué pasa si pago 1000 más a mi tarjeta?' });
-  const hyp = h.db.one("SELECT * FROM messages WHERE user_id = ? AND role = 'coach' ORDER BY id DESC LIMIT 1", user.id);
-  assert.equal(hyp.kind, 'hipotetico');
-  assert.match(hyp.content, /no cambia tus datos/);
-  assert.equal(h.db.value('SELECT COUNT(*) FROM movements WHERE user_id = ?', user.id), movBefore);
-
-  await c.post('/coach/mensajes', { mensaje: 'Gasté 350 en el super' });
-  const prop = h.db.one("SELECT * FROM messages WHERE user_id = ? AND role = 'coach' ORDER BY id DESC LIMIT 1", user.id);
-  assert.equal(prop.kind, 'propuesta');
-  assert.equal(prop.proposal_status, 'pendiente');
-  assert.equal(h.db.value('SELECT COUNT(*) FROM movements WHERE user_id = ?', user.id), movBefore, 'sin confirmación no se guarda');
-  const shown = await c.get('/coach');
-  assert.match(shown.text, /Confirmar/);
-  await c.post(`/coach/propuesta/${prop.id}/confirmar`, {});
-  assert.equal(h.db.value('SELECT COUNT(*) FROM movements WHERE user_id = ?', user.id), movBefore + 1);
-  const m = h.db.one("SELECT * FROM movements WHERE user_id = ? ORDER BY id DESC LIMIT 1", user.id);
-  assert.equal(m.kind, 'gasto');
-  assert.equal(m.category, 'alimentacion');
-  assert.equal(m.amount, '350.00');
-  // Confirmar dos veces no duplica.
-  await c.post(`/coach/propuesta/${prop.id}/confirmar`, {}, { follow: false });
-  assert.equal(h.db.value('SELECT COUNT(*) FROM movements WHERE user_id = ?', user.id), movBefore + 1);
-
-  // Propuesta de completar tarea, descartada: la tarea no cambia.
-  await c.post('/coach/mensajes', { mensaje: 'Ya terminé' });
-  const p2 = h.db.one("SELECT * FROM messages WHERE user_id = ? AND role = 'coach' ORDER BY id DESC LIMIT 1", user.id);
-  const taskId = JSON.parse(p2.proposal_json).taskId;
-  await c.post(`/coach/propuesta/${p2.id}/descartar`, {});
-  assert.equal(h.db.one('SELECT status FROM tasks WHERE id = ?', taskId).status, 'pendiente');
-});
-
-test('el coach propone una tarea cuando no hay pendientes', () => {
-  const coach = require('../src/domain/coach');
-  h.db.run("UPDATE tasks SET status = 'completada' WHERE user_id = ?", user.id);
-  const ctx = coach.context(user.id);
-  const out = coach.localReply(user.id, 'hola', ctx);
-  assert.equal(out.proposal.type, 'crear_tarea');
-  assert.ok(out.proposal.criteria.length > 0);
-  h.db.run("UPDATE tasks SET status = 'pendiente' WHERE user_id = ?", user.id);
+  assert.match(resumed.text, /¿eres una persona\?/);
+  assert.match(resumed.text, /Arma tu presupuesto del mes/);
+  const hechos = require('../src/domain/coach/conversacion').hechos(user.id);
+  assert.equal(hechos.diagnostico.saldo_disponible.replace(/\D/g, ''), '500000');
+  assert.ok(hechos.diagnostico.prioridades.length > 0);
+  assert.ok(hechos.proxima_tarea);
 });
 
 test('calculadora: registrar, editar y eliminar sin duplicar; previsto y real por separado', async () => {
@@ -179,35 +132,6 @@ test('simulación: compara sin alterar datos reales ni contar dos veces un pago'
   const meta = h.db.one('SELECT * FROM goals WHERE user_id = ? AND kind = ? LIMIT 1', user.id, 'meta');
   const g = tracker.goals(user.id).find((x) => x.id === meta.id);
   assert.ok(g.progress.valid);
-});
-
-test('límite de IA por cuenta: el coach lo explica y conserva la conversación', async () => {
-  const n = h.db.value('SELECT COUNT(*) FROM messages WHERE user_id = ?', user.id);
-  h.db.run('UPDATE users SET ai_monthly_limit = 0 WHERE id = ?', user.id);
-  await c.post('/coach/mensajes', { mensaje: 'Hola de nuevo' });
-  const last = h.db.one('SELECT * FROM messages WHERE user_id = ? ORDER BY id DESC LIMIT 1', user.id);
-  assert.equal(last.role, 'sistema');
-  assert.match(last.content, /límite mensual/);
-  assert.equal(h.db.value('SELECT COUNT(*) FROM messages WHERE user_id = ?', user.id), n + 2, 'se guarda el mensaje y el aviso');
-  assert.ok(h.db.one("SELECT id FROM ai_runs WHERE user_id = ? AND status = 'limite'", user.id));
-  h.db.run('UPDATE users SET ai_monthly_limit = NULL WHERE id = ?', user.id);
-  // Límite global de gasto
-  setSetting('ai_global_monthly_budget_usd', 0);
-  await c.post('/coach/mensajes', { mensaje: 'Hola' });
-  assert.match(h.db.one('SELECT content FROM messages WHERE user_id = ? ORDER BY id DESC LIMIT 1', user.id).content, /límite de uso de este mes/);
-  setSetting('ai_global_monthly_budget_usd', 50);
-});
-
-test('error del proveedor de IA: se explica y la conversación se conserva', async () => {
-  setSetting('ai_simulate_failure', true);
-  await c.post('/coach/mensajes', { mensaje: '¿Cómo voy?' });
-  const msgs = h.db.all('SELECT * FROM messages WHERE user_id = ? ORDER BY id DESC LIMIT 2', user.id);
-  assert.equal(msgs[0].role, 'sistema');
-  assert.match(msgs[0].content, /no está disponible/);
-  assert.equal(msgs[1].content, '¿Cómo voy?');
-  setSetting('ai_simulate_failure', false);
-  await c.post('/coach/mensajes', { mensaje: '¿Cómo voy?' });
-  assert.equal(h.db.one('SELECT role FROM messages WHERE user_id = ? ORDER BY id DESC LIMIT 1', user.id).role, 'coach');
 });
 
 test('respaldo y restauración comprobada', () => {

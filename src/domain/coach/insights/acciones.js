@@ -80,13 +80,13 @@ function deudaLiquidable(c) {
 function deudaPrimero(c) {
   const ds = ordenBolaNieve(deudasActivas(c));
   if (!ds.length) return null;
-  return insight('INS-DEUDA-PRIMERO', c, { intencion: 'deuda_pagar_primero', prioridad: 62, vars: { deuda: ds[0].name, saldo_deuda: ds[0].s.toFixed(2), estrategia: 'bola_nieve', razon: 'es la de menor saldo: al liquidarla se libera su cuota para la siguiente' }, acciones: ['simular_pago_extra', 'ver_deudas', 'cambiar_estrategia'], formula: 'bola de nieve: menor saldo primero' });
+  return insight('INS-DEUDA-PRIMERO', c, { intencion: 'deuda_pagar_primero', prioridad: 62, vars: { deuda: ds[0].name, saldo_deuda: ds[0].s.toFixed(2), estrategia: 'bola de nieve', razon: 'Es la de menor saldo: al liquidarla se libera su cuota para la siguiente' }, acciones: ['simular_pago_extra', 'ver_deudas', 'cambiar_estrategia'], formula: 'bola de nieve: menor saldo primero' });
 }
 
 function ordenDeudas(c) {
   const ds = ordenBolaNieve(deudasActivas(c));
   if (ds.length < 2) return null;
-  return insight('INS-ORDEN-DEUDAS', c, { intencion: 'orden_deudas', prioridad: 48, vars: { estrategia: 'bola_nieve', lista: lista(ds.map((d) => d.name)), n: ds.length }, acciones: ['cambiar_estrategia', 'simular_pago_extra', 'ver_deudas'], formula: 'orden por menor saldo' });
+  return insight('INS-ORDEN-DEUDAS', c, { intencion: 'orden_deudas', prioridad: 48, vars: { estrategia: 'bola de nieve', lista: lista(ds.map((d) => d.name)), n: ds.length }, acciones: ['cambiar_estrategia', 'simular_pago_extra', 'ver_deudas'], formula: 'orden por menor saldo' });
 }
 
 /** Pago extra ilustrativo (hipótesis): efecto en meses e intereses con la proyección de deudas; no toca datos reales. */

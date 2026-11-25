@@ -53,7 +53,7 @@ function alarmas() {
 }
 
 function ajustes() {
-  const claves = ['coach_v2_enabled', 'coach_v2_ia_directa', 'coach_v2_ia_automatica', 'coach_v2_resumen_semanal', 'coach_v2_registro_rapido', 'ai_coach_daily_auto_limit', 'ai_coach_budget_guard', 'ai_coach_monthly_limit'];
+  const claves = ['coach_v2_ia_directa', 'coach_v2_ia_automatica', 'coach_v2_resumen_semanal', 'coach_v2_registro_rapido', 'ai_coach_daily_auto_limit', 'ai_coach_budget_guard', 'ai_coach_monthly_limit'];
   return Object.fromEntries(claves.map((k) => [k, getSetting(k)]));
 }
 
@@ -67,8 +67,7 @@ function proveedor() {
 
 function resumen(dias = 7) {
   const desde = iso(dias * 24 * H);
-  const rollout = require('../rollout');
-  return { dias, despliegue: { pct: rollout.pct(), equipo: rollout.equipo() }, proveedor: proveedor(), tareas: porTarea(desde), cache: tasaCache(desde), origenes: origenes(desde), alarmas: alarmas(), ajustes: ajustes() };
+  return { dias, proveedor: proveedor(), tareas: porTarea(desde), cache: tasaCache(desde), origenes: origenes(desde), alarmas: alarmas(), ajustes: ajustes() };
 }
 
 module.exports = { resumen, alarmas, porTarea, tasaCache, origenes };

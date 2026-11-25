@@ -52,15 +52,9 @@ router.get('/coach/mensajes', requireEntitlement('acompanamiento'), (req, res) =
   res.json(coach.messages(conv.id, req.user.id).map((m) => ({ id: m.id, rol: m.role, tipo: m.kind, contenido: m.content, propuesta: db.parse(m.proposal_json), estado_propuesta: m.proposal_status, fecha: m.created_at })));
 });
 
-// Coach v2 (bandera coach_v2_enabled): reglas y catálogo, sin IA. Con la bandera apagada responde el Coach anterior.
 const coachV2 = require('./coachV2');
 router.get('/coach/conversacion', requireEntitlement('acompanamiento'), coachV2.conversacion);
 router.post('/coach/mensajes', requireEntitlement('acompanamiento'), coachV2.post);
-
-router.post('/coach/mensajes', requireEntitlement('acompanamiento'), wrap(async (req, res) => {
-  const r = await coach.send(req.user.id, req.body && req.body.mensaje);
-  res.status(r.error && !r.ok ? 202 : 201).json(r);
-}));
 
 // Coach v2: movimientos (lista con filtros y orden, alta idempotente, edición, borrado suave) y resumen del mes.
 router.use('/movimientos', requireMoneyAccess, require('./movimientos'));

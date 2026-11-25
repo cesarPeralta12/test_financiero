@@ -21,11 +21,9 @@ test.after(() => h.stop());
 test.beforeEach(() => {
   h.resetRateLimits();
   adaptadores.reiniciarLocal();
-  setSetting('coach_v2_enabled', true);
   setSetting('coach_v2_ia_automatica', false);
   setSetting('coach_v2_resumen_semanal', false);
 });
-test.afterEach(() => setSetting('coach_v2_enabled', false));
 
 let seq = 0;
 async function user() {

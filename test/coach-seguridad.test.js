@@ -6,7 +6,6 @@ const assert = require('node:assert/strict');
 const h = require('./helpers');
 const entitlements = require('../src/domain/entitlements');
 const privacy = require('../src/domain/privacy');
-const rollout = require('../src/domain/coach/rollout');
 const recurrentes = require('../src/domain/coach/recurrentes');
 const plantillas = require('../src/domain/coach/plantillas');
 const router = require('../src/domain/coach/ia/router');
@@ -16,15 +15,7 @@ test.before(() => h.start());
 test.after(() => h.stop());
 test.beforeEach(() => {
   h.resetRateLimits();
-  setSetting('coach_v2_enabled', true);
-  setSetting('coach_v2_rollout_pct', 100);
-  setSetting('coach_v2_equipo', []);
   setSetting('coach_v2_ia_automatica', false);
-});
-test.afterEach(() => {
-  setSetting('coach_v2_enabled', false);
-  setSetting('coach_v2_rollout_pct', 100);
-  setSetting('coach_v2_equipo', []);
 });
 
 const HOY = new Date().toISOString().slice(0, 10);
@@ -153,7 +144,7 @@ test('privacidad de la IA: lo que viaja no lleva correo ni teléfono y los panel
   // Un usuario común no entra al panel ni cambia el despliegue
   const { c } = await user();
   assert.ok([302, 303, 403, 404].includes((await c.req('GET', '/admin/coach', { follow: false })).status));
-  const intento = await c.req('POST', '/admin/coach/despliegue', { form: { pct: '100', enabled: '1' }, follow: false });
+  const intento = await c.req('POST', '/admin/coach/ajustes', { form: { ia_directa: '1' }, follow: false });
   assert.ok([302, 303, 403, 404].includes(intento.status));
 });
 
@@ -182,35 +173,4 @@ test('exportación y eliminación: incluyen y borran todo lo nuevo del Coach', a
   for (const t of tablas) assert.equal(h.db.value(`SELECT COUNT(*) FROM ${t} WHERE user_id = ?`, u.id), 0, t);
   // La mejora continua nunca guardó quién escribió la frase
   assert.equal(h.db.all('PRAGMA table_info(parser_feedback)').some((col) => /user/.test(col.name)), false);
-});
-
-test('despliegue gradual: equipo, porcentaje estable, bandera general y reversa inmediata', async () => {
-  const ids = Array.from({ length: 400 }, (_, i) => i + 1);
-  setSetting('coach_v2_enabled', true);
-  setSetting('coach_v2_rollout_pct', 0);
-  assert.equal(ids.filter((id) => rollout.activoPara(id)).length, 0);
-  setSetting('coach_v2_equipo', [7, 9]);
-  assert.deepEqual(ids.filter((id) => rollout.activoPara(id)), [7, 9], 'el equipo siempre lo ve');
-  setSetting('coach_v2_equipo', []);
-  setSetting('coach_v2_rollout_pct', 10);
-  const diez = ids.filter((id) => rollout.activoPara(id));
-  assert.ok(diez.length > 15 && diez.length < 70, `10 % de 400 dio ${diez.length}`);
-  setSetting('coach_v2_rollout_pct', 50);
-  const cincuenta = ids.filter((id) => rollout.activoPara(id));
-  assert.ok(cincuenta.length > 150 && cincuenta.length < 250, `50 % de 400 dio ${cincuenta.length}`);
-  assert.ok(diez.every((id) => cincuenta.includes(id)), 'quien ya lo veía lo sigue viendo al subir el porcentaje');
-  assert.deepEqual(ids.filter((id) => rollout.activoPara(id)), cincuenta, 'estable entre llamadas');
-  setSetting('coach_v2_rollout_pct', 100);
-  assert.equal(ids.filter((id) => rollout.activoPara(id)).length, 400);
-  setSetting('coach_v2_enabled', false);
-  assert.equal(ids.filter((id) => rollout.activoPara(id)).length, 0, 'bandera apagada = Coach anterior para todos');
-
-  // En las rutas: una cuenta fuera del porcentaje recibe el Coach anterior (no el v2)
-  const { c, u } = await user();
-  setSetting('coach_v2_enabled', true);
-  setSetting('coach_v2_rollout_pct', 0);
-  assert.equal((await c.req('POST', '/coach/enviar', { form: { texto: 'hola' }, follow: false })).status, 404);
-  setSetting('coach_v2_equipo', [u.id]);
-  const dentro = await c.req('POST', '/coach/enviar', { form: { texto: 'hola' }, headers: { 'x-fragment': '1' } });
-  assert.equal(dentro.status, 200);
 });

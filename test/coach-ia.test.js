@@ -20,13 +20,11 @@ test.after(() => h.stop());
 test.beforeEach(() => {
   h.resetRateLimits();
   adaptadores.reiniciarLocal();
-  setSetting('coach_v2_enabled', true);
   setSetting('coach_v2_ia_automatica', false);
   setSetting('ai_coach_daily_auto_limit', 30);
   setSetting('ai_coach_monthly_limit', 20);
 });
 test.afterEach(() => {
-  setSetting('coach_v2_enabled', false);
   setSetting('coach_v2_ia_directa', true);
 });
 

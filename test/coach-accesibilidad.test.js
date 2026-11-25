@@ -43,7 +43,6 @@ test('las pantallas del Coach y de Mi dinero pasan las comprobaciones automátic
   await h.registerUser(c, 'a11y@ejemplo.test');
   const u = h.db.one('SELECT * FROM users WHERE email = ?', 'a11y@ejemplo.test');
   entitlements.grantManual({ userId: u.id, code: 'acompanamiento', days: 30, adminId: null, reason: 'prueba de accesibilidad' });
-  setSetting('coach_v2_enabled', true);
   await c.get('/');
   recurrentes.crear(u.id, { tipo: 'gasto', categoria: 'servicios', monto: '9.00', nota: 'Nube', dia: 3 });
   plantillas.crear(u.id, { etiqueta: 'Pan', tipo: 'gasto', categoria: 'alimentacion', monto: '2' });
@@ -55,6 +54,5 @@ test('las pantallas del Coach y de Mi dinero pasan las comprobaciones automátic
     assert.equal(r.status, 200, ruta);
     fallos.push(...revisar(ruta, r.text));
   }
-  setSetting('coach_v2_enabled', false);
   assert.deepEqual(fallos, []);
 });

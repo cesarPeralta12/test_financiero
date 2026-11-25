@@ -247,7 +247,7 @@ test('deudas, metas y presupuesto: liquidable con saldo libre (nunca con ahorro)
   assert.deepEqual([liq.variables.deuda, liq.variables.saldo_libre, liq.variables.queda], ['Tarjeta A', '400.00', '100.00']);
   assert.equal(liq.severidad, 'logro');
   assert.equal(i['INS-DEUDA-PRIMERO'].variables.deuda, 'Tarjeta A', 'bola de nieve: menor saldo primero');
-  assert.equal(i['INS-DEUDA-PRIMERO'].variables.estrategia, 'bola_nieve');
+  assert.equal(i['INS-DEUDA-PRIMERO'].variables.estrategia, 'bola de nieve');
   assert.equal(i['INS-ORDEN-DEUDAS'].variables.lista, 'Tarjeta A y Préstamo B');
   const t = insights.texto(liq, { cur: 'USD' }).texto;
   assert.match(t, /reserva|ahorro/i, 'el mensaje recuerda no usar la reserva');

@@ -13,9 +13,7 @@ test.before(() => h.start());
 test.after(() => h.stop());
 test.beforeEach(() => {
   h.resetRateLimits();
-  setSetting('coach_v2_enabled', true);
 });
-test.afterEach(() => setSetting('coach_v2_enabled', false));
 
 let seq = 0;
 async function user() {
@@ -33,13 +31,15 @@ const month = tracker.currentMonth();
 const mov = (u, kind, category, amount, extra = {}) => tracker.createMovement(u.id, { kind, category, subcategory: extra.sub || null, date: `${month}-01`, amount: String(amount), currency: 'USD', note: extra.note || null, noteNorm: extra.note || null, debtId: null, goalId: null, toGoalId: null });
 const formDe = (html, intent) => [...html.matchAll(/<form class="cv-act"[^>]*>(.*?)<\/form>/gs)].map((m) => m[1]).find((f) => new RegExp(`value="${intent}"`).test(f));
 
-test('con la bandera apagada /coach sigue siendo el Coach anterior', async () => {
-  setSetting('coach_v2_enabled', false);
+test('hay un solo Coach: sin interruptor ni rutas del anterior', async () => {
   const { c } = await user();
-  const page = await c.get('/coach');
-  assert.match(page.text, /Asistente de IA/);
-  assert.doesNotMatch(page.text, /data-cv/);
-  assert.equal((await enviar(c, { texto: 'hola' })).status, 404, 'la ruta nueva no existe sin la bandera');
+  assert.match((await c.get('/coach')).text, /data-cv/);
+  assert.equal((await c.post('/coach/mensajes', { mensaje: 'hola' }, { follow: false })).status, 404);
+  const admin = new h.Client();
+  await h.login(admin, 'admin@diauno.test', 'Prueba-Admin-2026');
+  const p = await admin.get('/admin/coach');
+  assert.doesNotMatch(p.text, /Coach v2 abierto|name="pct"|name="equipo"/);
+  assert.match(p.text, /name="ia_directa" value="1" checked/);
 });
 
 test('página de tarjetas: bienvenida, sugerencias según el contexto y campo accesible', async () => {

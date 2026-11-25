@@ -10,12 +10,9 @@ const SETTING_DEFAULTS = {
   ai_simulate_failure: false, // solo entornos de desarrollo y pruebas
   ai_coach_daily_auto_limit: 30, // llamadas automáticas (clasificar/extraer) por cuenta y día
   ai_coach_budget_guard: true, // corta las tareas automáticas si el gasto del día supera 3 × la mediana de 14 días
-  coach_v2_rollout_pct: 100, // % de cuentas que ven el Coach v2 con la bandera abierta (despliegue gradual, CV2-605)
-  coach_v2_equipo: [], // ids de cuenta que siempre ven el Coach v2
   coach_v2_resumen_semanal: false, // resumen de la semana cada lunes (CV2-506); apagado al inicio
   coach_v2_ia_automatica: false, // IA barata cuando el parser duda (decisión D3); apagada al inicio
   coach_v2_ia_directa: true, // responde con IA las preguntas abiertas sin pedir un toque extra (usa el mismo cupo mensual)
-  coach_v2_enabled: false, // Coach v2 por reglas y catálogo (S3); apagado = Coach anterior
   coach_v2_registro_rapido: false, // abre «Mi dinero» (registro y resumen) a cuentas sin acompañamiento (decisión D1)
   last_daily_run: null,
   last_backup_at: null,

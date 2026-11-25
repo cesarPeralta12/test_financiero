@@ -15,9 +15,7 @@ test.before(() => h.start());
 test.after(() => h.stop());
 test.beforeEach(() => {
   h.resetRateLimits();
-  setSetting('coach_v2_enabled', true);
 });
-test.afterEach(() => setSetting('coach_v2_enabled', false));
 
 const TODAY = new Date().toISOString().slice(0, 10);
 let seq = 0;
@@ -315,14 +313,6 @@ test('acciones, errores, idempotencia, límites de acceso y paginación', async 
   assert.equal(last.status, 429);
 });
 
-test('con la bandera apagada responde el Coach anterior (sin cambios)', async () => {
-  setSetting('coach_v2_enabled', false);
-  const { c } = await user();
-  const r = await api(c, 'POST', '/coach/mensajes', { mensaje: 'hola' });
-  assert.ok([200, 201, 202].includes(r.status));
-  assert.ok(r.body && !('catalog_version' in r.body), 'forma anterior');
-});
-
 test('meta de producto: la mayoría de la conversación se resuelve sin IA', async () => {
   const { c, u } = await user();
   for (const t of ['hola', '250 super', 'cómo voy', 'gracias', 'en qué gasto más', 'cobré 800', 'ayuda', 'qué es el saldo', 'luz 40', 'adiós']) await say(c, t);
@@ -366,33 +356,6 @@ test('acciones por chat con el motor de insights: recorte, deudas, metas y sigui
   assert.equal((await say(c, 'cuánto gasté esta semana')).intencion, 'gasto_semana');
   // Hábitos con el motor de insights.
   assert.ok(['gastos_hormiga', 'no_entendi'].includes((await say(c, 'gastos hormiga')).intencion));
-});
-
-test('el chat web (Coach anterior) guarda la nota «café», no la frase completa «registro un gasto de un café a 8.50»', async () => {
-  setSetting('coach_v2_enabled', false);
-  const { c, u } = await user();
-  await c.get('/coach');
-  for (const [frase, nota, cat, sub, importe] of [
-    ['registro un gasto de un café a 8.50', 'café', 'alimentacion', 'cafe', '8.50'],
-    ['anota un gasto de un helado a 10', 'helado', 'alimentacion', 'snack', '10.00'],
-    ['gasté 20 en supermecado', 'supermecado', 'alimentacion', 'super', '20.00'],
-  ]) {
-    await c.post('/coach/mensajes', { mensaje: frase });
-    const prop = h.db.one("SELECT * FROM messages WHERE user_id = ? AND role = 'coach' AND kind = 'propuesta' ORDER BY id DESC LIMIT 1", u.id);
-    assert.ok(prop, frase);
-    const p = JSON.parse(prop.proposal_json);
-    assert.equal(p.note, nota, `nota de «${frase}»`);
-    assert.doesNotMatch(String(p.note), /registr|anota|gasto|\d/i, 'la nota no es la frase completa');
-    await c.post(`/coach/propuesta/${prop.id}/confirmar`, {});
-    const m = h.db.one('SELECT * FROM movements WHERE user_id = ? ORDER BY id DESC LIMIT 1', u.id);
-    assert.deepEqual([m.category, m.subcategory, m.amount, m.note, m.source], [cat, sub, importe, nota, 'coach']);
-    assert.equal(m.note_norm, nota.normalize('NFD').replace(/[̀-ͯ]/g, ''), 'nota normalizada para buscar y aprender');
-  }
-  // Un modelo que escribe la frase completa como nota también se limpia al preparar la propuesta.
-  const coachOld = require('../src/domain/coach');
-  const b = coachOld.buildProposal(u.id, 'registrar_movimiento', { tipo: 'gasto', categoria: 'alimentacion', importe: '8.50', fecha: TODAY, nota: 'registro un gasto de un café a 8.50' });
-  assert.equal(b.proposal.note, 'café');
-  assert.equal(coachOld.buildProposal(u.id, 'registrar_movimiento', { tipo: 'gasto', categoria: 'ocio', importe: '30', fecha: TODAY, nota: 'regalo para Ana' }).proposal.note, 'regalo para Ana', 'una nota corta no se toca');
 });
 
 test('plantillas: una fecha abreviada seguida de punto no deja dos puntos', () => {

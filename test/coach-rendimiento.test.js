@@ -29,7 +29,6 @@ test('10.000 movimientos: registrar, responder por reglas, insights y listas den
   await h.registerUser(c, 'carga@ejemplo.test');
   const u = h.db.one('SELECT * FROM users WHERE email = ?', 'carga@ejemplo.test');
   entitlements.grantManual({ userId: u.id, code: 'acompanamiento', days: 30, adminId: null, reason: 'carga' });
-  setSetting('coach_v2_enabled', true);
   await c.get('/');
 
   // 10.000 movimientos en ~14 meses, con notas repetidas y variadas
@@ -79,5 +78,4 @@ test('10.000 movimientos: registrar, responder por reglas, insights y listas den
   assert.ok(ins < 500, `insights p95 ${ins} ms`);
   assert.ok(lista < 300, `lista p95 ${lista} ms`);
   assert.ok(resumen < 300, `resumen p95 ${resumen} ms`);
-  setSetting('coach_v2_enabled', false);
 });
