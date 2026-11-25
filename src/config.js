@@ -123,7 +123,7 @@ const config = {
   freeResultV2: bool(env.FREE_RESULT_V2, true),
   // Catálogo de las sesiones nuevas del test gratuito. Las sesiones existentes siguen con el suyo.
   // Evaluación profunda: 2 = respuestas con botones (vigente); 1 = versión original (pruebas históricas).
-  deepQuestionnaireVersion: ['1', '2'].includes(env.DEEP_QUESTIONNAIRE_VERSION) ? Number(env.DEEP_QUESTIONNAIRE_VERSION) : 3,
+  deepQuestionnaireVersion: ['1', '2', '3'].includes(env.DEEP_QUESTIONNAIRE_VERSION) ? Number(env.DEEP_QUESTIONNAIRE_VERSION) : 4,
   // Evaluación profunda en forma de conversación (DEEP_CHAT=0 vuelve a las pantallas de una pregunta).
   deepChat: env.DEEP_CHAT !== '0',
   // El análisis gratuito se entrega a quien tiene cuenta (RESULT_REQUIRES_ACCOUNT=0 lo desactiva).

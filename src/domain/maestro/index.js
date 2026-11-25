@@ -111,13 +111,13 @@ function build(diag, content, rules) {
   need(!assetsKnown, 'Tus bienes: sin ellos no calculamos tu patrimonio neto.');
   need(hours === null, 'Cuántas horas a la semana puedes dedicar.');
   need(!skills.length, 'Tus habilidades: sin ellas las ideas de ingreso son pocas.');
-  need(!p.risk, 'Tu perfil de riesgo.');
+  need(!p.risk && !tight && !late, 'Tu perfil de riesgo.');
   need(biz && sales === null, 'Cuánto vende tu negocio al mes.');
-  need(biz && profit === null, 'Cuánto te queda de ganancia en tu negocio.');
+  need(biz && profit === null && !(sales !== null && sales.lte(0)), 'Cuánto te queda de ganancia en tu negocio.');
   need(diag.debts.some((d) => d.rate === null), 'El interés de alguna de tus deudas.');
-  need(capital === null, 'Cuánto capital podrías invertir.');
+  need(capital === null && !tight && !late && liquid.gt(0), 'Cuánto capital podrías invertir.');
   need(!target, 'Cuánto quieres ganar al mes.');
-  need(!wealth, 'Cuánto patrimonio quieres alcanzar.');
+  need(!wealth && !tight && !late, 'Cuánto patrimonio quieres alcanzar.');
   need(!years, 'En cuántos años quieres lograrlo.');
 
   // ───────── Oportunidades ─────────

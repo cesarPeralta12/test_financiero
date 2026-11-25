@@ -39,6 +39,7 @@ function chatPage(ctx, o) {
     <header class="chat-head">
       <span class="chat-avatar" aria-hidden="true">D1</span>
       <div><strong>Día Uno</strong><span class="small muted">Asistente financiero</span></div>
+      ${o.pauseHref ? html`<a class="btn btn-quiet chat-pause" href="${o.pauseHref}" title="Se guarda lo que respondiste y puedes seguir después"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg> Pausar</a>` : ''}
     </header>
     <ol class="chat-log" aria-live="polite">
       ${o.started ? '' : lines.map((l) => bot(l, 'chat-intro-msg'))}

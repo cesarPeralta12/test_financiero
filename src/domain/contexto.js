@@ -1,5 +1,5 @@
 'use strict';
-// Resumen «Mi contexto financiero actual»: lo que se entendió de la evaluación, para confirmarlo antes del
+// Resumen «Mi contexto financiero actual»: lo que se entendió de la evaluación, para revisarlo antes del
 // diagnóstico. Solo resume respuestas ya dadas; lo desconocido se dice y no se rellena.
 const db = require('../db');
 const money = require('../lib/money');
@@ -13,7 +13,7 @@ const { D } = money;
 const ZERO = new D(0);
 const TEST = 'FREE_24_V4_ES';
 
-/** Solo la evaluación con perfil completo (v3 en adelante) pide confirmar el resumen. */
+/** Solo la evaluación con perfil completo (v3 en adelante) muestra el resumen. */
 const applies = (qn) => qn.questions.some((q) => q.code === 'motivacion');
 
 /** País y edad, si los dijo en el test gratuito. */

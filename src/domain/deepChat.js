@@ -35,6 +35,27 @@ const NO = /^(no\b|nop\b|nada\b|ninguno|ninguna|nadie|cero\b|0\b|jamas|nunca)/;
 const YES = /^(si\b|sí\b|claro|por supuesto|obvio|sip\b|tengo\b|afirmativo|aja\b)/;
 const DK = /\b(no se|no lo se|ni idea|no estoy segur[oa]|no sabria)\b/;
 
+// «Probablemente», «creo que no», «a veces»: la gente no siempre contesta con un sí o un no.
+const SOFT_NO = /^(creo que no|probablemente no|seguramente no|posiblemente no|lo dudo|para nada|dificil|negativo|tampoco|casi nunca|todavia no|aun no|por ahora no|ahora no)\b/;
+const SOFT_YES = /^(probable|posible|seguramente|seguro|creo que si|yo creo|supongo|quiza|tal ?vez|a ?lo mejor|puede|podria|capaz|depende|a veces|de vez en cuando|algo\b|un poco|un poquito|poco\b|alguna|algun|ok\b|dale|obviamente|asi es|correcto|exacto|eso creo|en parte|mas o menos)/;
+// Tras un «sí», la pregunta del monto dice de qué se habla: un «¿cuánto?» a secas parece repetido.
+const FOLLOW = {
+  ingresos_adicionales: '¿Cuánto recibes de esos otros ingresos?',
+  gastos_anuales: '¿Cuánto suman al año esos gastos que pagas pocas veces?',
+  ahorro_mensual: '¿Cuánto apartas para ahorrar?',
+  ahorro_no_disponible: '¿Cuánto tienes en esos ahorros que no puedes retirar?',
+  gasto_reducible: '¿Cuánto podrías dejar de gastar, más o menos?',
+  ingreso_extra_posible: '¿Cuánto más podrías ganar con ese ingreso extra, más o menos?',
+  bienes_vendibles: '¿Cuánto recibirías si vendieras esas cosas, más o menos?',
+};
+/** 'si' | 'no' | null */
+function yesOrNo(n) {
+  if (SOFT_NO.test(n)) return 'no';
+  if (NO.test(n)) return 'no';
+  if (YES.test(n) || SOFT_YES.test(n)) return 'si';
+  return null;
+}
+
 function periodOf(t) {
   const n = norm(t);
   const hit = PERIODS.find(([, re]) => re.test(n));
@@ -43,6 +64,7 @@ function periodOf(t) {
 /** Cifra en el formato que espera `money.parseAmount` para esa moneda. */
 function amountFor(text, currency) {
   // «No», «nada», «no tengo»: cero.
+  if (DK.test(norm(text)) && !/\d/.test(text)) return null; // «no sé» no es cero
   const a = NO.test(norm(text)) && !/\d/.test(text) ? '0' : chat4.amount(text);
   if (a === null) return null;
   const sep = (money.CURRENCIES[currency] && money.CURRENCIES[currency].decimalSep) || '.';
@@ -64,12 +86,12 @@ function nextStep(q, body, currency) {
     id,
     text,
     help: extra.help || null,
-    chips: extra.chips || [],
+    chips: extra.chips || (q.allowUnknown ? ['No lo sé'] : []),
     kind: 'amount',
     apply: (t) => {
       if (unknownOk(t)) return { unknown: true };
       const a = amountFor(t, currency);
-      if (a === null) return { error: 'No encontré un monto. Escribe solo la cifra, por ejemplo «2500».' };
+      if (a === null) return { error: q.allowUnknown ? 'Escribe una cifra aproximada, por ejemplo «2500». Si no la sabes, escribe «no lo sé».' : 'Escribe una cifra, por ejemplo «2500». Un aproximado está bien.' };
       // Sin decir cada cuánto, se toma como mensual (lo más común); «800 por semana» se respeta.
       return extra.withPeriod ? set({ [key]: a, period: periodOf(t) || extra.defaultPeriod || 'mensual' }) : set({ [key]: a });
     },
@@ -78,16 +100,18 @@ function nextStep(q, body, currency) {
     id,
     text,
     help,
-    chips: ['Sí', 'No'],
+    chips: q.allowUnknown ? ['Sí', 'No', 'No lo sé'] : ['Sí', 'No'],
     kind: 'yesno',
     apply: (t) => {
       const n = norm(t);
       if (unknownOk(t)) return { unknown: true };
-      if (NO.test(n)) return set({ [key]: 'no' });
+      if (DK.test(n)) return { error: 'No hay problema. Responde lo más parecido a tu situación: ¿sería más bien un sí o un no?' };
+      const yn = yesOrNo(n);
+      if (yn === 'no') return set({ [key]: 'no' });
       // «Sí, 500 al mes» ya trae el monto.
       const a = amountFor(t, currency);
-      if (YES.test(n) || (a && Number(a.replace(',', '.')) > 0)) return set({ [key]: 'si', ...(a && Number(a.replace(',', '.')) > 0 ? { amount: a, period: periodOf(t) || 'mensual' } : {}) });
-      return { error: 'Responde «sí» o «no».' };
+      if (yn === 'si' || (a && Number(a.replace(',', '.')) > 0)) return set({ [key]: 'si', ...(a && Number(a.replace(',', '.')) > 0 ? { amount: a, period: periodOf(t) || 'mensual' } : {}) });
+      return { error: q.allowUnknown ? 'No estoy seguro de haberte entendido. ¿Sería más bien un sí o un no? También puedes escribir «no lo sé».' : 'No estoy seguro de haberte entendido. ¿Sería más bien un sí o un no?' };
     },
   });
   const pickOne = (id, text, help, list, key) => ({
@@ -103,7 +127,8 @@ function nextStep(q, body, currency) {
       const exact = list.find((o) => norm(o.label) === n) || (num && list.find((o) => o.code === num[0]));
       // «Sí» / «No» cuando las opciones empiezan así («Sí, es neta», «No, es bruta»).
       const startsWith = (word) => list.filter((o) => new RegExp(`^${word}(\\s|,|$)`).test(norm(o.label)));
-      const yn = YES.test(n) ? startsWith('si') : NO.test(n) ? startsWith('no') : [];
+      const word = DK.test(n) ? null : yesOrNo(n);
+      const yn = word ? startsWith(word) : [];
       if (!exact && yn.length === 1 && n.split(' ').length <= 3) return set({ [key]: yn[0].code });
       // «15 clientes» cae en su rango.
       const cant = cfg.ranges && !exact && n.match(/^(?:unos |como |mas o menos )?(\d+)(?: clientes?)?(?: al mes)?$/);
@@ -166,7 +191,7 @@ function nextStep(q, body, currency) {
         kind: 'integer',
         apply: (t) => {
           const n = norm(t);
-          if (NO.test(n)) return set({ value: '0' });
+          if (NO.test(n) && !DK.test(n)) return set({ value: '0' });
           const ch = (cfg.choices || []).find((c) => norm(c.label) === n);
           if (ch) return set({ value: String(ch.value) });
           const words = { una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6 };
@@ -206,13 +231,13 @@ function nextStep(q, body, currency) {
     case 'money': {
       if (cfg.presence && !body.has) return yesNo('has', q.prompt, q.help);
       if (body.has === 'no' || body.amount !== undefined) return null;
-      return amountStep('amount', cfg.presence ? cfg.presence_label || '¿Cuánto?' : q.prompt, 'amount', { help: cfg.presence ? null : q.help });
+      return amountStep('amount', cfg.presence ? FOLLOW[q.code] || cfg.presence_label || '¿Cuánto?' : q.prompt, 'amount', { help: cfg.presence ? null : q.help });
     }
     case 'money_flow': {
       const presence = require('./questionnaire').asksPresence(q);
       if (presence && !body.has) return yesNo('has', q.prompt, q.help);
       if (body.has === 'no') return null;
-      if (body.amount === undefined) return amountStep('amount', presence ? cfg.presence_label || '¿Cuánto recibes y cada cuánto?' : q.prompt, 'amount', { withPeriod: true, help: presence ? 'Por ejemplo «500 al mes» o «200 por quincena».' : q.help || 'Por ejemplo «3000 al mes» o «800 por semana».' });
+      if (body.amount === undefined) return amountStep('amount', presence ? FOLLOW[q.code] || cfg.presence_label || '¿Cuánto recibes y cada cuánto?' : q.prompt, 'amount', { withPeriod: true, help: presence ? 'Por ejemplo «500 al mes» o «200 por quincena».' : q.help || 'Por ejemplo «3000 al mes» o «800 por semana».' });
       if (!body.period) {
         const list = (cfg.periods || ['mensual']).map((p) => ({ code: p, label: PERIOD_LABEL[p] || p }));
         const step = pickOne('period', '¿Cada cuánto?', null, list, 'period');
@@ -310,7 +335,7 @@ function nextStep(q, body, currency) {
         if (r.payment === undefined) {
           const s = amountStep(`k.${kind}.payment`, `¿Y cuánto pagas al mes de ${lc(label)}?`, 'x', { help: 'Si hoy no pagas nada, escribe 0.' });
           s.apply = (t) => {
-            const a = NO.test(norm(t)) ? '0' : amountFor(t, currency);
+            const a = amountFor(t, currency);
             return a === null ? { error: 'No encontré un monto. Escribe solo la cifra, por ejemplo «400».' } : set({ k: { ...k, [kind]: { ...r, payment: a, ...(cfg.simple ? {} : { rate_unknown: '1' }) } } });
           };
           return s;

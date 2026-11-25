@@ -149,11 +149,11 @@ test('de punta a punta: evaluación en chat → diagnóstico → plan con 14 pun
   }
   const rev = await c.get('/evaluacion/revision');
   assert.match(rev.text, /Para qué quieres lograrlo/);
-  // El resumen se muestra y hay que confirmarlo.
+  // El resumen se muestra, sin casilla que marcar.
   assert.match(rev.text, /Mi contexto financiero actual/);
   assert.match(rev.text, /Patrimonio neto/);
   assert.doesNotMatch(rev.text, /Ventas al mes/, 'sin negocio no se muestran sus datos');
-  assert.match((await c.post('/evaluacion/finalizar', {})).text, /Confirma que el resumen representa tu situación actual/);
+  assert.doesNotMatch(rev.text, /Estos datos representan/);
   await c.post('/evaluacion/finalizar', { ack: [...rev.text.matchAll(/name="ack" value="([^"]+)"/g)].map((m) => m[1]) });
   await c.post('/plan/generar', { start_date: '2026-11-25' });
   await h.queue.drain({ ignoreSchedule: true });
@@ -314,5 +314,33 @@ test('chat: propone lo que se dijo antes y solo lo guarda si la persona confirma
     assert.ok(a && a.value !== 'poco', 'si cambió, vale la respuesta nueva');
   } finally {
     config.deepChat = false;
+  }
+});
+
+test('chat: las respuestas naturales valen y «no sé» nunca se guarda como cero ni como «no»', () => {
+  const paso = (code) => deepChat.nextStep(preguntaV3(code), {}, 'BOB');
+  for (const t of ['probablemente', 'Tal vez', 'creo que sí', 'depende', 'a veces', 'quizás', 'más o menos']) assert.equal(paso('ingreso_extra_posible').apply(t).body.has, 'si', t);
+  for (const t of ['probablemente no', 'creo que no', 'no creo', 'por ahora no', 'lo dudo']) assert.equal(paso('ingreso_extra_posible').apply(t).body.has, 'no', t);
+  assert.ok(paso('ingreso_extra_posible').chips.includes('No lo sé'));
+  assert.equal(paso('ingreso_extra_posible').apply('no lo sé').unknown, true);
+  const monto = deepChat.nextStep(preguntaV3('ingreso_extra_posible'), { has: 'si' }, 'BOB');
+  assert.ok(monto.chips.includes('No lo sé'));
+  assert.equal(monto.apply('no sé cuánto').unknown, true);
+  for (const c of ['deudas', 'ingresos_adicionales', 'ingreso_principal', 'dependientes']) assert.ok(paso(c).apply('no sé').error, c);
+  assert.equal(paso('ingreso_es_neto').apply('creo que sí').body.value, 'neto');
+  assert.match(paso('deudas').apply('xyz').error, /más bien un sí o un no/);
+});
+
+test('chat: ninguna pregunta de monto repite el texto de otra', () => {
+  const { DEEP_V3 } = require('../src/db/content-deep-v3');
+  const vistos = new Set();
+  for (const q0 of DEEP_V3.questions.filter((x) => ['money', 'money_flow'].includes(x.type))) {
+    const q = preguntaV3(q0.code);
+    for (const body of [{}, { has: 'si' }]) {
+      const s = deepChat.nextStep(q, body, 'BOB');
+      if (!s || (body.has && !q.config.presence && s.text === q.prompt)) continue;
+      assert.ok(!vistos.has(s.text), `${q.code}: «${s.text}» repetida`);
+      vistos.add(s.text);
+    }
   }
 });

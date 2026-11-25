@@ -14,6 +14,7 @@ const { track, content } = require('../lib/services');
 const c = require('../views/components');
 const { createFlow } = require('./flow');
 const conocido = require('../domain/deepConocido');
+const adaptive = require('../domain/adaptive');
 const contexto = require('../domain/contexto');
 const { contextoView } = require('../views/contexto');
 const { rateLimit } = require('../lib/security');
@@ -88,16 +89,22 @@ router.use(
     chatNote: (req, q, currency, map, qn) => {
       // La pregunta del ingreso se saltó: se aclara de qué cifra se habla.
       if (q.code === 'ingreso_es_neto' && map.ingreso_principal && map.ingreso_principal.known) return `Hablamos de lo que recibes: ${qs.display(qn.questions.find((x) => x.code === 'ingreso_principal'), map.ingreso_principal, currency)}.`;
+      const com = q.config.adaptive ? adaptive.comment(q.code, map, currency) : null;
+      if (com) return com;
       const g = q.code === 'gastos_desglose' && req.user ? conocido.gastosDelTest(req.user.id, currency) : null;
       return g ? `En tu test dijiste ${[g.basicos && `${g.basicos} en lo básico`, g.extras && `${g.extras} en gustos y extras`].filter(Boolean).join(' y ')}. Ahora veamos cómo se reparten.` : null;
     },
     // Lo que pudo cambiar no se da por sabido: se propone en el chat y la persona lo confirma.
+    chatPause: (q, map, currency) => (q.config.adaptive ? adaptive.pause(q.code, map, currency) : null),
+    doneText: adaptive.DONE,
+    chatSuggest: (q, map) => (q.config.adaptive ? adaptive.suggestions(q.code, map) : []),
     chatPropose: (q) => conocido.NO_PRELLENAR.has(q.code),
     chatWelcome: (req) => {
       const first = req.user && req.user.name ? String(req.user.name).trim().split(/\s+/)[0] : '';
       const n = first ? `, ${first.charAt(0).toUpperCase()}${first.slice(1)}` : '';
       return [`¡Hola${n}! 👋 Soy tu asistente financiero.`, 'Ahora vamos a conocer a fondo tu situación para armar tu Plan Maestro.', 'Responde como te sientas cómodo.'];
     },
+    pauseHref: '/inicio',
     finishLabel: 'Generar mi diagnóstico',
     finishVerb: 'generar tu diagnóstico',
     doneRedirect: '/diagnostico',
@@ -142,7 +149,7 @@ router.use(
               )}
             </section>`
           : ''}`,
-        ackFields: html`${ctx ? html`<label class="check field"><input type="checkbox" name="ack" value="contexto" /> <span>Estos datos representan mi situación actual.</span></label>` : ''}${warnings.length
+        ackFields: html`${warnings.length
           ? html`<fieldset class="section"><legend class="label">Confirmaciones</legend>
               ${warnings.map(
                 (w) => html`<label class="check field"><input type="checkbox" name="ack" value="${w.code}" /> <span>Confirmo que es correcto: ${w.text.split('.')[0]}.</span></label>`
@@ -154,7 +161,6 @@ router.use(
       const list = checksFor(ev, qn, map);
       const errs = [];
       const acks = [].concat(req.body.ack || []);
-      if (contexto.applies(qn) && !acks.includes('contexto')) errs.push('Confirma que el resumen representa tu situación actual.');
       for (const x of list) {
         if (x.level === 'bloqueo') errs.push(x.text);
         else if (!acks.includes(x.code)) errs.push(`Confirma o corrige: ${x.text}`);

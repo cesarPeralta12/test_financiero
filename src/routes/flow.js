@@ -140,12 +140,21 @@ function createFlow(opts) {
     if (pos === null) return { done: true, map };
     const q = qn.questions[pos - 1];
     const currency = opts.currency(req, ev, map);
+    // Respiro entre temas: se muestra una vez y sigue con cualquier respuesta.
+    const brk = opts.chatPause ? opts.chatPause(q, map, currency) : null;
+    if (brk) {
+      const mem = chatState(req);
+      if (!mem.pauses || mem.pauses.ev !== ev.id) mem.pauses = { ev: ev.id, seen: [] };
+      if (!mem.pauses.seen.includes(brk.id)) return { q, body: {}, brk, step: { text: brk.text, help: brk.help, chips: ['Seguir'], kind: 'pause' }, currency, map };
+    }
     const saved = chatState(req).partial;
     const body = saved && saved.ev === ev.id && saved.code === q.code ? saved.body : {};
     const step = deepChat.nextStep(q, body, currency);
     // Recordatorio de algo ya dicho (por ejemplo, los gastos del test gratuito) al empezar la pregunta.
     const nota = step && !Object.keys(body).length && opts.chatNote ? opts.chatNote(req, q, currency, map, qn) : null;
     if (nota) step.help = [nota, step.help].filter(Boolean).join(' ');
+    const extraChips = step && !Object.keys(body).length && opts.chatSuggest ? opts.chatSuggest(q, map) : [];
+    if (extraChips.length) step.chips = [...extraChips, ...(step.chips || [])];
     const prev = step && !Object.keys(body).length ? proposal(req, q, ev, currency) : null;
     if (prev) {
       step.help = [`Antes dijiste: «${prev.text}». ¿Sigue igual? Si cambió, elige otra respuesta.`, step.help].filter(Boolean).join(' ');
@@ -165,7 +174,7 @@ function createFlow(opts) {
   }
   const SAME = 'Sí, sigue igual';
 
-  const stepView = (step) => (step ? { text: step.text, help: step.help, chips: step.chips, placeholder: step.kind === 'amount' ? 'Escribe el monto, por ejemplo «2500»' : 'Escribe tu respuesta con tus palabras' } : null);
+  const stepView = (step) => (step ? { text: step.text, help: step.help, chips: step.chips, placeholder: step.kind === 'pause' ? 'Toca «Seguir» cuando quieras' : step.kind === 'amount' ? 'Escribe el monto, por ejemplo «2500»' : 'Escribe tu respuesta con tus palabras' } : null);
 
   function renderChat(req, res, ev, qn) {
     const cur = chatCurrent(req, ev, qn);
@@ -178,13 +187,14 @@ function createFlow(opts) {
       focus: true,
       body: chatView.chatPage(res.locals.ctx, {
         base: opts.base,
+        pauseHref: opts.pauseHref || null,
         title: opts.title,
         name: req.user ? req.user.name : null,
         welcome: opts.chatWelcome ? opts.chatWelcome(req) : null,
         started,
         current: stepView(cur.step),
         done: cur.done,
-        doneText: '¡Listo! Ya tengo todo. Antes de preparar tu diagnóstico, revisa que tus datos estén bien.',
+        doneText: opts.doneText || '¡Listo! Ya tengo todo. Antes de preparar tu diagnóstico, revisa que tus datos estén bien.',
         finish: html`<div class="chat-finish"><a class="btn btn-primary btn-lg" href="${opts.base}/revision">Revisar y ${opts.finishVerb || 'continuar'}</a></div>`,
         progress: cur.progress,
         error,
@@ -209,6 +219,11 @@ function createFlow(opts) {
     if (cur.done || !cur.step) return reply(200, { done: true });
     const texto = typeof req.body.texto === 'string' ? req.body.texto.trim().slice(0, 200) : '';
     if (!texto) return reply(422, { error: 'Escribe tu respuesta o toca una opción.' });
+    if (cur.brk) {
+      chatState(req).pauses.seen.push(cur.brk.id);
+      const sig = chatCurrent(req, ev, qn);
+      return reply(200, { next: stepView(sig.step), done: sig.done, progress: sig.progress });
+    }
     if (cur.prev && /^(s[ií],? ?)?(sigue |sigo )?igual\.?$/i.test(texto)) {
       qs.saveAnswer(ev, cur.q, { ok: true, unknown: false, value: cur.prev.value }, { fromPrevious: true });
       delete chatState(req).partial;
@@ -312,13 +327,15 @@ function createFlow(opts) {
     const currency = opts.currency(req, ev, map);
     const st = qs.status(ev, qn, map);
     const extra = opts.reviewExtra ? opts.reviewExtra(req, ev, qn, map, currency, res.locals.ctx) : { html: '', blocking: false };
+    // La evaluación adaptativa no muestra cuántas preguntas hay ni las que no hicieron falta.
+    const adaptive = qn.questions.some((q) => q.config.adaptive);
     const canFinish = st.complete && !extra.blocking;
     const ticksList = st.items.map((it) => (!it.applicable ? 'na' : it.answered ? 'done' : ''));
     return res.status(status).page({
       title: `${opts.title}: revisión`,
       body: html`<div class="q-head">
-          ${c.ticks(ticksList)}
-          <div class="progress-meta"><span>Revisión</span><span>${st.items.filter((i) => i.answered).length} de ${st.total} respondidas</span></div>
+          ${adaptive ? '' : c.ticks(ticksList)}
+          <div class="progress-meta"><span>Revisión</span>${adaptive ? '' : html`<span>${st.items.filter((i) => i.answered).length} de ${st.total} respondidas</span>`}</div>
         </div>
         <h1>Revisa tus respuestas</h1>
         <p class="muted">Puedes cambiar cualquier respuesta antes de ${opts.finishVerb || 'ver tu resultado'}. Después quedarán fijas en ${opts.kind === 'gratuito' ? 'tu resultado' : 'tu diagnóstico'}.</p>
@@ -328,10 +345,10 @@ function createFlow(opts) {
           : ''}
         ${extra.html}
         <ol class="review">
-          ${st.items.map((it) => {
+          ${st.items.filter((it) => it.applicable || !adaptive).map((it) => {
             const missing = it.applicable && it.q.required && !it.answered;
             return html`<li>
-              <span class="n">${it.q.position}</span>
+              ${adaptive ? html`<span></span>` : html`<span class="n">${it.q.position}</span>`}
               <span class="q">${it.q.prompt}</span>
               <span class="a ${missing ? 'missing' : ''}">${!it.applicable ? 'No aplica' : missing ? 'Falta responder' : qs.display(it.q, it.answer, currency)}</span>
               ${it.applicable ? html`<a class="edit" href="${opts.base}/pregunta/${it.q.position}?volver=revision" aria-label="Cambiar la respuesta ${it.q.position}">Cambiar</a>` : html`<span></span>`}

@@ -102,6 +102,7 @@ function isAnswered(q, a) {
 }
 
 function isApplicable(q, map) {
+  if (q.config && q.config.adaptive && require('./adaptive').skip(q.code, map)) return false;
   const cond = q.config && q.config.show_if;
   if (!cond) return true;
   const a = map[cond.code];

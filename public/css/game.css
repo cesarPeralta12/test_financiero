@@ -2111,3 +2111,11 @@ table.data td {
 .ctx .figures .v, .pm-body .figures .v { white-space: normal; overflow-wrap: anywhere; text-align: right; min-width: 0; flex: 0 1 62%; }
 .ctx .figures .k, .pm-body .figures .k { flex: 1 1 38%; min-width: 0; }
 .ctx h3 { margin-top: 1.2rem; }
+/* Respuestas rápidas del chat: grandes, fáciles de tocar */
+.chat-test .chat-chips { gap: 10px; padding: 4px 0 10px; }
+.chat-test .chat-chip { padding: 13px 20px; min-height: 50px; font-size: 1.06rem; font-weight: 600; border-width: 1.5px; max-width: 100%; white-space: normal; text-align: left; border-radius: 18px; }
+.chat-test .chat-chips { max-height: 54vh; }
+.chat-test .chat-chips:has(.chat-chip:nth-child(6)) { gap: 8px; }
+.chat-test .chat-chips:has(.chat-chip:nth-child(6)) .chat-chip { padding: 9px 15px; min-height: 44px; font-size: 1rem; }
+.chat-pause { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+.chat-resume { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }

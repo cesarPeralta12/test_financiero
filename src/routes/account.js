@@ -62,7 +62,8 @@ function journey(user) {
   else if (!diag) next = { kicker: 'Siguiente paso', title: deepOpen ? 'Termina tu evaluación profunda' : 'Empieza tu evaluación profunda', text: 'Ten a mano tus estados de cuenta: te pediremos saldos, cuotas y tasas.', href: '/evaluacion', cta: deepOpen ? 'Continuar' : 'Empezar' };
   else if (!ents.plan_maestro) next = { kicker: 'Siguiente paso', title: 'Convierte tu diagnóstico en un plan', text: 'El Plan Maestro ordena tus próximos 90 días y traza tu hoja de ruta de 12 meses.', href: '/comprar/plan_maestro', cta: 'Ver el Plan Maestro' };
   else if (!plan) next = { kicker: 'Siguiente paso', title: pend && pend.status !== 'fallido' ? 'Tu plan se está preparando' : 'Elige tu Día Uno y genera tu plan', text: 'El Plan Maestro está incluido en lo que adquiriste.', href: '/plan', cta: 'Ir a mi plan' };
-  return { steps, next, plan, ents };
+  const paused = Boolean(deepOpen && ents.evaluacion_profunda && db.value('SELECT 1 FROM answers WHERE evaluation_id = ? LIMIT 1', deepOpen.id));
+  return { steps, next, plan, ents, paused };
 }
 
 router.get('/inicio', requireUser, (req, res) => {
@@ -75,6 +76,7 @@ router.get('/inicio', requireUser, (req, res) => {
   res.active('inicio').page({
     title: 'Inicio',
     body: html`<h1>${u.name ? `Hola, ${u.name}` : 'Hola'}</h1>
+      ${j.paused ? html`<div class="note chat-resume"><div><strong>Tu evaluación está en pausa.</strong> Guardamos lo que respondiste.</div><a class="btn btn-primary" href="/evaluacion">Continuar mi evaluación</a></div>` : ''}
       ${ctx.game ? gv.playerCard(u, ctx.game) : ''}
       ${!u.email_verified_at
         ? html`<div class="note small label-line"><span>Confirma tu correo con el enlace que te enviamos a ${u.email}.</span><form class="inline-form" method="post" action="/verificar/reenviar">${c.csrfField(ctx)}<button class="btn btn-quiet btn-small" type="submit">Reenviar enlace</button></form></div>`
