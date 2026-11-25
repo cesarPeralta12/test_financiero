@@ -2077,3 +2077,17 @@ table.data td {
 .chat-chip:hover, .chat-chip:focus-visible { border-color: var(--pine); }
 .chat-test .chat-msg.is-leaving, .chat-test .chat-typing.is-leaving { transition: opacity 0.3s, transform 0.3s; opacity: 0; transform: translateY(-10px); }
 .chat-test .chat-q { font-size: 1.15rem; }
+
+/* Calculadora sencilla */
+.calc-simple { max-width: 640px; }
+.calc-quick fieldset { border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+.calc-quick legend { padding: 0; margin-bottom: 6px; font-weight: 600; }
+.calc-tipo .pills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.calc-tipo .pill span { display: block; text-align: center; font-weight: 700; }
+.calc-quick:has(#q-tipo-gasto:checked) .calc-cat--ingreso, .calc-quick:has(#q-tipo-ingreso:checked) .calc-cat--gasto { display: none; }
+.calc-extra > summary, .calc-more > summary { cursor: pointer; padding: 6px 0; }
+.calc-list, .calc-links { list-style: none; margin: 0; padding: 0; }
+.calc-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.calc-list li > div { display: grid; overflow-wrap: anywhere; }
+.calc-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin: 10px 0 18px; }
+.calc-links a { display: grid; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); text-decoration: none; }

@@ -14,17 +14,14 @@ const { intParam, notFound } = require('./util');
 const router = express.Router();
 const guard = requireEntitlement('acompanamiento');
 
-const TABS = [
-  ['movimientos', 'Movimientos'],
-  ['presupuesto', 'Presupuesto'],
-  ['deudas', 'Deudas'],
-  ['metas', 'Metas'],
-  ['simulador', 'Simulador'],
+/** Lo menos usado va plegado: la pantalla principal solo muestra cifras, anotar y la lista. */
+const MORE = [
+  ['presupuesto', 'Presupuesto', 'Cuánto prevés gastar este mes'],
+  ['deudas', 'Deudas', 'Cuánto debes y cómo baja'],
+  ['metas', 'Metas', 'Para qué estás ahorrando'],
+  ['simulador', 'Simulador', 'Qué pasaría si cambias algo'],
+  ['movimientos/otro', 'Pago de deuda o ahorro', 'También retiros y pases entre tus ahorros'],
 ];
-
-function tabs(active) {
-  return html`<nav class="tabs" aria-label="Secciones de la calculadora">${TABS.map(([k, l]) => html`<a href="/calculadora/${k}" ${k === active ? raw('aria-current="page"') : ''}>${l}</a>`)}</nav>`;
-}
 
 function monthLabel(m) {
   return new Intl.DateTimeFormat('es', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(m + '-15T12:00:00Z'));
@@ -38,7 +35,7 @@ function monthNav(base, month) {
 }
 
 function page(res, active, title, body) {
-  return res.active('calculadora').page({ title: `${title} | Calculadora`, wide: true, body: html`<h1>Calculadora</h1>${tabs(active)}${body}` });
+  return res.active('calculadora').page({ title: `${title} | Calculadora`, wide: true, body: html`${active === 'movimientos' ? html`<h1>Calculadora</h1>` : html`<p class="small"><a href="/calculadora/movimientos">← Volver a la calculadora</a></p><h1>${title}</h1>`}${body}` });
 }
 
 router.get('/calculadora', guard, (req, res) => res.redirect(303, '/calculadora/movimientos'));
@@ -75,7 +72,39 @@ function movementForm(ctx, { userId, action, form = {}, errors = {}, submit = 'G
   </form>`;
 }
 
+// Formulario sencillo: gasté o recibí, cuánto y en qué. La fecha es hoy salvo que se cambie.
+const QUICK = { gasto: 'Gasté', ingreso: 'Recibí' };
+function quickForm(ctx, { userId, action, form = {}, errors = {}, submit = 'Guardar' }) {
+  const tipo = QUICK[form.tipo] ? form.tipo : 'gasto';
+  const today = new Date().toISOString().slice(0, 10);
+  const chips = (name, list, value) => html`<div class="pills">${list.map(([k, l]) => html`<label class="pill" for="q-${name}-${k}"><input type="radio" id="q-${name}-${k}" name="${name}" value="${k}" ${value === k ? raw('checked') : ''} /><span>${l}</span></label>`)}</div>`;
+  return html`<form class="calc-quick" method="post" action="${action}" novalidate>
+    ${c.csrfField(ctx)}
+    ${c.errorSummary(errors)}
+    <fieldset class="calc-tipo"><legend class="visually-hidden">¿Gastaste o recibiste?</legend>${chips('tipo', Object.entries(QUICK), tipo)}</fieldset>
+    <div class="field"><label for="f-amount">¿Cuánto?</label>${c.moneyInput({ name: 'amount', value: form.amount, currency: tracker.baseCurrency(userId), errors })}</div>
+    <fieldset class="calc-cat calc-cat--gasto" id="f-category"><legend>¿En qué?</legend>${chips('cat_gasto', Object.entries(tracker.CATEGORIES.gasto), form.cat_gasto)}</fieldset>
+    <fieldset class="calc-cat calc-cat--ingreso"><legend>¿De dónde?</legend>${chips('cat_ingreso', Object.entries(tracker.CATEGORIES.ingreso), form.cat_ingreso)}</fieldset>
+    ${c.errorText(errors, 'category')}
+    <details class="calc-extra" ${errors.date || form.note || (form.date && form.date !== today) ? raw('open') : ''}><summary class="small">Cambiar la fecha o agregar una nota</summary>
+      <div class="field"><label for="f-date">Fecha</label><input class="input" type="date" id="f-date" name="date" value="${form.date || today}" ${c.invalid(errors, 'date')} />${c.errorText(errors, 'date')}</div>
+      <div class="field"><label for="f-note">Nota</label><input class="input" id="f-note" name="note" maxlength="140" value="${form.note || ''}" /></div>
+    </details>
+    <div class="actions"><button class="btn btn-primary btn-block" type="submit">${submit}</button></div>
+  </form>`;
+}
+
+/** Formulario que corresponde: el sencillo para gastos e ingresos; el completo para lo demás. */
+function anyForm(ctx, o) {
+  const form = o.form || {};
+  if (form.tipo || ['gasto', 'ingreso'].includes(form.kind)) {
+    return quickForm(ctx, { ...o, form: form.tipo ? form : { ...form, tipo: form.kind, [`cat_${form.kind}`]: form.category } });
+  }
+  return movementForm(ctx, o);
+}
+
 function bodyToMovement(body) {
+  if (QUICK[body.tipo]) return { ...body, kind: body.tipo, category: body[`cat_${body.tipo}`] };
   const [kind, category] = String(body.kindcat || '').split(':');
   return { ...body, kind, category };
 }
@@ -96,44 +125,50 @@ function summaryBlock(cur, actual, planned) {
     <p class="small faint">Lo previsto viene de tu presupuesto y lo real de tus movimientos. Se muestran por separado y nunca se suman.</p>`;
 }
 
-router.get('/calculadora/movimientos', guard, (req, res) => {
+function renderHome(req, res, month, { form = {}, errors = {} } = {}) {
   const userId = req.user.id;
-  const month = tracker.validMonth(req.query.mes) || tracker.currentMonth();
   const cur = tracker.baseCurrency(userId);
+  const f = (v) => money.format(v, cur);
   const list = tracker.listMovements(userId, month);
   const actual = tracker.monthSummary(userId, month);
   const planned = tracker.budgetSummary(userId, month);
   const goalsById = Object.fromEntries(tracker.goals(userId, { includeArchived: true }).map((g) => [g.id, g.name]));
   const debtsById = Object.fromEntries(tracker.debts(userId, { includePaid: true }).map((d) => [d.id, d.name]));
-  page(res, 'movimientos', 'Movimientos', html`
+  const detail = (m) =>
+    [m.note, m.debt_id && debtsById[m.debt_id], m.goal_id && `${goalsById[m.goal_id]}${m.to_goal_id ? ` a ${goalsById[m.to_goal_id]}` : ''}`, m.source === 'coach' && 'Anotado desde el coach'].filter(Boolean).join(' · ');
+  const name = (m) => (['gasto', 'ingreso'].includes(m.kind) ? tracker.CATEGORIES[m.kind][m.category] : tracker.KINDS[m.kind]);
+  const sign = (m) => (['gasto', 'pago_deuda'].includes(m.kind) ? '−' : m.kind === 'ingreso' ? '+' : '');
+  const row = (m) => html`<li><div><strong>${name(m)}</strong><span class="small muted">${c.dateShort(m.date)}${detail(m) ? ` · ${detail(m)}` : ''}</span></div>
+      <span class="num ${m.kind === 'ingreso' ? 'pos' : ''}">${sign(m)}${money.format(m.amount, m.currency)}</span><a class="small" href="/calculadora/movimientos/${m.id}/editar" aria-label="Editar ${name(m)}">Editar</a></li>`;
+  const tile = (label, v, cls = '') => html`<div class="dx-figure"><span class="small muted">${label}</span><strong class="num ${cls}">${v}</strong></div>`;
+  page(res, 'movimientos', 'Este mes', html`<div class="calc-simple">
     ${monthNav('/calculadora/movimientos', month)}
-    <div class="cols">
-      <section aria-labelledby="h-resumen"><h3 id="h-resumen" class="visually-hidden">Resumen</h3>${summaryBlock(cur, actual, planned)}</section>
-      <section aria-labelledby="h-nuevo"><h3 id="h-nuevo">Registrar un movimiento</h3>${movementForm(res.locals.ctx, { userId, action: '/calculadora/movimientos' })}</section>
-    </div>
-    <section class="section" aria-labelledby="h-lista">
-      <h3 id="h-lista">Movimientos de ${monthLabel(month)}</h3>
+    <div class="dx-figures">${tile('Entró', f(actual.ingreso))}${tile('Salió', f(actual.gasto.plus(actual.pago_deuda)))}${actual.balance.lt(0) ? tile('Te falta', f(actual.balance.abs()), 'neg') : tile('Te queda', f(actual.balance), 'pos')}</div>
+    ${actual.netSaving.gt(0) ? html`<p class="small muted">De ahí apartaste ${f(actual.netSaving)} como ahorro.</p>` : ''}
+    <section class="section" aria-labelledby="h-nuevo"><h3 id="h-nuevo">¿Qué quieres anotar?</h3>${quickForm(res.locals.ctx, { userId, action: '/calculadora/movimientos', form, errors })}</section>
+    <section class="section" aria-labelledby="h-lista"><h3 id="h-lista">Últimos movimientos</h3>
       ${list.length
-        ? html`<table class="data stack-sm"><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th class="r">Importe</th><th></th></tr></thead><tbody>
-            ${list.map(
-              (m) => html`<tr>
-                <td data-label="Fecha">${c.dateShort(m.date)}</td>
-                <td data-label="Tipo">${tracker.KINDS[m.kind]}<br /><span class="small faint">${tracker.CATEGORIES[m.kind][m.category]}</span></td>
-                <td data-label="Detalle">${m.note || ''}${m.debt_id ? html`<br /><span class="small faint">Deuda: ${debtsById[m.debt_id]}</span>` : ''}${m.goal_id ? html`<br /><span class="small faint">${m.kind === 'transferencia' ? 'De' : 'Meta'}: ${goalsById[m.goal_id]}${m.to_goal_id ? ` a ${goalsById[m.to_goal_id]}` : ''}</span>` : ''}${m.source === 'coach' ? html`<br /><span class="small faint">Registrado desde el coach</span>` : ''}</td>
-                <td data-label="Importe" class="r ${['gasto', 'pago_deuda'].includes(m.kind) ? '' : m.kind === 'ingreso' ? 'pos' : ''}">${money.format(m.amount, m.currency)}</td>
-                <td data-label=""><a href="/calculadora/movimientos/${m.id}/editar">Editar</a></td>
-              </tr>`
-            )}
-          </tbody></table>`
-        : html`<div class="empty"><h3>Sin movimientos este mes</h3><p>Registra tu primer ingreso o gasto con el formulario.</p></div>`}
-    </section>`);
-});
+        ? html`<ul class="calc-list">${list.slice(0, 8).map(row)}</ul>${list.length > 8 ? html`<details class="calc-extra"><summary class="small">Ver los ${list.length} del mes</summary><ul class="calc-list">${list.slice(8).map(row)}</ul></details>` : ''}`
+        : html`<p class="muted">Todavía no anotaste nada este mes.</p>`}
+    </section>
+    <details class="section calc-more"><summary><strong>Más opciones</strong> <span class="small muted">Presupuesto, deudas, metas y simulador</span></summary>
+      <ul class="calc-links">${MORE.map(([k, l, d]) => html`<li><a href="/calculadora/${k}"><strong>${l}</strong><span class="small muted">${d}</span></a></li>`)}</ul>
+      <h3>Lo previsto y lo real</h3>${summaryBlock(cur, actual, planned)}
+    </details>
+  </div>`);
+}
+
+router.get('/calculadora/movimientos', guard, (req, res) => renderHome(req, res, tracker.validMonth(req.query.mes) || tracker.currentMonth()));
+
+// Pagos de deuda, ahorros, retiros y transferencias: formulario completo.
+router.get('/calculadora/movimientos/otro', guard, (req, res) => page(res, 'otro', 'Pago de deuda o ahorro', movementForm(res.locals.ctx, { userId: req.user.id, action: '/calculadora/movimientos', form: { kindcat: 'pago_deuda:cuota' } })));
 
 router.post('/calculadora/movimientos', guard, (req, res) => {
   const v = tracker.validateMovement(req.user.id, bodyToMovement(req.body));
   if (!v.ok) {
     res.status(422);
-    return page(res, 'movimientos', 'Movimientos', html`<h2>Registrar un movimiento</h2>${movementForm(res.locals.ctx, { userId: req.user.id, action: '/calculadora/movimientos', form: req.body, errors: v.errors })}`);
+    if (QUICK[req.body.tipo]) return renderHome(req, res, tracker.currentMonth(), { form: req.body, errors: v.errors });
+    return page(res, 'otro', 'Pago de deuda o ahorro', movementForm(res.locals.ctx, { userId: req.user.id, action: '/calculadora/movimientos', form: req.body, errors: v.errors }));
   }
   tracker.createMovement(req.user.id, v.value);
   res.redirect(303, `/calculadora/movimientos?mes=${v.value.date.slice(0, 7)}&aviso=guardado`);
@@ -144,8 +179,8 @@ router.get('/calculadora/movimientos/:id/editar', guard, (req, res, next) => {
   const m = id && tracker.getMovement(req.user.id, id);
   if (!m) return next(notFound());
   const form = { ...m, kindcat: `${m.kind}:${m.category}` };
-  page(res, 'movimientos', 'Editar movimiento', html`<h2>Editar movimiento</h2>
-    ${movementForm(res.locals.ctx, { userId: req.user.id, action: `/calculadora/movimientos/${m.id}`, form, submit: 'Guardar cambios' })}
+  page(res, 'editar', 'Editar movimiento', html`
+    ${anyForm(res.locals.ctx, { userId: req.user.id, action: `/calculadora/movimientos/${m.id}`, form, submit: 'Guardar cambios' })}
     <form method="post" action="/calculadora/movimientos/${m.id}/eliminar" data-confirm="¿Eliminar este movimiento? Los totales se recalcularán.">${c.csrfField(res.locals.ctx)}<button class="btn btn-danger" type="submit">Eliminar movimiento</button></form>`);
 });
 
@@ -156,7 +191,7 @@ router.post('/calculadora/movimientos/:id', guard, (req, res, next) => {
   const v = tracker.validateMovement(req.user.id, bodyToMovement(req.body));
   if (!v.ok) {
     res.status(422);
-    return page(res, 'movimientos', 'Editar movimiento', html`<h2>Editar movimiento</h2>${movementForm(res.locals.ctx, { userId: req.user.id, action: `/calculadora/movimientos/${m.id}`, form: req.body, errors: v.errors, submit: 'Guardar cambios' })}`);
+    return page(res, 'editar', 'Editar movimiento', html`${anyForm(res.locals.ctx, { userId: req.user.id, action: `/calculadora/movimientos/${m.id}`, form: req.body, errors: v.errors, submit: 'Guardar cambios' })}`);
   }
   tracker.updateMovement(req.user.id, id, v.value);
   res.redirect(303, `/calculadora/movimientos?mes=${v.value.date.slice(0, 7)}&aviso=guardado`);

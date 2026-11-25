@@ -133,6 +133,27 @@ test('calculadora: registrar, editar y eliminar sin duplicar; previsto y real po
   assert.match(v.errors.currency, /No hacemos conversiones/);
 });
 
+test('calculadora sencilla: gasté o recibí, cuánto y en qué', async () => {
+  const month = today.slice(0, 7);
+  const before = tracker.monthSummary(user.id, month);
+  const page = await c.get('/calculadora/movimientos');
+  for (const x of ['Entró', 'Salió', '¿Qué quieres anotar', 'Gasté', 'Recibí', 'Más opciones', '/calculadora/presupuesto', '/calculadora/movimientos/otro']) assert.ok(page.text.includes(x), x);
+  await c.post('/calculadora/movimientos', { tipo: 'gasto', amount: '50', cat_gasto: 'transporte', cat_ingreso: 'sueldo', date: today });
+  await c.post('/calculadora/movimientos', { tipo: 'ingreso', amount: '70', cat_gasto: 'transporte', cat_ingreso: 'extra', date: today });
+  const after = tracker.monthSummary(user.id, month);
+  assert.equal(after.gasto.minus(before.gasto).toFixed(2), '50.00');
+  assert.equal(after.ingreso.minus(before.ingreso).toFixed(2), '70.00');
+  const bad = await c.post('/calculadora/movimientos', { tipo: 'gasto', amount: '', date: today });
+  assert.equal(bad.status, 422);
+  assert.match(bad.text, /Escribe el importe/);
+  assert.match(bad.text, /Elige una categoría/);
+  const id = h.db.one("SELECT id FROM movements WHERE user_id = ? AND category = 'transporte' ORDER BY id DESC LIMIT 1", user.id).id;
+  assert.match((await c.get(`/calculadora/movimientos/${id}/editar`)).text, /value="transporte" checked/);
+  await c.post(`/calculadora/movimientos/${id}`, { tipo: 'gasto', amount: '60', cat_gasto: 'salud', date: today });
+  assert.equal(h.db.one('SELECT category FROM movements WHERE id = ?', id).category, 'salud');
+  assert.match((await c.get('/calculadora/movimientos/otro')).text, /solo transferencias/);
+});
+
 test('simulación: compara sin alterar datos reales ni contar dos veces un pago', async () => {
   const snapshot = () => JSON.stringify({
     mov: h.db.all('SELECT * FROM movements WHERE user_id = ? ORDER BY id', user.id),
